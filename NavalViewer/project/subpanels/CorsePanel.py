@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate, QTime
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -8,16 +8,95 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
     QPushButton,
     QMessageBox,
+    QHBoxLayout,
+    QDialog,
+    QFormLayout,
+    QComboBox,
+    QDateEdit,
+    QTimeEdit,
 )
 
-# Import get_json with fallback to support different import styles
+# Import get_json and post_json with fallback to support different import styles
 try:
-    from ApiClient import get_json
+    from ApiClient import get_json, post_json
 except Exception:
     try:
-        from project.ApiClient import get_json
+        from project.ApiClient import get_json, post_json
     except Exception:
         get_json = None
+        post_json = None
+
+
+class AddCorsaDialog(QDialog):
+    def __init__(self, parent=None, tratta_list=None):
+        super().__init__(parent)
+        self.setWindowTitle('Aggiungi Corsa')
+        self.tratta_list = tratta_list or []
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        self.tratta_cb = QComboBox()
+        for t in self.tratta_list:
+            if isinstance(t, dict):
+                self.tratta_cb.addItem(str(t.get('id') or ''))
+            else:
+                self.tratta_cb.addItem(str(t))
+
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.time_edit = QTimeEdit()
+        self.arrival_time = QTimeEdit()
+
+        # initialize to now
+        now_date = QDate.currentDate()
+        now_time = QTime.currentTime()
+        self.date_edit.setDate(now_date)
+        self.time_edit.setTime(now_time)
+        # default arrival 1 hour later
+        self.arrival_time.setTime(now_time.addSecs(3600))
+
+        form.addRow('Tratta', self.tratta_cb)
+        form.addRow('Data Partenza', self.date_edit)
+        form.addRow('Orario Partenza', self.time_edit)
+        form.addRow('Orario Arrivo Max (HH:MM)', self.arrival_time)
+
+        layout.addLayout(form)
+
+        btn_row = QHBoxLayout()
+        ok = QPushButton('Crea')
+        ok.clicked.connect(self._on_create)
+        cancel = QPushButton('Annulla')
+        cancel.clicked.connect(self.reject)
+        btn_row.addWidget(ok)
+        btn_row.addWidget(cancel)
+        layout.addLayout(btn_row)
+
+    def _on_create(self):
+        tratta = self.tratta_cb.currentText()
+        if not tratta:
+            QMessageBox.warning(self, 'Errore', 'Seleziona una tratta')
+            return
+        date_str = self.date_edit.date().toString('yyyy-MM-dd')
+        time_str = self.time_edit.time().toString('HH:mm')
+        arr_time = self.arrival_time.time()
+        # validate arrival time > departure time (same day)
+        if arr_time <= self.time_edit.time():
+            QMessageBox.warning(self, 'Errore', 'Orario di arrivo massimo deve essere dopo l\'orario di partenza')
+            return
+        arr_time_str = arr_time.toString('HH:mm')
+
+        self._payload = {
+            'tratta_id': tratta,
+            'data': date_str,
+            'orario': time_str,
+            'orario_arrivo_max': arr_time_str,
+        }
+        
+        self.accept()
+
+    def get_payload(self):
+        return getattr(self, '_payload', None)
 
 
 class CorsePanel(QWidget):
@@ -48,10 +127,18 @@ class CorsePanel(QWidget):
         ])
 
         layout.addWidget(self.table)
-
+        # buttons
+        btn_row = QHBoxLayout()
+        self.add_btn = QPushButton('Aggiungi')
+        self.add_btn.clicked.connect(self.open_add_dialog)
+        if post_json is None:
+            self.add_btn.setEnabled(False)
+        btn_row.addWidget(self.add_btn)
+        btn_row.addStretch()
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
-        layout.addWidget(self.refresh_btn)
+        btn_row.addWidget(self.refresh_btn)
+        layout.addLayout(btn_row)
 
         # load initial data
         self.load_data()
@@ -80,6 +167,31 @@ class CorsePanel(QWidget):
             self.populate_table(data)
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile caricare corse: {e}')
+
+    def open_add_dialog(self):
+        tratta_list = []
+        if get_json is not None:
+            try:
+                tratta_list = get_json('tratta/lista') or []
+            except Exception:
+                tratta_list = []
+
+        dlg = AddCorsaDialog(self, tratta_list=tratta_list)
+        if dlg.exec_() != QDialog.Accepted:
+            return
+        payload = dlg.get_payload()
+        if payload is None:
+            QMessageBox.warning(self, 'Errore', 'Payload non valido')
+            return
+        if post_json is None:
+            QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
+            return
+        try:
+            post_json('corsa/crea', payload)
+            QMessageBox.information(self, 'Successo', 'Corsa creata con successo')
+            self.load_data()
+        except Exception as e:
+            QMessageBox.warning(self, 'Errore', f'Impossibile creare corsa: {e}')
 
     def populate_table(self, items):
         self.table.setRowCount(0)

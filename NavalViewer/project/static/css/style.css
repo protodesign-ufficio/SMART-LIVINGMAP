@@ -1,2 +1,33 @@
-html, body, #map { height: 100%; margin: 0; padding: 0; }
-#legend { position: absolute; top: 8px; right: 8px; background: white; padding: 6px; border-radius: 4px; z-index: 1000; }
+html, body, #map { 
+    height: 100%; 
+    margin: 0; 
+    padding: 0; }
+
+#legend { 
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: white;
+    padding: 6px;
+    border-radius: 4px;
+    z-index: 1000;
+}
+
+
+/* small coords box top-right */
+#coords-box {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    pointer-events: none;
+    min-width: 120px;
+    text-align: center;
+}

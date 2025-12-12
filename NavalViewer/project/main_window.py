@@ -80,8 +80,6 @@ class MainWindow(QMainWindow):
         right_col = QWidget()
         right_layout = QVBoxLayout(right_col)
         right_layout.setContentsMargins(8, 8, 8, 8)
-        self.status_label = QLabel("Stopped\nListener")
-        right_layout.addWidget(self.status_label)
         self.open_dialog_btn = QPushButton("Listener Settings")
         self.open_dialog_btn.clicked.connect(self.open_listener_dialog)
         right_layout.addWidget(self.open_dialog_btn)
@@ -92,6 +90,10 @@ class MainWindow(QMainWindow):
         self.open_manager_btn.clicked.connect(self.open_manager_dialog)
         right_layout.addWidget(self.open_manager_btn)
         right_layout.addStretch()
+
+        self.status_label = QLabel("Stopped\nListener")
+        right_layout.addWidget(self.status_label)
+        
         content.addWidget(right_col, 0)
 
         layout.addLayout(content)
@@ -189,40 +191,66 @@ class MainWindow(QMainWindow):
         elif (line.startswith('!AIVDM') or line.startswith('!AIVDO')) and HAS_PYAIS:
             try:
                 decoded = ais_decode(line)
-                if hasattr(decoded, '__iter__') and not isinstance(decoded, dict):
-                    for msg in decoded:
-                        lat = getattr(msg, 'lat', None) or (msg.get('lat') if isinstance(msg, dict) else None)
-                        lon = getattr(msg, 'lon', None) or (msg.get('lon') if isinstance(msg, dict) else None)
-                        sog = getattr(msg, 'sog', 0) or (msg.get('sog', 0) if isinstance(msg, dict) else 0)
-                        cog = getattr(msg, 'cog', 0) or (msg.get('cog', 0) if isinstance(msg, dict) else 0)
-                        info = {}
-                        if isinstance(msg, dict):
-                            info['mmsi'] = msg.get('mmsi') or msg.get('MMSI')
-                            info['name'] = msg.get('name')
-                            info['type'] = msg.get('ship_type') or msg.get('type')
-                        else:
-                            info['mmsi'] = getattr(msg, 'mmsi', None)
-                            info['name'] = getattr(msg, 'name', None)
-                            info['type'] = getattr(msg, 'ship_type', None) or getattr(msg, 'type', None)
-                        if lat and lon:
-                            self.update_map(float(lat), float(lon), float(sog), float(cog), info)
-                else:
-                    msg = decoded
-                    lat = getattr(msg, 'lat', None) or (msg.get('lat') if isinstance(msg, dict) else None)
-                    lon = getattr(msg, 'lon', None) or (msg.get('lon') if isinstance(msg, dict) else None)
-                    sog = getattr(msg, 'sog', 0) or (msg.get('sog', 0) if isinstance(msg, dict) else 0)
-                    cog = getattr(msg, 'cog', 0) or (msg.get('cog', 0) if isinstance(msg, dict) else 0)
-                    info = {}
+
+                def _safe_float(v):
+                    try:
+                        return None if v is None else float(v)
+                    except Exception:
+                        return None
+
+                def _extract_info(msg):
+                    # supports dicts or objects
                     if isinstance(msg, dict):
-                        info['mmsi'] = msg.get('mmsi') or msg.get('MMSI')
-                        info['name'] = msg.get('name')
-                        info['type'] = msg.get('ship_type') or msg.get('type')
+                        mmsi = msg.get('mmsi') or msg.get('MMSI')
+                        name = msg.get('name')
+                        typ = msg.get('ship_type') or msg.get('type')
+                        lat = msg.get('lat')
+                        lon = msg.get('lon')
+                        sog = msg.get('speed', 0)
+                        cog = msg.get('course', 0)
                     else:
-                        info['mmsi'] = getattr(msg, 'mmsi', None)
-                        info['name'] = getattr(msg, 'name', None)
-                        info['type'] = getattr(msg, 'ship_type', None) or getattr(msg, 'type', None)
-                    if lat and lon:
-                        self.update_map(float(lat), float(lon), float(sog), float(cog), info)
+                        mmsi = getattr(msg, 'mmsi', None)
+                        name = getattr(msg, 'name', None)
+                        typ = getattr(msg, 'ship_type', None) or getattr(msg, 'type', None)
+                        lat = getattr(msg, 'lat', None)
+                        lon = getattr(msg, 'lon', None)
+                        sog = getattr(msg, 'speed', 0)
+                        cog = getattr(msg, 'course', 0)
+                    return mmsi, name, typ, lat, lon, sog, cog
+
+                seq = decoded if (hasattr(decoded, '__iter__') and not isinstance(decoded, dict)) else [decoded]
+                for msg in seq:
+                    mmsi, name, typ, lat, lon, sog, cog = _extract_info(msg)
+                    latf = _safe_float(lat)
+                    lonf = _safe_float(lon)
+                    sogf = _safe_float(sog) or 0.0
+                    cogf = _safe_float(cog)
+                    if cogf is not None:
+                        # normalize COG; previous code offset by +90deg—keep behavior but normalize
+                        try:
+                            cogf = (cogf + 90) % 360
+                        except Exception:
+                            pass
+
+                    info = {'mmsi': mmsi, 'name': name, 'type': typ}
+
+                    # accept 0.0 coordinates; check for None explicitly
+                    if latf is None or lonf is None:
+                        continue
+
+                    # simple de-dup: if we recently processed same mmsi with same coords, skip
+                    if mmsi and mmsi != '-':
+                        prev = self.ships.get(str(mmsi))
+                        if prev:
+                            prev_lat = prev.get('lat')
+                            prev_lon = prev.get('lon')
+                            prev_time = prev.get('last', 0)
+                            # same position (within very small epsilon) and very recent => skip
+                            if prev_lat is not None and prev_lon is not None:
+                                if abs(prev_lat - latf) < 1e-6 and abs(prev_lon - lonf) < 1e-6 and (time.time() - prev_time) < 1.0:
+                                    continue
+
+                    self.update_map(latf, lonf, sogf, cogf or 0.0, info)
             except Exception:
                 pass
 

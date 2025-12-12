@@ -1,5 +1,24 @@
+// Initialize the map
 const map = L.map('map').setView([45.0, 10.0], 6);
 
+// Coordinate display box
+(function(){
+  const box = document.getElementById('coords-box');
+  if (!box) return;
+  function fmt(n){ return (typeof n === 'number') ? n.toFixed(5) : '' }
+  // update on mouse move over the map
+  if (typeof map !== 'undefined' && map && map.on){
+    map.on('mousemove', function(e){
+      const lat = fmt(e.latlng.lat);
+      const lon = fmt(e.latlng.lng);
+      box.textContent = lat + ' , ' + lon;
+    });
+    // clear when mouse leaves map
+    map.on('mouseout', function(){ box.textContent = ''; });
+  }
+})();
+
+// OpenStreetMap base layer
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap contributors'
@@ -77,7 +96,7 @@ function updateShip(lat, lon, sog, cog, mmsi, name, type, color){
   const nameLine = name && name !== '-' ? `Name: ${name}<br/>` : '';
   const mmsiLine = (mmsi && mmsi !== '-') ? `MMSI: ${mmsi}<br/>` : '';
   const typeLine = type && type !== '-' ? `Type: ${type}<br/>` : '';
-  marker.bindPopup(`${nameLine}${mmsiLine}${typeLine}Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/>SOG: ${sog}<br/>COG: ${cog}`);
+  marker.bindPopup(`${nameLine}${mmsiLine}${typeLine}Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/>Speed: ${sog}<br/>Course: ${cog}`);
   // Do not pan the map automatically when the ship updates.
 }
 
