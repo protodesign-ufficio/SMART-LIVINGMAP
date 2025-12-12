@@ -1,0 +1,2 @@
+html, body, #map { height: 100%; margin: 0; padding: 0; }
+#legend { position: absolute; top: 8px; right: 8px; background: white; padding: 6px; border-radius: 4px; z-index: 1000; }
