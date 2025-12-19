@@ -216,6 +216,10 @@ class TrattePanel(QWidget):
         ])
         layout.addWidget(self.table)
 
+        # select whole rows on click and allow single selection
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+
         # buttons: Aggiungi (left) ... Aggiorna (right)
         btn_row = QHBoxLayout()
         self.add_btn = QPushButton('Aggiungi')

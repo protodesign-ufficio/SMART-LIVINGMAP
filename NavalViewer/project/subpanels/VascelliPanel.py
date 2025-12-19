@@ -201,12 +201,12 @@ class VascelloDialog(QDialog):
         layout.addLayout(form)
 
         btns = QHBoxLayout()
-        self.cancel_btn = QPushButton('Annulla')
-        self.cancel_btn.clicked.connect(self.reject)
-        btns.addWidget(self.cancel_btn)
         self.next_btn = QPushButton('Avanti')
         self.next_btn.clicked.connect(self._on_next)
         btns.addWidget(self.next_btn)
+        self.cancel_btn = QPushButton('Annulla')
+        self.cancel_btn.clicked.connect(self.reject)
+        btns.addWidget(self.cancel_btn)
         layout.addLayout(btns)
 
         self._payload = None

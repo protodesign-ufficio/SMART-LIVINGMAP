@@ -26,6 +26,15 @@ except Exception:
         get_json = None
         post_json = None
 
+# import the PercorsiDialog from separate module
+try:
+    from .PercorsiDialog import PercorsiDialog
+except Exception:
+    try:
+        from PercorsiDialog import PercorsiDialog
+    except Exception:
+        PercorsiDialog = None
+
 
 class AddCorsaDialog(QDialog):
     def __init__(self, parent=None, tratta_list=None):
@@ -99,6 +108,7 @@ class AddCorsaDialog(QDialog):
         return getattr(self, '_payload', None)
 
 
+
 class CorsePanel(QWidget):
     """Panel that displays scheduled runs (corse).
 
@@ -126,6 +136,12 @@ class CorsePanel(QWidget):
             "Arrivo Max",
         ])
 
+        # select whole rows on click and allow single selection
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        # update details button when selection changes
+        # (connected later after details button exists)
+
         layout.addWidget(self.table)
         # buttons
         btn_row = QHBoxLayout()
@@ -134,11 +150,20 @@ class CorsePanel(QWidget):
         if post_json is None:
             self.add_btn.setEnabled(False)
         btn_row.addWidget(self.add_btn)
+
+        # details button to show PercorsiDialog for selected row
+        self.details_btn = QPushButton('Dettagli Percorsi')
+        self.details_btn.setEnabled(False)
+        self.details_btn.clicked.connect(self.open_details_dialog)
+        btn_row.addWidget(self.details_btn)
         btn_row.addStretch()
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
         btn_row.addWidget(self.refresh_btn)
         layout.addLayout(btn_row)
+
+        # connect selection change now that details button exists
+        self.table.itemSelectionChanged.connect(self.update_details_button_state)
 
         # load initial data
         self.load_data()
@@ -229,3 +254,19 @@ class CorsePanel(QWidget):
             self.table.setItem(row, 4, it_arrivo)
 
         self.table.resizeColumnsToContents()
+
+    def update_details_button_state(self):
+        has_sel = self.table.selectionModel().hasSelection()
+        self.details_btn.setEnabled(bool(has_sel))
+
+    def open_details_dialog(self):
+        # get selected row
+        sel = self.table.selectionModel().selectedRows()
+        if not sel:
+            QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
+            return
+        row = sel[0].row()
+        item = self.table.item(row, 0)
+        corsa = item.data(Qt.UserRole) if item is not None else None
+        dlg = PercorsiDialog(self, corsa=corsa)
+        dlg.exec_()

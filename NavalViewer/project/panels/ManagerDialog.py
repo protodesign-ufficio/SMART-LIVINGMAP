@@ -10,7 +10,7 @@ class ManagerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Manager')
-        self.setMinimumSize(1500, 800)
+        self.setMinimumSize(800, 600)
 
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
