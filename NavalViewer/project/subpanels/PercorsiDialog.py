@@ -32,7 +32,9 @@ class PercorsiDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle('Dettagli Percorsi')
         # set default dialog size
-        self.resize(800,0)
+        self.resize(800,600)
+        # allow minimize and maximize buttons
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
         # main layout
         layout = QVBoxLayout(self)
 
@@ -89,7 +91,7 @@ class PercorsiDialog(QDialog):
 
                 info_text = f'Tratta: {tratta}  Data: {date_str}  Orario: {time_str}  Previsione Biglietti: {pax}'
             except Exception as e:
-                info_text = f'Impossibile recuperare dettagli corsa: {e}'
+                info_text = f'Per la corsa selezionata non sono presenti percorsi sul database: {e}'
 
         self.info_label = QLabel(info_text)
         self.info_label.setWordWrap(True)

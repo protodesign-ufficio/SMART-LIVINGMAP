@@ -14,15 +14,26 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
 )
 
-# Import get_json with fallback to support different import styles
+from PyQt5.QtCore import QUrl
+import os
+import webbrowser
+
+# Try to import QWebEngineView for embedded HTML preview; fallback to external browser
 try:
-    from ApiClient import get_json, post_json
+    from PyQt5.QtWebEngineWidgets import QWebEngineView
+except Exception:
+    QWebEngineView = None
+
+# Import get_json, post_json and open_dashboard with fallback to support different import styles
+try:
+    from ApiClient import get_json, post_json, open_dashboard
 except Exception:
     try:
-        from project.ApiClient import get_json
+        from project.ApiClient import get_json, post_json, open_dashboard
     except Exception:
         get_json = None
         post_json = None
+        open_dashboard = None
 
 class PortiPanel(QWidget):
     """Panel that displays ports in a table populated from the API.
@@ -66,6 +77,13 @@ class PortiPanel(QWidget):
         self.modify_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.modify_btn.setEnabled(False)
         btn_row.addWidget(self.modify_btn)
+
+        # button to show selected port in the dashboard (inline or external)
+        self.show_dashboard_btn = QPushButton('Mostra in Dashboard')
+        self.show_dashboard_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.show_dashboard_btn.setEnabled(False)
+        self.show_dashboard_btn.clicked.connect(self._open_dashboard)
+        btn_row.addWidget(self.show_dashboard_btn)
 
         btn_row.addStretch()
 
@@ -146,6 +164,7 @@ class PortiPanel(QWidget):
         # enable modify button when a row is selected
         has = self.table.selectionModel().hasSelection()
         self.modify_btn.setEnabled(bool(has))
+        self.show_dashboard_btn.setEnabled(bool(has))
 
     def open_modify_dialog(self):
         # require a selected row
@@ -172,6 +191,24 @@ class PortiPanel(QWidget):
                 self.load_data()
             except Exception as e:
                 QMessageBox.warning(self, 'Errore', f'Modifica porto fallita: {e}')
+
+    def _open_dashboard(self):
+        # open the selected port in the dashboard HTML via ApiClient.open_dashboard
+        if open_dashboard is None:
+            QMessageBox.warning(self, 'Errore', 'Funzione dashboard non disponibile')
+            return
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, 'Errore', 'Seleziona un porto')
+            return
+        item = self.table.item(row, 0)
+        if item is None:
+            QMessageBox.warning(self, 'Errore', 'Elemento selezionato non valido')
+            return
+        data = item.data(Qt.UserRole) or {}
+        nome = data.get('nome') or item.text()
+        # call shared helper
+        open_dashboard('static/porto.html', {'port': nome}, title=f'Dashboard: {nome}', size=(1500, 800))
 
 
 class AddPortDialog(QDialog):

@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
 
         # Web map (left)
         self.view = QWebEngineView()
-        map_path = Path(__file__).parent / "map.html"
+        map_path = Path(__file__).parent / 'static/map.html'
         self.view.load(QUrl.fromLocalFile(str(map_path.resolve())))
         content.addWidget(self.view, 10)
 

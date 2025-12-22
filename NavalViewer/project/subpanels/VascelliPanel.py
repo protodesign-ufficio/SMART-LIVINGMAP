@@ -14,15 +14,26 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
 )
 
-# Import get_json and post_json with fallback to support different import styles
+from PyQt5.QtCore import QUrl
+import os
+import webbrowser
+
+# Try to import QWebEngineView for embedded HTML preview; fallback to external browser
 try:
-    from ApiClient import get_json, post_json
+    from PyQt5.QtWebEngineWidgets import QWebEngineView
+except Exception:
+    QWebEngineView = None
+
+# Import get_json, post_json and open_dashboard with fallback
+try:
+    from ApiClient import get_json, post_json, open_dashboard
 except Exception:
     try:
-        from project.ApiClient import get_json, post_json
+        from project.ApiClient import get_json, post_json, open_dashboard
     except Exception:
         get_json = None
         post_json = None
+        open_dashboard = None
 
 
 class VascelliPanel(QWidget):
@@ -59,13 +70,22 @@ class VascelliPanel(QWidget):
             self.add_btn.setEnabled(False)
         btn_row.addWidget(self.add_btn)
 
+        # modify button (enabled when a row is selected) - placed next to Add
         self.modify_btn = QPushButton('Modifica')
         self.modify_btn.setEnabled(False)
         self.modify_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.modify_btn.clicked.connect(self.open_modify_dialog)
         btn_row.addWidget(self.modify_btn)
 
+        # button to show selected port in the dashboard (inline or external)
+        self.show_dashboard_btn = QPushButton('Mostra in Dashboard')
+        self.show_dashboard_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.show_dashboard_btn.setEnabled(False)
+        self.show_dashboard_btn.clicked.connect(self._open_dashboard)
+        btn_row.addWidget(self.show_dashboard_btn)
+
         btn_row.addStretch()
+
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
         self.refresh_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -130,6 +150,7 @@ class VascelliPanel(QWidget):
     def _on_selection_changed(self, selected, deselected):
         has = self.table.selectionModel().hasSelection()
         self.modify_btn.setEnabled(bool(has))
+        self.show_dashboard_btn.setEnabled(bool(has))
 
     def open_add_dialog(self):
         dlg = VascelloDialog(self, initial=None)
@@ -178,6 +199,25 @@ class VascelliPanel(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, 'Errore', f'Modifica vascello fallita: {e}')
 
+    def open_dashboard(self):
+        # DEPRECATED: use _open_dashboard wrapper
+        self._open_dashboard()
+
+    def _open_dashboard(self):
+        if open_dashboard is None:
+            QMessageBox.warning(self, 'Errore', 'Funzione dashboard non disponibile')
+            return
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
+            return
+        item = self.table.item(row, 0)
+        if item is None:
+            QMessageBox.warning(self, 'Errore', 'Elemento selezionato non valido')
+            return
+        data = item.data(Qt.UserRole) or {}
+        mmsi = data.get('mmsi') or item.text()
+        open_dashboard('static/vascello.html', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
 
 class VascelloDialog(QDialog):
     """Dialog per modificare (o creare) un vascello."""

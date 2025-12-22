@@ -8,9 +8,21 @@ import sys
 from PyQt5.QtWidgets import QApplication
 
 from main_window import MainWindow
+try:
+	# start dashboard in background when launching GUI
+	from consumerDashbaord import start_dashboard
+except Exception:
+	start_dashboard = None
 
 
 def main():
+	# start the dashboard server (non-blocking) if available
+	if start_dashboard is not None:
+		try:
+			start_dashboard()
+		except Exception:
+			pass
+
 	app = QApplication(sys.argv)
 	w = MainWindow()
 	w.showMaximized()

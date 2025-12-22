@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Component Usage Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { background:#0f172a; color:#e2e8f0; font-family: monospace; }
+        .card { background:#1e293b; border:1px solid #334155; border-radius:0.75rem; }
+    </style>
+</head>
+
+<body class="h-screen w-screen p-6 flex flex-col gap-6 overflow-hidden">
+
+<!-- HEADER -->
+<div class="text-xl font-bold tracking-tight flex items-center gap-2">
+    <span class="text-emerald-400">Component Usage Monitor</span>
+    <span class="text-slate-600 text-sm">(Kafka → WebSocket)</span>
+</div>
+
+<div class="flex flex-1 gap-6 overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <div class="w-64 card p-4 flex flex-col overflow-y-auto">
+        <div class="text-xs text-slate-400 uppercase mb-2">Vessels</div>
+        <div id="ship-list" class="space-y-2"></div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="flex-1 flex flex-col gap-4 overflow-hidden">
+
+        <!-- CURRENT DATA -->
+        <div class="card p-6">
+            <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
+            <div id="mmsi" class="text-2xl font-bold text-blue-300">--</div>
+        </div>
+
+        <!-- COMPONENTS TABLE -->
+        <div class="card p-6 flex-1 overflow-y-auto">
+            <div class="text-xs text-slate-400 uppercase mb-4">Components</div>
+
+            <table class="w-full text-sm">
+                <thead class="text-slate-400 border-b border-slate-600">
+                    <tr>
+                        <th class="text-left py-2">Component</th>
+                        <th class="text-left py-2">Usage (h)</th>
+                        <th class="text-left py-2">Usage (min)</th>
+                        <th class="text-left py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="component-table"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- SOCKET.IO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+/* =====================================================
+   URL FILTER (MMSI)
+   Supporta:
+   - ?mmsi=1111022
+   - ?mmsi=1111022,1111023
+   - ?mmsi=1111022&mmsi=1111023
+===================================================== */
+const urlParams = new URLSearchParams(window.location.search);
+const allowedMMSI = new Set();
+
+if (urlParams.has("mmsi")) {
+    urlParams.getAll("mmsi").forEach(v => {
+        v.split(",").forEach(m => {
+            const t = m.trim();
+            if (t) allowedMMSI.add(t);
+        });
+    });
+}
+
+const filterEnabled = allowedMMSI.size > 0;
+
+/* =====================================================
+   SOCKET + STATE
+===================================================== */
+const socket = io("http://localhost:5000");
+
+let vessels = {};      // mmsi -> { components: {component: {usage_s, active}}, last_ts }
+let selectedMMSI = null;
+
+function safeNumber(v) {
+    return (typeof v === "number" && isFinite(v)) ? v : null;
+}
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
+function renderShips() {
+    const list = document.getElementById("ship-list");
+    list.innerHTML = "";
+
+    Object.keys(vessels).sort().forEach(mmsi => {
+        const isSelected = mmsi === selectedMMSI;
+
+        const el = document.createElement("div");
+        el.className = `p-2 rounded cursor-pointer border ${
+            isSelected
+                ? "bg-blue-900 border-blue-400"
+                : "bg-slate-800 border-slate-600 hover:bg-slate-700"
+        }`;
+
+        // Piccola sintesi: somma ore di tutte le componenti (solo indicativa)
+        const comps = vessels[mmsi].components || {};
+        let sumS = 0;
+        Object.values(comps).forEach(c => {
+            const us = safeNumber(c.usage_s);
+            if (us !== null) sumS += us;
+        });
+        const sumH = (sumS / 3600).toFixed(1);
+
+        el.innerHTML = `
+            <div class="font-mono">${mmsi}</div>
+            <div class="text-xs text-slate-400">Total (sum): ${sumH} h</div>
+        `;
+
+        el.onclick = () => selectShip(mmsi);
+        list.appendChild(el);
+    });
+}
+
+/* =====================================================
+   COMPONENT TABLE
+===================================================== */
+function renderComponents() {
+    const tbody = document.getElementById("component-table");
+    tbody.innerHTML = "";
+
+    if (!selectedMMSI || !vessels[selectedMMSI]) return;
+
+    const comps = vessels[selectedMMSI].components || {};
+    const componentNames = Object.keys(comps).sort();
+
+    componentNames.forEach(name => {
+        const c = comps[name];
+        const usageS = safeNumber(c.usage_s);
+        const active = !!c.active;
+
+        const usageH = usageS !== null ? (usageS / 3600).toFixed(2) : "--";
+        const usageM = usageS !== null ? Math.floor(usageS / 60).toString() : "--";
+        const status = active ? "ON" : "OFF";
+
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-slate-800";
+
+        tr.innerHTML = `
+            <td class="py-2">${name}</td>
+            <td>${usageH}</td>
+            <td>${usageM}</td>
+            <td class="${active ? "text-green-400" : "text-slate-500"} font-bold">
+                ${status}
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+/* =====================================================
+   SELECT SHIP
+===================================================== */
+function selectShip(mmsi) {
+    if (!vessels[mmsi]) return;
+    selectedMMSI = mmsi;
+    document.getElementById("mmsi").innerText = mmsi;
+
+    renderShips();
+    renderComponents();
+}
+
+/* =====================================================
+   SOCKET HANDLER
+===================================================== */
+socket.on("analytics_update", msg => {
+    // Filtra SOLO component_usage
+    if (!msg || msg.type !== "component_usage") return;
+
+    const mmsi = String(msg.mmsi || "");
+    const component = String(msg.component || "");
+    if (!mmsi || !component) return;
+
+    // Filtro MMSI da URL (se attivo)
+    if (filterEnabled && !allowedMMSI.has(mmsi)) return;
+
+    const usageTotal = safeNumber(msg.usage_seconds_total);
+    if (usageTotal === null) return;
+
+    const active = !!msg.active;
+
+    vessels[mmsi] = vessels[mmsi] || { components: {}, last_ts: null };
+    vessels[mmsi].components[component] = {
+        usage_s: usageTotal,
+        active: active
+    };
+    vessels[mmsi].last_ts = safeNumber(msg.timestamp) ?? vessels[mmsi].last_ts;
+
+    // Se selezionata non è valida (es. filtro cambiato), forza selezione
+    if (!selectedMMSI || !vessels[selectedMMSI]) {
+        selectedMMSI = mmsi;
+        document.getElementById("mmsi").innerText = mmsi;
+    }
+
+    // Aggiorna UI
+    renderShips();
+    renderComponents();
+});
+</script>
+
+</body>
+</html>

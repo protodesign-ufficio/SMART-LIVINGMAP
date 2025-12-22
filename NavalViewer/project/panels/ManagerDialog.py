@@ -1,3 +1,4 @@
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTabWidget
 
 from panels.ParametriPanel import ParametriPanel
@@ -10,6 +11,8 @@ class ManagerDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Manager')
+        # make dialog a top-level window with minimize and maximize buttons
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
         self.setMinimumSize(800, 600)
 
         layout = QVBoxLayout(self)

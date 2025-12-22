@@ -9,6 +9,74 @@ from typing import Any, Dict, Optional
 
 BASE_URL = "http://87.26.178.190:15080/"
 
+import os
+import webbrowser
+
+
+def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, title: Optional[str] = None, size=(1000, 700)) -> None:
+    """Open a local HTML dashboard page.
+
+    Tries to open the page embedded using QWebEngineView if PyQt5 is available,
+    otherwise falls back to opening the page in the system default browser.
+
+    Args:
+        page_relative: path relative to the project folder (e.g. 'static/porto.html').
+        query: optional dict of query parameters to append.
+        title: optional window title used when embedding.
+        size: tuple (width, height) for the embedded dialog.
+    """
+    # resolve absolute path relative to this file (project folder)
+    base = os.path.join(os.path.dirname(__file__), page_relative)
+    base = os.path.abspath(base)
+
+    # build query string
+    qstr = None
+    if query:
+        from urllib.parse import urlencode
+
+        qstr = urlencode({k: str(v) for k, v in query.items()})
+
+    # try embedded viewer
+    try:
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout
+        from PyQt5.QtCore import QUrl, Qt
+        try:
+            from PyQt5.QtWebEngineWidgets import QWebEngineView
+        except Exception:
+            QWebEngineView = None
+
+        if QWebEngineView is not None:
+            dlg = QDialog()
+            dlg.setWindowTitle(title or 'Dashboard')
+            # make the embedded dialog a top-level window so minimizing it
+            # does not minimize the main application
+            dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
+            dlg.resize(size[0], size[1])
+            layout = QVBoxLayout(dlg)
+            view = QWebEngineView()
+            url = QUrl.fromLocalFile(base)
+            if qstr:
+                url.setQuery(qstr)
+            view.load(url)
+            layout.addWidget(view)
+            dlg.exec_()
+            return
+    except Exception:
+        # if embedding fails, fallback to browser
+        pass
+
+    # fallback: open in default browser
+    try:
+        from PyQt5.QtCore import QUrl
+        url = QUrl.fromLocalFile(base)
+        url_str = url.toString()
+    except Exception:
+        url_str = 'file://' + base
+    if qstr:
+        url_str = url_str + ('?' if '?' not in url_str else '&') + qstr
+    webbrowser.open(url_str)
+
+
 
 def get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, timeout: int = 5) -> Dict[str, Any]:
     """Esegue una GET e restituisce il JSON parsato.
