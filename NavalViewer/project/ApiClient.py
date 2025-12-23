@@ -96,7 +96,6 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
     webbrowser.open(url_str)
 
 
-
 def get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, timeout: int = 5) -> Dict[str, Any]:
     """Esegue una GET e restituisce il JSON parsato.
 
@@ -138,7 +137,7 @@ def get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, timeout: in
             raise RuntimeError(f'GET {url} failed: {e}')
 
 
-def post_json(endpoint: str, payload: Any, timeout: int = 5) -> Dict[str, Any]:
+def post_json(endpoint: str, payload: Any, timeout: int = 10) -> Dict[str, Any]:
     """Esegue una POST JSON verso l'endpoint specificato e ritorna il JSON di risposta.
 
     Args:

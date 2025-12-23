@@ -120,7 +120,7 @@ class OptimizationDialog(QDialog):
         progress.setModal(True)
         progress.show()
         try:
-            resp = post_json('ottimizzatore', payload)
+            resp = post_json('ottimizzatore', payload=payload, timeout=300) 
             progress.close()
             QMessageBox.information(self, 'Successo', 'Ottimizzazione Riuscita')
             self.accept()
