@@ -40,6 +40,11 @@ try:
 except Exception:
     HAS_PY_NMEA = False
 
+try:
+    from ApiClient import get_json
+except Exception:
+    get_json = None
+
 
 class MainWindow(QMainWindow):
     """Main application window + controller logic.
@@ -74,6 +79,11 @@ class MainWindow(QMainWindow):
         self.view = QWebEngineView()
         map_path = Path(__file__).parent / 'static/map.html'
         self.view.load(QUrl.fromLocalFile(str(map_path.resolve())))
+        # when the embedded map has finished loading, request initial ports
+        try:
+            self.view.loadFinished.connect(self._on_map_loaded)
+        except Exception:
+            pass
         content.addWidget(self.view, 10)
 
         # simple right column with buttons
@@ -301,6 +311,40 @@ class MainWindow(QMainWindow):
         try:
             mmsi_js = json.dumps(str(mmsi))
             js = f"centerOnShip({mmsi_js});"
+            self.view.page().runJavaScript(js)
+        except Exception:
+            pass
+
+    def _on_map_loaded(self, ok: bool):
+        if not ok:
+            return
+        # load ports from API if available
+        try:
+            self._load_ports_to_map()
+        except Exception:
+            pass
+
+    def _load_ports_to_map(self):
+        if get_json is None:
+            return
+        try:
+            items = get_json('porto/lista')
+            import json as _json
+            # ensure serializable
+            js = f"loadPorts({_json.dumps(items)})"
+            self.view.page().runJavaScript(js)
+        except Exception:
+            pass
+
+    def refresh_ports_on_map(self, items):
+        """Public helper to push a list of port dicts to the web map.
+
+        `items` should be a list of objects with at least `nome`, `lat`, `lon`, and optional `id`.
+        This is used by the PortiPanel after adds/edits.
+        """
+        try:
+            import json as _json
+            js = f"loadPorts({_json.dumps(items)})"
             self.view.page().runJavaScript(js)
         except Exception:
             pass

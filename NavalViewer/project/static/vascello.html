@@ -31,20 +31,45 @@
     <!-- MAIN PANEL -->
     <div class="flex-1 flex flex-col gap-4 overflow-hidden">
 
-        <!-- CURRENT DATA -->
-        <div class="card p-6 flex flex-col gap-4">
+        <!-- CURRENT DATA (2-column pairs layout) -->
+        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-4 items-center">
 
+            <!-- ROW 1 -->
             <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
-            <div id="mmsi" class="text-2xl font-bold text-blue-300">--</div>
+            <div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
 
-            <div class="text-xs text-slate-400 uppercase mt-4">Destination</div>
+            <div class="text-xs text-slate-400 uppercase">Destination</div>
             <div id="destination" class="text-lg font-bold text-yellow-400">--</div>
 
-            <div class="text-xs text-slate-400 uppercase mt-4">ETA</div>
+            <!-- ROW 2 -->
+            <div class="text-xs text-slate-400 uppercase">ETA</div>
             <div id="eta" class="text-lg font-bold text-green-400">--</div>
 
-            <div class="text-xs text-slate-400 uppercase mt-4">Current Delta (minutes)</div>
-            <div id="delta-val" class="text-4xl font-black text-cyan-400">--</div>
+            <div class="text-xs text-slate-400 uppercase">Vessel Name</div>
+            <div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
+
+            <!-- ROW 3 -->
+            <div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
+            <div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
+
+            <div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
+            <div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
+
+            <!-- ROW 4 -->
+            <div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
+            <div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
+
+            <div></div>
+            <div></div>
+
+            <!-- DELTA -->
+            <div class="col-span-4 text-xs text-slate-400 uppercase mt-2 text-center">
+                Current Delta (minutes)
+            </div>
+            <div id="delta-val"
+                 class="col-span-4 text-4xl font-black text-cyan-400 text-center">
+                --
+            </div>
 
         </div>
 
@@ -61,6 +86,12 @@
 <!-- SOCKET.IO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+/* =====================================================
+   CONFIG
+===================================================== */
+const API_BASE_URL = "http://87.26.178.190:15080";
+const SOCKET_URL   = "http://localhost:5000";
+
 /* =====================================================
    URL FILTER (MMSI)
 ===================================================== */
@@ -81,12 +112,12 @@ const filterEnabled = allowedMMSI.size > 0;
 /* =====================================================
    SOCKET
 ===================================================== */
-const socket = io("http://localhost:5000");
+const socket = io(SOCKET_URL);
 
 /* =====================================================
    STATE
 ===================================================== */
-let ships = {};          // mmsi → data
+let ships = {};
 let selectedMMSI = null;
 const maxPoints = 60;
 
@@ -105,6 +136,16 @@ function formatETA(ts) {
     if (!ts) return "--";
     const d = new Date(ts * 1000);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+async function loadVesselInfo(mmsi) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/vascello/by_mmsi/${mmsi}`);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
 }
 
 /* =====================================================
@@ -170,12 +211,11 @@ function renderList() {
 /* =====================================================
    UPDATE TOP PANEL
 ===================================================== */
-function updateInfo() {
+async function updateInfo() {
     if (!selectedMMSI || !ships[selectedMMSI]) {
-        document.getElementById("mmsi").innerText = "--";
-        document.getElementById("destination").innerText = "--";
-        document.getElementById("eta").innerText = "--";
-        document.getElementById("delta-val").innerText = "--";
+        ["mmsi","destination","eta","delta-val",
+         "vessel-name","vessel-capacity","vessel-cost","vessel-speed"]
+        .forEach(id => document.getElementById(id).innerText = "--");
         return;
     }
 
@@ -186,6 +226,21 @@ function updateInfo() {
     document.getElementById("eta").innerText = formatETA(s.eta);
     document.getElementById("delta-val").innerText =
         (s.last_delta !== null) ? s.last_delta.toFixed(1) : "--";
+
+    if (!s.vessel_loaded) {
+        s.vessel_loaded = true;
+        s.vessel = await loadVesselInfo(selectedMMSI);
+    }
+
+    if (s.vessel) {
+        document.getElementById("vessel-name").innerText = s.vessel.nome ?? "--";
+        document.getElementById("vessel-capacity").innerText =
+            s.vessel.capacita_passeggeri ?? "--";
+        document.getElementById("vessel-cost").innerText =
+            s.vessel.costo_orario_esercizio ?? "--";
+        document.getElementById("vessel-speed").innerText =
+            s.vessel.velocita_max_nodi ?? "--";
+    }
 }
 
 /* =====================================================
@@ -199,7 +254,6 @@ function updateChart() {
     }
 
     const s = ships[selectedMMSI];
-
     chart.data.datasets = [{
         data: s.history,
         borderColor: s.color,
@@ -209,7 +263,6 @@ function updateChart() {
         pointRadius: 0,
         fill: true
     }];
-
     chart.update("none");
 }
 
@@ -218,7 +271,6 @@ function updateChart() {
 ===================================================== */
 socket.on("analytics_update", msg => {
     const mmsi = String(msg.mmsi);
-
     if (filterEnabled && !allowedMMSI.has(mmsi)) return;
 
     const delta = safeNumber(msg.delta_min);
@@ -229,7 +281,9 @@ socket.on("analytics_update", msg => {
             last_delta: delta,
             destination: msg.destination || "UNKNOWN",
             eta: msg.eta || null,
-            color: generateColor(mmsi)
+            color: generateColor(mmsi),
+            vessel: null,
+            vessel_loaded: false
         };
     }
 

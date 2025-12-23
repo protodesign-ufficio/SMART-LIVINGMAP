@@ -12,7 +12,7 @@ class ManagerDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle('Manager')
         # make dialog a top-level window with minimize and maximize buttons
-        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
+        self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
         self.setMinimumSize(800, 600)
 
         layout = QVBoxLayout(self)

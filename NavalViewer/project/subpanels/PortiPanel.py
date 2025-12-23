@@ -144,6 +144,26 @@ class PortiPanel(QWidget):
         except Exception:
             pass
 
+        # notify main map (if available) so ports appear on the map as well
+        try:
+            # climb parents to find MainWindow which holds .view and refresh helper
+            p = self
+            main = None
+            for _ in range(6):
+                p = p.parent()
+                if p is None:
+                    break
+                if hasattr(p, 'view'):
+                    main = p
+                    break
+            if main is not None and hasattr(main, 'refresh_ports_on_map'):
+                try:
+                    main.refresh_ports_on_map(items)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def open_add_dialog(self):
         dlg = AddPortDialog(self)
         if dlg.exec_() == QDialog.Accepted:

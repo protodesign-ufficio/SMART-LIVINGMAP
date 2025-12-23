@@ -12,6 +12,9 @@ BASE_URL = "http://87.26.178.190:15080/"
 import os
 import webbrowser
 
+# keep references to open dashboard dialogs so they aren't garbage-collected
+_open_dashboards: list = []
+
 
 def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, title: Optional[str] = None, size=(1000, 700)) -> None:
     """Open a local HTML dashboard page.
@@ -50,7 +53,7 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
             dlg.setWindowTitle(title or 'Dashboard')
             # make the embedded dialog a top-level window so minimizing it
             # does not minimize the main application
-            dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
+            dlg.setWindowFlags(dlg.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
             dlg.resize(size[0], size[1])
             layout = QVBoxLayout(dlg)
             view = QWebEngineView()
@@ -59,7 +62,23 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
                 url.setQuery(qstr)
             view.load(url)
             layout.addWidget(view)
-            dlg.exec_()
+            # Show modeless (non-blocking) dialog so user can continue using app
+            dlg.setModal(False)
+            try:
+                dlg.setWindowModality(Qt.NonModal)
+            except Exception:
+                pass
+            dlg.show()
+            # retain reference to avoid garbage collection
+            _open_dashboards.append(dlg)
+
+            def _cleanup(obj, dlg=dlg):
+                try:
+                    _open_dashboards.remove(dlg)
+                except ValueError:
+                    pass
+
+            dlg.destroyed.connect(_cleanup)
             return
     except Exception:
         # if embedding fails, fallback to browser

@@ -199,9 +199,6 @@ class VascelliPanel(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, 'Errore', f'Modifica vascello fallita: {e}')
 
-    def open_dashboard(self):
-        # DEPRECATED: use _open_dashboard wrapper
-        self._open_dashboard()
 
     def _open_dashboard(self):
         if open_dashboard is None:

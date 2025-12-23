@@ -31,3 +31,6 @@ html, body, #map {
     min-width: 120px;
     text-align: center;
 }
+
+/* Port marker label */
+.port-div-icon{ pointer-events:auto; }
