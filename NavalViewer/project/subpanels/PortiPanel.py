@@ -26,14 +26,13 @@ except Exception:
 
 # Import get_json, post_json and open_dashboard with fallback to support different import styles
 try:
-    from ApiClient import get_json, post_json, open_dashboard
+    from ApiClient import get_json, post_json
 except Exception:
     try:
-        from project.ApiClient import get_json, post_json, open_dashboard
+        from project.ApiClient import get_json, post_json
     except Exception:
         get_json = None
         post_json = None
-        open_dashboard = None
 
 class PortiPanel(QWidget):
     """Panel that displays ports in a table populated from the API.
@@ -213,10 +212,6 @@ class PortiPanel(QWidget):
                 QMessageBox.warning(self, 'Errore', f'Modifica porto fallita: {e}')
 
     def _open_dashboard(self):
-        # open the selected port in the dashboard HTML via ApiClient.open_dashboard
-        if open_dashboard is None:
-            QMessageBox.warning(self, 'Errore', 'Funzione dashboard non disponibile')
-            return
         row = self.table.currentRow()
         if row < 0:
             QMessageBox.warning(self, 'Errore', 'Seleziona un porto')
@@ -227,8 +222,42 @@ class PortiPanel(QWidget):
             return
         data = item.data(Qt.UserRole) or {}
         nome = data.get('nome') or item.text()
-        # call shared helper
-        open_dashboard('static/index.html#/porto', {'port': nome}, title=f'Dashboard: {nome}', size=(1500, 800))
+
+        # Prefer using ancestor MainWindow.open_dashboard_embedded
+        p = self
+        main = None
+        for _ in range(8):
+            p = p.parent()
+            if p is None:
+                break
+            if hasattr(p, 'open_dashboard_embedded'):
+                main = p
+                break
+
+        # fallback: search top-level widgets for an object providing open_dashboard_embedded
+        if main is None:
+            try:
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app is not None:
+                    for w in app.topLevelWidgets():
+                        try:
+                            if hasattr(w, 'open_dashboard_embedded'):
+                                main = w
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                main = None
+
+        if main is None:
+            QMessageBox.warning(self, 'Errore', 'Embedded dashboard non disponibile nella applicazione')
+            return
+
+        try:
+            main.open_dashboard_embedded('static/index.html#/porto', {'port': nome}, title=f'Dashboard: {nome}', size=(1500, 800))
+        except Exception as e:
+            QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')
 
 
 class AddPortDialog(QDialog):

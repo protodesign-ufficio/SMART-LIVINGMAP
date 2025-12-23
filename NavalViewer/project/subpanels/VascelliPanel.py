@@ -26,14 +26,13 @@ except Exception:
 
 # Import get_json, post_json and open_dashboard with fallback
 try:
-    from ApiClient import get_json, post_json, open_dashboard
+    from ApiClient import get_json, post_json
 except Exception:
     try:
-        from project.ApiClient import get_json, post_json, open_dashboard
+        from project.ApiClient import get_json, post_json
     except Exception:
         get_json = None
         post_json = None
-        open_dashboard = None
 
 
 class VascelliPanel(QWidget):
@@ -201,9 +200,6 @@ class VascelliPanel(QWidget):
 
 
     def _open_dashboard(self):
-        if open_dashboard is None:
-            QMessageBox.warning(self, 'Errore', 'Funzione dashboard non disponibile')
-            return
         row = self.table.currentRow()
         if row < 0:
             QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
@@ -214,7 +210,42 @@ class VascelliPanel(QWidget):
             return
         data = item.data(Qt.UserRole) or {}
         mmsi = data.get('mmsi') or item.text()
-        open_dashboard('static/index.html#/vascello', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
+
+        # Prefer using ancestor MainWindow.open_dashboard_embedded
+        p = self
+        main = None
+        for _ in range(8):
+            p = p.parent()
+            if p is None:
+                break
+            if hasattr(p, 'open_dashboard_embedded'):
+                main = p
+                break
+
+        # fallback: search top-level widgets for an object providing open_dashboard_embedded
+        if main is None:
+            try:
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app is not None:
+                    for w in app.topLevelWidgets():
+                        try:
+                            if hasattr(w, 'open_dashboard_embedded'):
+                                main = w
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                main = None
+
+        if main is None:
+            QMessageBox.warning(self, 'Errore', 'Embedded dashboard non disponibile nella applicazione')
+            return
+
+        try:
+            main.open_dashboard_embedded('static/index.html#/vascello', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
+        except Exception as e:
+            QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')
 
 class VascelloDialog(QDialog):
     """Dialog per modificare (o creare) un vascello."""

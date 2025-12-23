@@ -36,13 +36,35 @@ function addOrUpdatePort(p){
   let marker = window.portMarkers[id];
   if(!marker){
     marker = L.marker([lat, lon], {icon: makePortIcon(name), keyboard: false}).addTo(map);
-    marker.bindPopup(`<b>${escapeHtml(name)}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}`);
+    marker.bindPopup(popupForPort(name, lat, lon));
     window.portMarkers[id] = marker;
   } else {
     marker.setLatLng([lat, lon]);
     marker.setIcon(makePortIcon(name));
-    marker.getPopup() && marker.setPopupContent(`<b>${escapeHtml(name)}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}`);
+    marker.getPopup() && marker.setPopupContent(popupForPort(name, lat, lon));
   }
+}
+
+function popupForPort(name, lat, lon){
+  const safe = escapeHtml(name);
+  // build an index.html URL in the same static folder and open fragment with port param
+  let base = window.location.href || '';
+  // try to replace map.html or map.* with index.html, fallback to directory + index.html
+  let indexUrl = base.replace(/map\.html($|[?#].*$)/, 'index.html');
+  if(indexUrl === base){
+    // didn't replace, build from path
+    try{
+      const parts = base.split('/');
+      parts.pop();
+      indexUrl = parts.join('/') + '/index.html';
+    }catch(e){
+      indexUrl = 'index.html';
+    }
+  }
+  const frag = '#/porto?port=' + encodeURIComponent(name || '');
+  const full = indexUrl + frag;
+  const html = `<div><b>${safe}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/><br/><button onclick="window.open('${full}', '_blank')">Mostra in Dashboard</button></div>`;
+  return html;
 }
 
 function loadPorts(list){

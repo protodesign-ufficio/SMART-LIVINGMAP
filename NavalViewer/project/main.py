@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QApplication
 from main_window import MainWindow
 try:
 	# start dashboard in background when launching GUI
-	from consumerDashbaord import start_dashboard
+	from consumer_dashboards import start_dashboard
 except Exception:
 	start_dashboard = None
 
