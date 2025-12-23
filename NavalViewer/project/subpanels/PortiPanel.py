@@ -228,7 +228,7 @@ class PortiPanel(QWidget):
         data = item.data(Qt.UserRole) or {}
         nome = data.get('nome') or item.text()
         # call shared helper
-        open_dashboard('static/porto.html', {'port': nome}, title=f'Dashboard: {nome}', size=(1500, 800))
+        open_dashboard('static/index.html#/porto', {'port': nome}, title=f'Dashboard: {nome}', size=(1500, 800))
 
 
 class AddPortDialog(QDialog):

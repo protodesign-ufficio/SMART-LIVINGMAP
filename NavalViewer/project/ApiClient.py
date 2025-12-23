@@ -28,11 +28,18 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
         title: optional window title used when embedding.
         size: tuple (width, height) for the embedded dialog.
     """
+    # support fragment/hash in page_relative, e.g. 'static/index.html#/porto'
+    frag = None
+    if '#' in page_relative:
+        page_path, frag = page_relative.split('#', 1)
+    else:
+        page_path = page_relative
+
     # resolve absolute path relative to this file (project folder)
-    base = os.path.join(os.path.dirname(__file__), page_relative)
+    base = os.path.join(os.path.dirname(__file__), page_path)
     base = os.path.abspath(base)
 
-    # build query string
+    # build query string (we will attach it to the fragment when a hash is used)
     qstr = None
     if query:
         from urllib.parse import urlencode
@@ -58,8 +65,19 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
             layout = QVBoxLayout(dlg)
             view = QWebEngineView()
             url = QUrl.fromLocalFile(base)
-            if qstr:
-                url.setQuery(qstr)
+            # if fragment/hash was provided, attach query parameters to fragment
+            if frag:
+                frag_to_set = frag
+                if qstr:
+                    # if fragment already contains a '?', append with & otherwise with ?
+                    if '?' in frag_to_set:
+                        frag_to_set = f"{frag_to_set}&{qstr}"
+                    else:
+                        frag_to_set = f"{frag_to_set}?{qstr}"
+                url.setFragment(frag_to_set)
+            else:
+                if qstr:
+                    url.setQuery(qstr)
             view.load(url)
             layout.addWidget(view)
             # Show modeless (non-blocking) dialog so user can continue using app
@@ -88,11 +106,28 @@ def open_dashboard(page_relative: str, query: Optional[Dict[str, str]] = None, t
     try:
         from PyQt5.QtCore import QUrl
         url = QUrl.fromLocalFile(base)
+        # attach fragment/query in fallback mode similarly to the QWebEngineView case
+        if frag:
+            frag_to_set = frag
+            if qstr:
+                if '?' in frag_to_set:
+                    frag_to_set = f"{frag_to_set}&{qstr}"
+                else:
+                    frag_to_set = f"{frag_to_set}?{qstr}"
+            url.setFragment(frag_to_set)
+        else:
+            if qstr:
+                url.setQuery(qstr)
         url_str = url.toString()
     except Exception:
         url_str = 'file://' + base
-    if qstr:
-        url_str = url_str + ('?' if '?' not in url_str else '&') + qstr
+        if frag:
+            url_str = url_str + ('#' + frag)
+            if qstr:
+                url_str = url_str + ('&' if '?' in frag else ('?' + qstr))
+        else:
+            if qstr:
+                url_str = url_str + ('?' if '?' not in url_str else '&') + qstr
     webbrowser.open(url_str)
 
 

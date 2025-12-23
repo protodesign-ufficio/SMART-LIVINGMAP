@@ -12,7 +12,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def log(msg):
-    print(f"[consumer] {msg}", flush=True)
+    # print(f"[consumer] {msg}", flush=True)
 
 def kafka_loop():
     log(f"Connecting to Kafka at {BOOTSTRAP_SERVERS}...")

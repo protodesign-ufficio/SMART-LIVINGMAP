@@ -98,8 +98,10 @@ class PercorsiDialog(QDialog):
         layout.addWidget(self.info_label)
 
         # table of percorsi
-        self.table = QTableWidget(0, 6, self)
+        # add extra column for a checkbox to show/hide route on the map
+        self.table = QTableWidget(0, 7, self)
         self.table.setHorizontalHeaderLabels([
+            'Mostra',
             'Tempo Percorrenza',
             'Consumo',
             'P_Ref',
@@ -112,6 +114,18 @@ class PercorsiDialog(QDialog):
         # make cells non-editable
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         layout.addWidget(self.table)
+
+        # flag to suppress itemChanged while populating
+        self._suppress_item_changed = False
+        self.table.itemChanged.connect(self._on_item_changed)
+
+        # ensure parent has a visible routes set to persist selections across dialog instances
+        try:
+            if parent is not None:
+                if not hasattr(parent, '_visible_routes'):
+                    parent._visible_routes = set()
+        except Exception:
+            pass
 
         # label shown when no percorsi are available
         self.empty_label = QLabel('')
@@ -179,6 +193,11 @@ class PercorsiDialog(QDialog):
             geom = p.get('geom_rotta', '')
             pid = p.get('id', '')
 
+            # checkbox item in first column
+            it_check = QTableWidgetItem()
+            it_check.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            it_check.setCheckState(Qt.Unchecked)
+
             it_tempo = QTableWidgetItem(str(tempo))
             it_consumo = QTableWidgetItem(str(consumo))
             it_pref = QTableWidgetItem(str(pref))
@@ -192,12 +211,154 @@ class PercorsiDialog(QDialog):
             for it in (it_tempo, it_consumo, it_pref, it_vref, it_geom, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            self.table.setItem(row, 0, it_tempo)
-            self.table.setItem(row, 1, it_consumo)
-            self.table.setItem(row, 2, it_pref)
-            self.table.setItem(row, 3, it_vref)
-            self.table.setItem(row, 4, it_geom)
-            self.table.setItem(row, 5, it_id)
+            # suppress itemChanged while inserting
+            self._suppress_item_changed = True
+            self.table.setItem(row, 0, it_check)
+            self.table.setItem(row, 1, it_tempo)
+            self.table.setItem(row, 2, it_consumo)
+            self.table.setItem(row, 3, it_pref)
+            self.table.setItem(row, 4, it_vref)
+            self.table.setItem(row, 5, it_geom)
+            self.table.setItem(row, 6, it_id)
+            self._suppress_item_changed = False
+
+        # after populating, restore checked state from parent and draw any persisted routes
+        try:
+            parent = self.parent()
+            if parent is not None and hasattr(parent, '_visible_routes'):
+                visible = parent._visible_routes
+                import json as _json
+                for row_idx in range(self.table.rowCount()):
+                    id_item = self.table.item(row_idx, 6)
+                    if id_item is None:
+                        continue
+                    route_obj = id_item.data(Qt.UserRole)
+                    if not isinstance(route_obj, dict):
+                        continue
+                    rid = route_obj.get('id')
+                    if rid is None:
+                        continue
+                    # if persisted visible, set checkbox and draw route
+                    if str(rid) in visible:
+                        chk = self.table.item(row_idx, 0)
+                        if chk:
+                            # set without triggering handler
+                            self._suppress_item_changed = True
+                            chk.setCheckState(Qt.Checked)
+                            self._suppress_item_changed = False
+                            try:
+                                js = f"window.routesManager.drawRoute({_json.dumps(route_obj)})"
+                                self._run_js(js)
+                            except Exception:
+                                pass
+        except Exception:
+            pass
 
         # resize columns
         self.table.resizeColumnsToContents()
+
+        # quick diagnostic: check whether routesManager is available in the web view
+        try:
+            def _cb(res):
+                print('PercorsiDialog: routesManager present?', res)
+            self._run_js("Boolean(window.routesManager && window.routesManager.drawRoute)", _cb)
+        except Exception:
+            pass
+
+    def _run_js(self, js, callback=None):
+        """Helper to run JavaScript in the main window web view if available."""
+        try:
+            parent = self.parent()
+            if parent is None:
+                print('PercorsiDialog._run_js: no parent')
+                # try to find a view from top-level widgets
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app is None:
+                    return
+                view = None
+                for w in app.topLevelWidgets():
+                    try:
+                        v = getattr(w, 'view', None)
+                        if v is not None:
+                            view = v
+                            break
+                    except Exception:
+                        continue
+                if view is None:
+                    return
+            else:
+                view = getattr(parent, 'view', None)
+                if view is None:
+                    # fallback to searching top-level widgets
+                    from PyQt5.QtWidgets import QApplication
+                    app = QApplication.instance()
+                    if app is not None:
+                        for w in app.topLevelWidgets():
+                            try:
+                                v = getattr(w, 'view', None)
+                                if v is not None:
+                                    view = v
+                                    break
+                            except Exception:
+                                continue
+                if view is None:
+                    print('PercorsiDialog._run_js: no QWebEngineView found')
+                    return
+            print('PercorsiDialog._run_js executing JS:', js)
+            if callback is None:
+                view.page().runJavaScript(js)
+            else:
+                view.page().runJavaScript(js, callback)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+
+    def _on_item_changed(self, item):
+        """Handle checkbox toggles in the 'Mostra' column to show/hide routes on the map."""
+        if self._suppress_item_changed:
+            return
+        try:
+            col = item.column()
+            # Mostra column is 0
+            if col != 0:
+                return
+            row = item.row()
+            checked = (item.checkState() == Qt.Checked)
+            id_item = self.table.item(row, 6)
+            if id_item is None:
+                return
+            route_obj = id_item.data(Qt.UserRole)
+            if not isinstance(route_obj, dict):
+                return
+            # use JSON serialization for safe JS passing
+            try:
+                import json as _json
+                rid = route_obj.get('id')
+                if checked:
+                    # draw route
+                    js = f"window.routesManager.drawRoute({_json.dumps(route_obj)})"
+                    print('PercorsiDialog: drawing route', rid)
+                    self._run_js(js)
+                    # persist selection in parent set
+                    parent = self.parent()
+                    if parent is not None:
+                        try:
+                            parent._visible_routes.add(str(rid))
+                        except Exception:
+                            pass
+                else:
+                    if rid is not None:
+                        js = f"window.routesManager.removeRoute({_json.dumps(rid)})"
+                        print('PercorsiDialog: removing route', rid)
+                        self._run_js(js)
+                        parent = self.parent()
+                        if parent is not None:
+                            try:
+                                parent._visible_routes.discard(str(rid))
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+        except Exception:
+            pass

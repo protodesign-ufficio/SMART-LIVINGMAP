@@ -14,39 +14,56 @@
 
 <body class="h-screen w-screen p-6 flex flex-col gap-6 overflow-hidden">
 
-<!-- HEADER -->
 <div class="text-xl font-bold tracking-tight flex items-center gap-2">
-    <span class="text-purple-400">AIS Berth Monitor</span>
+    <span class="text-blue-400">AIS Berth Monitor</span>
     <span class="text-slate-600 text-sm">(Kafka → WebSocket)</span>
 </div>
 
 <div class="flex flex-1 gap-6 overflow-hidden">
 
-    <!-- SIDEBAR -->
     <div class="w-64 card p-4 flex flex-col overflow-y-auto">
         <div class="text-xs text-slate-400 uppercase mb-2">Ports</div>
         <div id="port-list" class="space-y-2"></div>
     </div>
 
-    <!-- MAIN PANEL -->
     <div class="flex-1 flex flex-col gap-4 overflow-hidden">
 
-        <!-- CURRENT DATA -->
-        <div class="card p-6 flex flex-col gap-4">
+        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-4 items-center">
 
             <div class="text-xs text-slate-400 uppercase">Selected Port</div>
-            <div id="port-name" class="text-2xl font-bold text-purple-300">--</div>
+            <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
 
-            <div class="text-xs text-slate-400 uppercase mt-4">
-                Incoming vessels (next <span id="window-min">--</span> min)
+            <div class="text-xs text-slate-400 uppercase">System ID</div>
+            <div id="port-id" class="text-lg font-bold text-yellow-400 truncate">--</div>
+
+            <div class="text-xs text-slate-400 uppercase">Latitude</div>
+            <div id="port-lat" class="text-lg font-bold text-green-400">--</div>
+
+            <div class="text-xs text-slate-400 uppercase">Longitude</div>
+            <div id="port-lon" class="text-lg font-bold text-green-400">--</div>
+
+            <div class="text-xs text-slate-400 uppercase">Window (min)</div>
+            <div id="window-min" class="text-lg font-bold text-purple-300">--</div>
+
+            <div class="text-xs text-slate-400 uppercase">Status</div>
+            <div id="port-status" class="text-lg font-bold text-blue-200">ACTIVE</div>
+
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+
+            <div class="col-span-4 text-xs text-slate-400 uppercase mt-2 text-center">
+                Incoming Vessels Count
             </div>
-            <div id="incoming-val" class="text-4xl font-black text-cyan-400">--</div>
+            <div id="incoming-val" class="col-span-4 text-4xl font-black text-cyan-400 text-center">
+                --
+            </div>
 
         </div>
 
-        <!-- GRAPH PANEL -->
         <div class="card p-4 flex-1 flex flex-col overflow-hidden">
-            <div class="text-xs text-slate-400 uppercase mb-2">Incoming vessels history</div>
+            <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
             <canvas id="portChart"></canvas>
         </div>
 
@@ -54,9 +71,16 @@
 
 </div>
 
-<!-- SOCKET.IO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+/* =====================================================
+   CONFIGURAZIONE
+===================================================== */
+// URL aggiornato secondo richiesta
+const API_BASE_URL = "http://87.26.178.190:15080"; 
+// Socket separato come nel file di riferimento (modifica se necessario)
+const SOCKET_URL   = "http://localhost:5000"; 
+
 /* =====================================================
    URL FILTER (PORT)
 ===================================================== */
@@ -77,12 +101,12 @@ const filterEnabled = allowedPorts.size > 0;
 /* =====================================================
    SOCKET
 ===================================================== */
-const socket = io("http://localhost:5000");
+const socket = io(SOCKET_URL);
 
 /* =====================================================
    STATE
 ===================================================== */
-let ports = {};          // port → data
+let ports = {};          
 let selectedPort = null;
 const maxPoints = 60;
 
@@ -90,11 +114,24 @@ const maxPoints = 60;
    HELPERS
 ===================================================== */
 function generateColor(name) {
+    // Generazione colore deterministica basata sul nome
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
     return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
+}
+
+async function fetchPortDetails(portName) {
+    try {
+        const url = `${API_BASE_URL}/porto/by_name/${encodeURIComponent(portName)}`;
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch (e) {
+        console.error("Fetch error:", e);
+        return null;
+    }
 }
 
 /* =====================================================
@@ -110,7 +147,7 @@ const chart = new Chart(ctx, {
         animation: false,
         scales: {
             y: {
-                min: 0,
+                beginAtZero: true,
                 ticks: { color: "#94a3b8" },
                 grid: { color: "rgba(148,163,184,0.2)" }
             },
@@ -135,14 +172,14 @@ function renderList() {
         el.className =
             `p-2 rounded cursor-pointer border ${
                 isSelected
-                    ? "bg-purple-900 border-purple-400"
+                    ? "bg-blue-900 border-blue-400"  // Stile "Blue" come Delta Monitor
                     : "bg-slate-800 border-slate-600 hover:bg-slate-700"
             }`;
 
         el.innerHTML = `
-            <div class="font-bold">${port}</div>
-            <div class="text-sm font-mono" style="color:${p.color}">
-                ${p.last}
+            <div class="font-bold font-mono">${port}</div>
+            <div class="text-sm font-bold" style="color:${p.color}">
+                ${p.last} incoming
             </div>
         `;
 
@@ -154,19 +191,36 @@ function renderList() {
 /* =====================================================
    UPDATE INFO
 ===================================================== */
-function updateInfo() {
+async function updateInfo() {
     if (!selectedPort || !ports[selectedPort]) {
-        document.getElementById("port-name").innerText = "--";
-        document.getElementById("incoming-val").innerText = "--";
-        document.getElementById("window-min").innerText = "--";
+        ["port-name","port-id","port-lat","port-lon","window-min","incoming-val"]
+            .forEach(id => document.getElementById(id).innerText = "--");
         return;
     }
 
     const p = ports[selectedPort];
 
+    // Caricamento Lazy dei dettagli API se mancano
+    if (!p.detailsLoaded) {
+        p.detailsLoaded = true; // Evita loop
+        p.details = await fetchPortDetails(selectedPort);
+    }
+
+    // Aggiornamento UI
     document.getElementById("port-name").innerText = selectedPort;
     document.getElementById("incoming-val").innerText = p.last;
     document.getElementById("window-min").innerText = p.window;
+
+    // Dati da API (se disponibili)
+    if (p.details) {
+        document.getElementById("port-id").innerText = p.details.id || "--";
+        document.getElementById("port-lat").innerText = p.details.lat ? p.details.lat.toFixed(4) : "--";
+        document.getElementById("port-lon").innerText = p.details.lon ? p.details.lon.toFixed(4) : "--";
+    } else {
+        document.getElementById("port-id").innerText = "--";
+        document.getElementById("port-lat").innerText = "--";
+        document.getElementById("port-lon").innerText = "--";
+    }
 }
 
 /* =====================================================
@@ -213,8 +267,12 @@ socket.on("analytics_update", msg => {
             history: Array(maxPoints).fill(0),
             last: incoming,
             window: windowMin,
-            color: generateColor(port)
+            color: generateColor(port),
+            details: null,       // Dati API
+            detailsLoaded: false // Flag caricamento
         };
+        // Auto-selezione al primo evento
+        if (!selectedPort) selectedPort = port;
     }
 
     ports[port].history.shift();
@@ -222,11 +280,13 @@ socket.on("analytics_update", msg => {
     ports[port].last = incoming;
     ports[port].window = windowMin;
 
-    if (!selectedPort) selectedPort = port;
-
     renderList();
-    updateInfo();
-    updateChart();
+    
+    // Aggiorna dettagli solo se è il porto visualizzato
+    if (selectedPort === port) {
+        updateInfo();
+        updateChart();
+    }
 });
 
 /* =====================================================

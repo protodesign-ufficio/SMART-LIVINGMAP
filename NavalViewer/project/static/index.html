@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="h-screen flex bg-slate-900 text-slate-200 font-mono">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-slate-800 border-r border-slate-700 p-4 flex flex-col gap-2">
+    <div class="text-xs uppercase text-slate-400 mb-2">Dashboard</div>
+
+    <button data-route="/componenti"
+            class="nav-btn p-2 rounded bg-slate-700 hover:bg-slate-600 text-left">
+      Component Usage
+    </button>
+
+    <button data-route="/porto"
+            class="nav-btn p-2 rounded bg-slate-700 hover:bg-slate-600 text-left">
+      AIS Berth Monitor
+    </button>
+
+    <button data-route="/vascello"
+            class="nav-btn p-2 rounded bg-slate-700 hover:bg-slate-600 text-left">
+      AIS Delta Monitor
+    </button>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="flex-1">
+    <iframe id="content" class="w-full h-full border-none"></iframe>
+  </main>
+
+<script>
+/* ===============================
+   ROUTING
+================================ */
+
+const ROUTE_MAP = {
+  "/componenti": "componenti.html",
+  "/porto"     :       "porto.html",
+  "/vascello"  :   "vascello.html"
+};
+
+function parseHash() {
+  // "#/delta?mmsi=123"
+  const raw = location.hash.slice(1) || "/componenti";
+  const [route, query] = raw.split("?");
+  return { route, query };
+}
+
+function loadFromHash() {
+  const { route, query } = parseHash();
+  const page = ROUTE_MAP[route] || ROUTE_MAP["/componenti"];
+  const src  = query ? `${page}?${query}` : page;
+
+  document.getElementById("content").src = src;
+  highlight(route);
+}
+
+function highlight(route) {
+  document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.classList.toggle(
+      "bg-blue-700",
+      btn.dataset.route === route
+    );
+  });
+}
+
+/* ===============================
+   SIDEBAR CLICK → HASH
+================================ */
+
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.onclick = () => {
+    const { query } = parseHash(); // preserva parametri
+    location.hash = btn.dataset.route + (query ? `?${query}` : "");
+  };
+});
+
+/* ===============================
+   INIT + LISTENER
+================================ */
+
+window.addEventListener("hashchange", loadFromHash);
+loadFromHash();
+</script>
+
+</body>
+</html>

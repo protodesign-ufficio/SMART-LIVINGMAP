@@ -214,7 +214,7 @@ class VascelliPanel(QWidget):
             return
         data = item.data(Qt.UserRole) or {}
         mmsi = data.get('mmsi') or item.text()
-        open_dashboard('static/vascello.html', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
+        open_dashboard('static/index.html#/vascello', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
 
 class VascelloDialog(QDialog):
     """Dialog per modificare (o creare) un vascello."""
