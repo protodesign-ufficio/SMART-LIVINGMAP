@@ -97,17 +97,12 @@ class PercorsiDialog(QDialog):
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
 
-        # table of percorsi
-        # add extra column for a checkbox to show/hide route on the map
-        self.table = QTableWidget(0, 7, self)
+        # table of percorsi: only keep checkbox, tempo and consumo columns
+        self.table = QTableWidget(0, 3, self)
         self.table.setHorizontalHeaderLabels([
             'Mostra',
             'Tempo Percorrenza',
             'Consumo',
-            'P_Ref',
-            'V_Ref',
-            'Geom. Rotta',
-            'ID',
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -185,30 +180,19 @@ class PercorsiDialog(QDialog):
         for p in percorsi:
             row = self.table.rowCount()
             self.table.insertRow(row)
-
             tempo = p.get('tempo_percorrenza', '')
             consumo = p.get('consumo', '')
-            pref = p.get('pref', '')
-            vref = p.get('vref', '')
-            geom = p.get('geom_rotta', '')
-            pid = p.get('id', '')
 
-            # checkbox item in first column
+            # checkbox item in first column; store full percorso object on it via UserRole
             it_check = QTableWidgetItem()
             it_check.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             it_check.setCheckState(Qt.Unchecked)
+            it_check.setData(Qt.UserRole, p)
 
             it_tempo = QTableWidgetItem(str(tempo))
             it_consumo = QTableWidgetItem(str(consumo))
-            it_pref = QTableWidgetItem(str(pref))
-            it_vref = QTableWidgetItem(str(vref))
-            it_geom = QTableWidgetItem(str(geom))
-            it_id = QTableWidgetItem(str(pid))
 
-            # store full percorso object in ID column user role
-            it_id.setData(Qt.UserRole, p)
-
-            for it in (it_tempo, it_consumo, it_pref, it_vref, it_geom, it_id):
+            for it in (it_tempo, it_consumo):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
             # suppress itemChanged while inserting
@@ -216,10 +200,6 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 0, it_check)
             self.table.setItem(row, 1, it_tempo)
             self.table.setItem(row, 2, it_consumo)
-            self.table.setItem(row, 3, it_pref)
-            self.table.setItem(row, 4, it_vref)
-            self.table.setItem(row, 5, it_geom)
-            self.table.setItem(row, 6, it_id)
             self._suppress_item_changed = False
 
         # after populating, restore checked state from parent and draw any persisted routes
@@ -229,7 +209,7 @@ class PercorsiDialog(QDialog):
                 visible = parent._visible_routes
                 import json as _json
                 for row_idx in range(self.table.rowCount()):
-                    id_item = self.table.item(row_idx, 6)
+                    id_item = self.table.item(row_idx, 0)
                     if id_item is None:
                         continue
                     route_obj = id_item.data(Qt.UserRole)
@@ -325,10 +305,7 @@ class PercorsiDialog(QDialog):
                 return
             row = item.row()
             checked = (item.checkState() == Qt.Checked)
-            id_item = self.table.item(row, 6)
-            if id_item is None:
-                return
-            route_obj = id_item.data(Qt.UserRole)
+            route_obj = item.data(Qt.UserRole)
             if not isinstance(route_obj, dict):
                 return
             # use JSON serialization for safe JS passing

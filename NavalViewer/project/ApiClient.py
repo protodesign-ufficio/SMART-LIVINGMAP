@@ -9,9 +9,6 @@ from typing import Any, Dict, Optional
 
 BASE_URL = "http://87.26.178.190:15080/"
 
-import os
-import webbrowser
-
 
 def get_json(endpoint: str, params: Optional[Dict[str, Any]] = None, timeout: int = 5) -> Dict[str, Any]:
     """Esegue una GET e restituisce il JSON parsato.
