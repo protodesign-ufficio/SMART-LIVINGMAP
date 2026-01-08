@@ -155,7 +155,7 @@ class AddTrattaDialog(QDialog):
         if mode == 'Semplice':
             partenza = self.start_cb.currentText()
             arrivo = self.end_cb.currentText()
-            tratta_id = f"{abbrev(partenza)} - {abbrev(arrivo)}"
+            tratta_id = f"{abbrev(partenza)}-{abbrev(arrivo)}"
             payload = {
                 'id': tratta_id,
                 'porto_partenza': partenza,
