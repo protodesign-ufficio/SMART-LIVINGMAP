@@ -12,8 +12,11 @@ from PyQt5.QtWidgets import (
     QDialog,
     QFormLayout,
     QComboBox,
+    QLineEdit,
+    QLabel,
     QDateEdit,
     QTimeEdit,
+    QProgressDialog,
 )
 
 # Import get_json and post_json with fallback to support different import styles
@@ -108,6 +111,102 @@ class AddCorsaDialog(QDialog):
         return getattr(self, '_payload', None)
 
 
+class OptimizationDialog(QDialog):
+    """Dialog per avviare l'ottimizzazione per una corsa selezionata.
+
+    Mostra l'ID della corsa, richiede il nome dell'ottimizzazione e permette
+    di scegliere un vascello recuperato tramite `GET vascello/lista`.
+    """
+
+    def __init__(self, parent=None, corsa_id=None):
+        super().__init__(parent)
+        self.setWindowTitle('Ottimizza Percorsi')
+        self.corsa_id = str(corsa_id) if corsa_id is not None else ''
+
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+
+        # show selected corsa id (non editabile)
+        self.corsa_label = QLabel(self.corsa_id)
+        self.name_edit = QLineEdit()
+        self.vascello_cb = QComboBox()
+
+        form.addRow('Corsa Selezionata (ID)', self.corsa_label)
+        form.addRow('Nome Ottimizzazione', self.name_edit)
+        form.addRow('Vascello', self.vascello_cb)
+
+        layout.addLayout(form)
+
+        btn_row = QHBoxLayout()
+        self.start_btn = QPushButton('Avvia')
+        self.start_btn.clicked.connect(self.start_optimization)
+        cancel = QPushButton('Annulla')
+        cancel.clicked.connect(self.reject)
+        btn_row.addStretch()
+        btn_row.addWidget(self.start_btn)
+        btn_row.addWidget(cancel)
+        layout.addLayout(btn_row)
+
+        self.load_choices()
+
+    def load_choices(self):
+        if get_json is None:
+            QMessageBox.warning(self, 'Errore', 'Client API non disponibile per caricare liste')
+            return
+        try:
+            vascello_list = get_json('vascello/lista') or []
+        except Exception:
+            vascello_list = []
+
+        self.vascello_cb.clear()
+        for v in vascello_list:
+            if isinstance(v, dict):
+                vid = str(v.get('id', ''))
+                name = v.get('nome') or v.get('name') or vid
+            else:
+                vid = str(v)
+                name = vid
+            self.vascello_cb.addItem(str(name), vid)
+
+    def start_optimization(self):
+        name = self.name_edit.text().strip()
+        vascello_id = self.vascello_cb.currentData() or self.vascello_cb.currentText()
+        corsa_id = self.corsa_id
+        if not name:
+            QMessageBox.warning(self, 'Errore', 'Inserisci il Nome Ottimizzazione')
+            return
+        if not corsa_id:
+            QMessageBox.warning(self, 'Errore', 'ID corsa non disponibile')
+            return
+        if not vascello_id:
+            QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
+            return
+
+        if post_json is None:
+            QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
+            return
+
+        payload = {
+            'corsa_id': corsa_id,
+            'vascello_id': vascello_id,
+            'optimization_id': name,
+        }
+
+        progress = QProgressDialog('Avviando ottimizzazione...', None, 0, 0, self)
+        progress.setWindowTitle('Ottimizzazione')
+        progress.setCancelButton(None)
+        progress.setModal(True)
+        progress.show()
+        try:
+            post_json('ottimizzatore', payload=payload, timeout=300)
+            progress.close()
+            QMessageBox.information(self, 'Successo', 'Ottimizzazione avviata con successo')
+            self.accept()
+        except Exception as e:
+            progress.close()
+            QMessageBox.warning(self, 'Errore', f'Ottimizzazione fallita: {e}')
+
+
 
 class CorsePanel(QWidget):
     """Panel that displays scheduled runs (corse).
@@ -156,6 +255,19 @@ class CorsePanel(QWidget):
         self.details_btn.setEnabled(False)
         self.details_btn.clicked.connect(self.open_details_dialog)
         btn_row.addWidget(self.details_btn)
+        # button to show selected corsa in the dashboard (similar to PortiPanel)
+        self.show_dashboard_btn = QPushButton('Mostra in Dashboard')
+        self.show_dashboard_btn.setEnabled(False)
+        self.show_dashboard_btn.clicked.connect(self._open_dashboard)
+        btn_row.addWidget(self.show_dashboard_btn)
+        # optimize button to start optimization for selected corsa
+        self.optimize_btn = QPushButton('Ottimizza Percorsi')
+        self.optimize_btn.setEnabled(False)
+        self.optimize_btn.clicked.connect(self.open_optimization_dialog)
+        if post_json is None:
+            # posting required to start optimization
+            self.optimize_btn.setEnabled(False)
+        btn_row.addWidget(self.optimize_btn)
         btn_row.addStretch()
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
@@ -258,6 +370,15 @@ class CorsePanel(QWidget):
     def update_details_button_state(self):
         has_sel = self.table.selectionModel().hasSelection()
         self.details_btn.setEnabled(bool(has_sel))
+        # keep optimize button in sync with selection
+        try:
+            self.optimize_btn.setEnabled(bool(has_sel) and post_json is not None)
+        except Exception:
+            pass
+        try:
+            self.show_dashboard_btn.setEnabled(bool(has_sel))
+        except Exception:
+            pass
 
     def open_details_dialog(self):
         # get selected row
@@ -270,3 +391,71 @@ class CorsePanel(QWidget):
         corsa = item.data(Qt.UserRole) if item is not None else None
         dlg = PercorsiDialog(self, corsa=corsa)
         dlg.exec_()
+
+    def open_optimization_dialog(self):
+        sel = self.table.selectionModel().selectedRows()
+        if not sel:
+            QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
+            return
+        row = sel[0].row()
+        item = self.table.item(row, 0)
+        corsa = item.data(Qt.UserRole) if item is not None else None
+        corsa_id = None
+        if isinstance(corsa, dict):
+            corsa_id = corsa.get('id')
+        if corsa_id is None and item is not None:
+            corsa_id = item.text()
+
+        dlg = OptimizationDialog(self, corsa_id=corsa_id)
+        dlg.exec_()
+
+    def _open_dashboard(self):
+        # open the previsione_domanda dashboard page for the selected corsa
+        sel = self.table.selectionModel().selectedRows()
+        if not sel:
+            QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
+            return
+        row = sel[0].row()
+        item = self.table.item(row, 0)
+        if item is None:
+            QMessageBox.warning(self, 'Errore', 'Elemento selezionato non valido')
+            return
+        corsa = item.data(Qt.UserRole) or {}
+        # try to get a friendly label
+        corsa_id = str(corsa.get('id') if isinstance(corsa, dict) else item.text())
+        desc = corsa.get('tratta_id') if isinstance(corsa, dict) else corsa_id
+
+        # find ancestor MainWindow or fallback to top-level widgets (same approach as PortiPanel)
+        p = self
+        main = None
+        for _ in range(8):
+            p = p.parent()
+            if p is None:
+                break
+            if hasattr(p, 'open_dashboard_embedded'):
+                main = p
+                break
+
+        if main is None:
+            try:
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app is not None:
+                    for w in app.topLevelWidgets():
+                        try:
+                            if hasattr(w, 'open_dashboard_embedded'):
+                                main = w
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                main = None
+
+        if main is None:
+            QMessageBox.warning(self, 'Errore', 'Embedded dashboard non disponibile nella applicazione')
+            return
+
+        try:
+            main.open_dashboard_embedded('static/index.html#/previsione_domanda', {'corsa_id': corsa_id}, title=f'Previsione Corsa: {corsa_id}', size=(1500, 800))
+        except Exception as e:
+            QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')

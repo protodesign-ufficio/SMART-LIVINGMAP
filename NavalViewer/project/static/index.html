@@ -26,6 +26,11 @@
             class="nav-btn p-2 rounded bg-slate-700 hover:bg-slate-600 text-left">
       AIS Delta Monitor
     </button>
+	
+	<button data-route="/previsione_domanda"
+            class="nav-btn p-2 rounded bg-slate-700 hover:bg-slate-600 text-left">
+      Previsione domanda
+    </button>
   </aside>
 
   <!-- CONTENT -->
@@ -40,8 +45,9 @@
 
 const ROUTE_MAP = {
   "/componenti": "componenti.html",
-  "/porto"     :       "porto.html",
-  "/vascello"  :   "vascello.html"
+  "/porto":   "porto.html",
+  "/vascello":      "vascello.html",
+  "/previsione_domanda": "previsione_domanda.html"
 };
 
 function parseHash() {
