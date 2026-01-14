@@ -5,7 +5,10 @@ This file provides a minimal entry point that imports `MainWindow` from
 """
 
 import sys
+import queue
 from PyQt5.QtWidgets import QApplication
+# import os
+# os.environ['QTWEBENGINE_REMOTE_DEBUGGING'] = '9222'
 
 from main_window import MainWindow
 try:
@@ -13,6 +16,11 @@ try:
 	from consumer_dashboards import start_dashboard
 except Exception:
 	start_dashboard = None
+
+try:
+	from consumer_ais import ConsumerAIS
+except Exception:
+	ConsumerAIS = None
 
 
 def main():
@@ -23,10 +31,30 @@ def main():
 		except Exception:
 			pass
 
+	# prepare queue and consumer thread
+	q = queue.Queue()
+	consumer = None
+	if ConsumerAIS is not None:
+		try:
+			consumer = ConsumerAIS(q)
+			consumer.start()
+		except Exception:
+			consumer = None
+
 	app = QApplication(sys.argv)
-	w = MainWindow()
+	w = MainWindow(queue=q)
 	w.showMaximized()
-	sys.exit(app.exec_())
+	try:
+		rc = app.exec_()
+	finally:
+		# ensure consumer stopped cleanly
+		try:
+			if consumer is not None:
+				consumer.stop()
+				consumer.join(timeout=2)
+		except Exception:
+			pass
+	sys.exit(rc)
 
 
 if __name__ == '__main__':

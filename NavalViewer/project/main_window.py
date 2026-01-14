@@ -1,7 +1,8 @@
 import json
 import time
 from pathlib import Path
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, QTimer
+# logging removed per user request
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -32,8 +33,11 @@ class MainWindow(QMainWindow):
     - open/manage various dialogs (Manager, Settings, etc)
     """
 
-    def __init__(self):
+    def __init__(self, queue=None):
+        # Accept an optional `queue.Queue` with AIS messages produced by
+        # `consumer_ais.ConsumerAIS` running in a background thread.
         super().__init__()
+        self._ais_queue = queue
         self.setWindowTitle("NavalViewer - Chart Viewer")
         self.resize(1000, 700)
 
@@ -105,6 +109,18 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         content.addWidget(self.view, 10)
+        
+        # setup AIS queue polling timer
+        # start a timer that will poll the AIS queue and forward updates to JS
+        self._queue_timer = QTimer(self)
+        self._queue_timer.setInterval(200)
+        self._queue_timer.timeout.connect(self._drain_queue)
+        try:
+            if self._ais_queue is not None:
+                self._queue_timer.start()
+        except Exception:
+            pass
+
 
         # simple right column with buttons
         right_col = QWidget()
@@ -114,11 +130,25 @@ class MainWindow(QMainWindow):
         self.open_manager_btn = QPushButton("Manager")
         self.open_manager_btn.clicked.connect(self.open_manager_dialog)
         right_layout.addWidget(self.open_manager_btn)
+
+        # button to open the advanced settings dashboard
+        self.open_advanced_btn = QPushButton("Impostazioni Avanzate")
+        self.open_advanced_btn.clicked.connect(
+            lambda: self.open_dashboard_embedded(
+                'static/impostazioni_avanzate.html',
+                title='Impostazioni Avanzate',
+                size=(1500, 800),
+            )
+        )
+        right_layout.addWidget(self.open_advanced_btn)
+
         right_layout.addStretch()
         
         content.addWidget(right_col, 0)
 
         layout.addLayout(content)
+
+        # timer already created above
 
     def open_manager_dialog(self):
         """Open or create the Manager dialog."""
@@ -144,6 +174,39 @@ class MainWindow(QMainWindow):
             # ensure serializable
             js = f"loadPorts({_json.dumps(items)})"
             self.view.page().runJavaScript(js)
+        except Exception:
+            pass
+
+    def _drain_queue(self):
+        """Drain AIS queue and forward updates to the embedded map JS.
+
+        Each item put on the queue is expected to be a dict (the deserialized
+        Kafka message value). We call the global JS `updateShip(obj)` function
+        in the page context with the object.
+        """
+        q = self._ais_queue
+        if q is None:
+            return
+        try:
+            import json as _json
+            while not q.empty():
+                try:
+                    item = q.get_nowait()
+                except Exception:
+                    break
+                try:
+                    # log the item for debug
+                    try:
+                        js = f"window.updateShip({_json.dumps(item)})"
+                        try:
+                            self.view.page().runJavaScript(js)
+                        except Exception:
+                            # ignore JS errors silently
+                            pass
+                    except Exception:
+                        pass
+                except Exception:
+                    logger.exception("Error while draining AIS queue")
         except Exception:
             pass
 

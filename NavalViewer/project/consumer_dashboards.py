@@ -71,7 +71,7 @@ def kafka_loop():
         # LIVE PUSH
         # -------------------------
         socketio.emit("analytics_update", data)
-        log(f"sent → {data}")
+        # log(f"sent → {data}")
 
 # ----------------------------------------------------
 # SOCKET.IO: SNAPSHOT ON CONNECT

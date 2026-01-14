@@ -1,0 +1,10 @@
+ConsumerRecord(topic='ais_decoded.raw', partition=0, leader_epoch=0, offset=1889, timestamp=1767885033156, timestamp_type=0, key=None, 
+value={'type': 'ais_decoded', 'msg_type': 1, 'mmsi': 1111021, 
+'payload': {'msg_type': 1, 'repeat': 0, 'mmsi': 1111021, 'status': 15, 'turn': -128.0, 'speed': 1.6, 'accuracy': False, 'lon': 14.452727, 'lat': 40.559308, 'course': 45.0, 'heading': 45, 'second': 31, 'maneuver': 3, 'raim': False, 'radio': 0}, 
+'timestamp': 1767885033.156074}, headers=[], checksum=None, serialized_key_size=-1, serialized_value_size=331, serialized_header_size=-1)
+
+
+ConsumerRecord(topic='ais_decoded.raw', partition=0, leader_epoch=0, offset=1955, timestamp=1767885036685, timestamp_type=0, key=None, 
+value={'type': 'ais_decoded', 'msg_type': 5, 'mmsi': 1111021, 
+'payload': {'msg_type': 5, 'repeat': 0, 'mmsi': 1111021, 'ais_version': 0, 'imo': 0, 'callsign': 'VESSEL1', 'shipname': 'VESSEL1', 'ship_type': 70, 'to_bow': 50, 'to_stern': 20, 'to_port': 10, 'to_starboard': 10, 'epfd': 1, 'month': 1, 'day': 8, 'hour': 16, 'minute': 10, 'draught': 5.0, 'destination': 'NAPOLI', 'dte': False}, 
+'timestamp': 1767885036.6856234}, headers=[], checksum=None, serialized_key_size=-1, serialized_value_size=416, serialized_header_size=-1)

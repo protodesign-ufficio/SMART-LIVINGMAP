@@ -1,94 +1,104 @@
-let shipMarker = null;
+// ships.js
+// Manage ship markers and tracks on the Leaflet map.
 
-window.shipMarkers = {};
-window.shipPaths = {};
+window._nv_ships = window._nv_ships || {};
+(function(){
+  const ships = {};
 
-function colorFromString(s){
-  if(!s) return '#0077be';
-  if(s === '__gps') return '#0077be';
-  let h = 0;
-  for(let i=0;i<s.length;i++){
-    h = ((h<<5)-h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  const hex = (h >>> 0 & 0xFFFFFF).toString(16).padStart(6,'0');
-  return '#' + hex;
-}
+  // debug removed per user request
 
-function makeShipIcon(cog, color){
-  const angle = Number(cog) || 0;
-  const svg = `
+  function makeSvg(color, heading){
+    const h = (heading || 0);
+    // simple arrow-shaped SVG; rotation applied via inline style
+    return `<div style="transform: rotate(${h}deg); display:inline-block;">
       <svg width="24" height="13" viewBox="0 0 24 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 6.5L24 0L17 6.5L24 13L0 6.5Z" fill="${color}" stroke="black"/>
-      </svg>`; 
-
-  // wrap svg in a div to apply rotation
-  const html = `<div style="transform: rotate(${angle}deg); width:32px; height:32px; display:flex; align-items:center; justify-content:center;">${svg}</div>`;
-  return L.divIcon({className:'ship-icon', html: html, iconSize: [32,32], iconAnchor: [16,16]});
-}
-
-function createShipMarker(lat, lon, cog, color){
-  const icon = makeShipIcon(cog, color);
-  return L.marker([lat, lon], {icon: icon}).addTo(map);
-}
-
-function updateShip(lat, lon, sog, cog, mmsi, name, type, color){
-  if (!lat || !lon) return;
-  const key = (mmsi && mmsi !== '-') ? String(mmsi) : '__gps';
-  // prefer explicit color if provided, otherwise derive from key
-  const colorUsed = color && color !== null ? color : colorFromString(key);
-  let marker = window.shipMarkers[key];
-  if (!marker) {
-    marker = createShipMarker(lat, lon, cog, colorUsed);
-    window.shipMarkers[key] = marker;
-  } else {
-    marker.setLatLng([lat, lon]);
-    // update icon rotation/color
-    marker.setIcon(makeShipIcon(cog, colorUsed));
+        <path d="M0 6.5L24 0L17 6.5L24 13L0 6.5Z" fill="${color || '#ff6600'}" stroke="black"/>
+      </svg>
+    </div>`;
   }
 
-  // update path
-  let path = window.shipPaths[key];
-  const latlng = [lat, lon];
-  if (!path) {
-    path = L.polyline([latlng], {color: colorUsed, weight: 2}).addTo(map);
-    window.shipPaths[key] = path;
-  } else {
-    const pts = path.getLatLngs();
-    pts.push(latlng);
-    path.setLatLngs(pts);
-    path.setStyle({color: colorUsed});
+  function makeIcon(color, heading){
+    return L.divIcon({
+      className: 'nv-ship-icon',
+      html: makeSvg(color, heading),
+      iconSize: [24,13],
+      iconAnchor: [12,6]
+    });
   }
 
-  const nameLine = name && name !== '-' ? `Name: ${name}<br/>` : '';
-  const mmsiLine = (mmsi && mmsi !== '-') ? `MMSI: ${mmsi}<br/>` : '';
-  const typeLine = type && type !== '-' ? `Type: ${type}<br/>` : '';
-  marker.bindPopup(`${nameLine}${mmsiLine}${typeLine}Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/>Speed: ${sog}<br/>Course: ${cog}`);
-  // Do not pan the map automatically when the ship updates.
-}
-
-function centerOnShip(mmsi){
-  const key = (mmsi && mmsi !== '-') ? String(mmsi) : '__gps';
-  const marker = window.shipMarkers[key];
-  if (marker) {
-    map.setView(marker.getLatLng(), map.getZoom(), {animate: true});
-    marker.openPopup();
+  function popupHtml(m){
+    const staticInfo = m.static || {};
+    return `<div style="font-size:12px">
+      <b>${staticInfo.shipname || ''}</b><br/>
+      MMSI: ${m.mmsi || ''}<br/>
+      Speed: ${m.speed != null ? m.speed : ''}<br/>
+      Heading: ${m.heading != null ? m.heading : ''} <br/>
+      Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
+      Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}
+    </div>`;
   }
-}
 
-function setShipColor(mmsi, color){
-  const key = (mmsi && mmsi !== '-') ? String(mmsi) : '__gps';
-  const marker = window.shipMarkers[key];
-  const path = window.shipPaths[key];
-  if(marker){
-    // preserve current rotation if possible
-    marker.setIcon(makeShipIcon(0, color));
-  }
-  if(path){
-    path.setStyle({color: color});
-  }
-}
+  window.updateShip = function(data){
+    try{
+      // no debug output
+      const payload = data.payload || {};
+      const msg_type = data.msg_type || (payload && payload.msg_type);
+      const mmsi = data.mmsi || payload.mmsi || data.key;
+      if(!mmsi) return;
 
-// expose to window for external callers (PyQt runJavaScript)
-window.updateShip = updateShip;
-window.setShipColor = setShipColor;
+      if(!ships[mmsi]){
+        ships[mmsi] = {mmsi: mmsi, static: {}, coords: [], marker: null, polyline: null};
+      }
+      const s = ships[mmsi];
+
+      if(msg_type === 1){
+        const lat = payload.lat;
+        const lon = payload.lon;
+        if(lat == null || lon == null) return;
+        const heading = ((payload.heading || 0) + 90.0) % 360;
+        s.lat = lat; s.lon = lon; s.speed = payload.speed; s.heading = heading;
+
+        if(s.marker === null){
+          s.marker = L.marker([lat, lon], {icon: makeIcon(s.static.color || '#ff6600', heading), riseOnHover: true}).addTo(window.map);
+          // bind popup once and open on click
+          s.marker.bindPopup(popupHtml(s));
+          s.marker.on('click', function(){
+            try{ s.marker.openPopup(); }catch(e){}
+          });
+          s.coords = [[lat, lon]];
+          s.polyline = L.polyline(s.coords, {color: s.static.color || '#ff6600', weight:2, opacity:0.8}).addTo(window.map);
+        } else {
+          s.marker.setLatLng([lat, lon]);
+          // update icon HTML to reflect heading / color
+          const el = s.marker.getElement();
+          if(el){
+            const div = el.querySelector('div');
+            if(div){ div.style.transform = `rotate(${heading}deg)`; }
+          }
+          // update popup content to reflect latest state
+          try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
+          // append to path (no max length; keep full history)
+          s.coords.push([lat, lon]);
+          if(s.polyline) s.polyline.setLatLngs(s.coords);
+        }
+      } else if(msg_type === 5){
+        // static information
+        s.static.shipname = payload.shipname || s.static.shipname;
+        s.static.callsign = payload.callsign || s.static.callsign;
+        s.static.ship_type = payload.ship_type || s.static.ship_type;
+        s.static.draught = payload.draught || s.static.draught;
+        s.static.destination = payload.destination || s.static.destination;
+        // if marker exists, update popup content
+        if(s.marker){
+          s.marker.bindPopup(popupHtml(s));
+        }
+      }
+    }catch(e){
+      // ignore errors in map update to avoid crashing
+    }
+  };
+
+  // expose for debugging
+  window._nv_ships = ships;
+
+})();

@@ -50,15 +50,15 @@ function popupForPort(name, lat, lon){
   // build an index.html URL in the same static folder and open fragment with port param
   let base = window.location.href || '';
   // try to replace map.html or map.* with index.html, fallback to directory + index.html
-  let indexUrl = base.replace(/map\.html($|[?#].*$)/, 'index.html');
+  let indexUrl = base.replace(/map\.html($|[?#].*$)/, 'dashboard/index.html');
   if(indexUrl === base){
     // didn't replace, build from path
     try{
       const parts = base.split('/');
       parts.pop();
-      indexUrl = parts.join('/') + '/index.html';
+      indexUrl = parts.join('/') + '/dashboard/index.html';
     }catch(e){
-      indexUrl = 'index.html';
+      indexUrl = 'dashboard/index.html';
     }
   }
   const frag = '#/porto?port=' + encodeURIComponent(name || '');

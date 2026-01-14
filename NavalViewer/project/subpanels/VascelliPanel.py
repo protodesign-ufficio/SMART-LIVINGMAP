@@ -243,7 +243,7 @@ class VascelliPanel(QWidget):
             return
 
         try:
-            main.open_dashboard_embedded('static/index.html#/vascello', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
+            main.open_dashboard_embedded('static/dashboard/index.html#/vascello', {'mmsi': mmsi}, title=f'Dashboard: {mmsi}', size=(1500, 800))
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')
 

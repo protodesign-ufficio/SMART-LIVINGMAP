@@ -14,10 +14,8 @@
 
 <body class="h-screen w-screen p-6 flex flex-col gap-6 overflow-hidden">
 
-<!-- HEADER -->
 <div class="text-xl font-bold tracking-tight flex items-center gap-2">
     <span class="text-blue-400">AIS Delta Monitor</span>
-    <span class="text-slate-600 text-sm">(Kafka → WebSocket)</span>
 </div>
 
 <div class="flex flex-1 gap-6 overflow-hidden">
@@ -28,53 +26,86 @@
         <div id="ship-list" class="space-y-2"></div>
     </div>
 
-    <!-- MAIN PANEL -->
+    <!-- MAIN -->
     <div class="flex-1 flex flex-col gap-4 overflow-hidden">
 
-        <!-- CURRENT DATA (2-column pairs layout) -->
-        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-4 items-center">
+        <!-- TOP PANEL COLLAPSABLE -->
+        <div class="card overflow-hidden transition-all duration-300">
 
-            <!-- ROW 1 -->
-            <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
-            <div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
-
-            <div class="text-xs text-slate-400 uppercase">Destination</div>
-            <div id="destination" class="text-lg font-bold text-yellow-400">--</div>
-
-            <!-- ROW 2 -->
-            <div class="text-xs text-slate-400 uppercase">ETA</div>
-            <div id="eta" class="text-lg font-bold text-green-400">--</div>
-
-            <div class="text-xs text-slate-400 uppercase">Vessel Name</div>
-            <div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
-
-            <!-- ROW 3 -->
-            <div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
-            <div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
-
-            <div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
-            <div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
-
-            <!-- ROW 4 -->
-            <div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
-            <div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
-
-            <div></div>
-            <div></div>
-
-            <!-- DELTA -->
-            <div class="col-span-4 text-xs text-slate-400 uppercase mt-2 text-center">
-                Current Delta (minutes)
-            </div>
-            <div id="delta-val"
-                 class="col-span-4 text-4xl font-black text-cyan-400 text-center">
-                --
+            <!-- HEADER -->
+            <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
+                <div class="text-xs text-slate-400 uppercase">Vessel Details</div>
+                <button id="toggle-btn"
+                        class="text-slate-300 hover:text-white text-sm font-bold select-none">
+                    ▲
+                </button>
             </div>
 
+            <!-- CONTENT -->
+            <div id="top-panel-content"
+				class="p-4 grid grid-cols-[1fr_1fr_auto] gap-6 items-start">
+
+				<!-- COLONNA SINISTRA -->
+				<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+					<div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
+					<div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Vessel Name</div>
+					<div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
+					<div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Departure (sched.)</div>
+					<div id="route-departure" class="text-lg font-bold text-green-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Fuel Consumption</div>
+					<div id="route-consumption" class="text-lg font-bold text-red-300">--</div>
+				</div>
+
+				<!-- COLONNA DESTRA -->
+				<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+					<div class="text-xs text-slate-400 uppercase">Destination</div>
+					<div id="destination" class="text-lg font-bold text-yellow-400">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">ETA</div>
+					<div id="eta" class="text-lg font-bold text-green-400">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
+					<div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
+					<div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Route ID</div>
+					<div id="route-id" class="text-lg font-bold text-cyan-300">--</div>
+
+					<div class="text-xs text-slate-400 uppercase">Travel Time (min)</div>
+					<div id="route-time" class="text-lg font-bold text-purple-300">--</div>
+				</div>
+
+				<!-- IMMAGINE -->
+				<div class="flex items-start justify-center">
+					<img id="vessel-image"
+						 src=""
+						 alt="Vessel image"
+						 class="w-48 h-32 object-cover rounded border border-slate-500 shadow-sm hidden" />
+				</div>
+
+				<!-- DELTA -->
+				<div class="col-span-3 text-xs text-slate-400 uppercase mt-4 text-center">
+					Current Delta (minutes)
+				</div>
+				<div id="delta-val"
+					 class="col-span-3 text-3xl font-black text-cyan-400 text-center">
+					--
+				</div>
+
+            </div>
         </div>
 
-        <!-- GRAPH PANEL -->
-        <div class="card p-4 flex-1 flex flex-col overflow-hidden">
+        <!-- GRAPH -->
+        <div class="card p-3 flex-1 flex flex-col overflow-hidden">
             <div class="text-xs text-slate-400 uppercase mb-2">Delta History</div>
             <canvas id="deltaChart"></canvas>
         </div>
@@ -83,8 +114,8 @@
 
 </div>
 
-<!-- SOCKET.IO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
 <script>
 /* =====================================================
    CONFIG
@@ -119,6 +150,7 @@ const socket = io(SOCKET_URL);
 ===================================================== */
 let ships = {};
 let selectedMMSI = null;
+let loadedImageMMSI = null;
 const maxPoints = 60;
 
 /* =====================================================
@@ -138,6 +170,11 @@ function formatETA(ts) {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatISO(ts) {
+    if (!ts) return "--";
+    return new Date(ts).toLocaleString();
+}
+
 async function loadVesselInfo(mmsi) {
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/by_mmsi/${mmsi}`);
@@ -147,6 +184,87 @@ async function loadVesselInfo(mmsi) {
         return null;
     }
 }
+
+async function loadRouteInfo(mmsi) {
+    try {
+        const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/percorso_attivo`);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
+
+async function loadVesselImage(mmsi) {
+    const img = document.getElementById("vessel-image");
+    try {
+        const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/image`);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        img.src = URL.createObjectURL(blob);
+        img.classList.remove("hidden");
+        loadedImageMMSI = mmsi;
+    } catch {
+        img.src = "";
+        img.classList.add("hidden");
+        loadedImageMMSI = null;
+    }
+}
+
+function resetAllFields() {
+    [
+        "mmsi","destination","eta","delta-val",
+        "vessel-name","vessel-capacity","vessel-cost","vessel-speed",
+        "route-id","route-departure","route-time","route-consumption"
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = "--";
+    });
+
+    const img = document.getElementById("vessel-image");
+    if (img) {
+        img.src = "";
+        img.classList.add("hidden");
+    }
+}
+
+/* =====================================================
+   PRELOAD VASCELLI (SOLO SE ?mmsi=...)
+===================================================== */
+async function preloadVessels() {
+    for (const mmsi of allowedMMSI) {
+        const vessel = await loadVesselInfo(mmsi);
+        const route  = await loadRouteInfo(mmsi);
+
+        ships[mmsi] = {
+            history: Array(maxPoints).fill(0),
+            last_delta: null,
+            destination: "--",
+            eta: null,
+            color: generateColor(mmsi),
+            vessel,
+            route
+        };
+
+        /* ✅ NON caricare l'immagine qui:
+           altrimenti updateInfo() -> resetAllFields() la nasconde
+           e con 1 solo MMSI non viene più ricaricata. */
+    }
+
+    // Render lista subito
+    renderList();
+
+    // Se c'è un solo MMSI, forza il flusso corretto (reset -> load image -> render)
+    if (allowedMMSI.size === 1) {
+        selectShip([...allowedMMSI][0]);
+        return;
+    }
+
+    // Se sono più di uno, lascia pannello vuoto finché l'utente seleziona (o arriva AIS)
+    resetAllFields();
+}
+
+if (filterEnabled) preloadVessels();
 
 /* =====================================================
    CHART
@@ -211,26 +329,19 @@ function renderList() {
 /* =====================================================
    UPDATE TOP PANEL
 ===================================================== */
-async function updateInfo() {
+function updateInfo() {
     if (!selectedMMSI || !ships[selectedMMSI]) {
-        ["mmsi","destination","eta","delta-val",
-         "vessel-name","vessel-capacity","vessel-cost","vessel-speed"]
-        .forEach(id => document.getElementById(id).innerText = "--");
+        resetAllFields();
         return;
     }
 
     const s = ships[selectedMMSI];
 
     document.getElementById("mmsi").innerText = selectedMMSI;
-    document.getElementById("destination").innerText = s.destination;
+    document.getElementById("destination").innerText = s.destination ?? "--";
     document.getElementById("eta").innerText = formatETA(s.eta);
     document.getElementById("delta-val").innerText =
         (s.last_delta !== null) ? s.last_delta.toFixed(1) : "--";
-
-    if (!s.vessel_loaded) {
-        s.vessel_loaded = true;
-        s.vessel = await loadVesselInfo(selectedMMSI);
-    }
 
     if (s.vessel) {
         document.getElementById("vessel-name").innerText = s.vessel.nome ?? "--";
@@ -241,17 +352,24 @@ async function updateInfo() {
         document.getElementById("vessel-speed").innerText =
             s.vessel.velocita_max_nodi ?? "--";
     }
+
+    if (s.route && s.route.percorso) {
+        document.getElementById("route-id").innerText =
+            s.route.percorso.tratta_id ?? "--";
+        document.getElementById("route-departure").innerText =
+            formatISO(s.route.percorso.orario_partenza_schedulato);
+        document.getElementById("route-time").innerText =
+            s.route.percorso.tempo_percorrenza?.toFixed(1) ?? "--";
+        document.getElementById("route-consumption").innerText =
+            s.route.percorso.consumo?.toFixed(1) ?? "--";
+    }
 }
 
 /* =====================================================
    UPDATE CHART
 ===================================================== */
 function updateChart() {
-    if (!selectedMMSI || !ships[selectedMMSI]) {
-        chart.data.datasets = [];
-        chart.update();
-        return;
-    }
+    if (!selectedMMSI || !ships[selectedMMSI]) return;
 
     const s = ships[selectedMMSI];
     chart.data.datasets = [{
@@ -283,7 +401,7 @@ socket.on("analytics_update", msg => {
             eta: msg.eta || null,
             color: generateColor(mmsi),
             vessel: null,
-            vessel_loaded: false
+            route: null
         };
     }
 
@@ -296,10 +414,13 @@ socket.on("analytics_update", msg => {
     ships[mmsi].destination = msg.destination || ships[mmsi].destination;
     ships[mmsi].eta = msg.eta || ships[mmsi].eta;
 
-    if (!selectedMMSI) selectedMMSI = mmsi;
+    if (!selectedMMSI) {
+        selectedMMSI = mmsi;
+        loadVesselImage(mmsi);
+    }
 
     renderList();
-    updateInfo();
+    if (selectedMMSI === mmsi) updateInfo();
     updateChart();
 });
 
@@ -308,10 +429,27 @@ socket.on("analytics_update", msg => {
 ===================================================== */
 function selectShip(mmsi) {
     selectedMMSI = mmsi;
+    resetAllFields();
+    loadVesselImage(mmsi);
     renderList();
     updateInfo();
     updateChart();
 }
+
+/* =====================================================
+   COLLAPSE LOGIC
+===================================================== */
+const toggleBtn = document.getElementById("toggle-btn");
+const panelContent = document.getElementById("top-panel-content");
+
+let collapsed = false;
+
+toggleBtn.onclick = () => {
+    collapsed = !collapsed;
+    panelContent.style.display = collapsed ? "none" : "grid";
+    toggleBtn.innerText = collapsed ? "▼" : "▲";
+    setTimeout(() => chart.resize(), 300);
+};
 </script>
 
 </body>

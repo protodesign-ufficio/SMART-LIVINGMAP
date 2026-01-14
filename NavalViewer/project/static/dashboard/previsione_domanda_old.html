@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsione Vendite TravelMar</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            background-color:#0f172a;
+            color:#e2e8f0;
+            font-family: monospace;
+        }
+        .card {
+            background:#1e293b;
+            border:1px solid #334155;
+            border-radius:0.75rem;
+        }
+        input, select {
+            background:#0f172a;
+            border:1px solid #334155;
+            color:#e2e8f0;
+        }
+        input:focus, select:focus {
+            outline:none;
+            border-color:#38bdf8;
+        }
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn {
+            from { opacity:0; transform:translateY(8px); }
+            to { opacity:1; transform:translateY(0); }
+        }
+        .card {
+            overflow: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6">
+
+<div class="max-w-6xl mx-auto flex flex-col gap-6">
+
+    <!-- HEADER -->
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2">
+        <span class="text-blue-400">Travelmar Sales Forecast</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr_1fr] gap-6">
+
+        <!-- INPUT -->
+        <div class="space-y-6">
+
+            <!-- Parametri -->
+            <div class="card p-5">
+                <div class="text-xs text-slate-400 uppercase mb-4">Parametri Corsa</div>
+
+                <div class="space-y-4">
+
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Giorno Target</label>
+                        <input type="date" id="giorno_target" class="w-full p-2 rounded">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Tratta</label>
+                        <select id="tratta" class="w-full p-2 rounded"></select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Orario</label>
+                        <select id="orario" class="w-full p-2 rounded"></select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Meteo previsto</label>
+                        <div id="meteo_info"
+                             class="p-2 rounded bg-slate-800 border border-slate-600">
+                            -
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm text-slate-300">
+                        <input type="checkbox" id="festivo">
+                        Festivo non-rosso
+                    </label>
+                </div>
+            </div>
+
+            <!-- Vendite -->
+            <div class="card p-5">
+                <div class="text-xs text-slate-400 uppercase mb-4">Dati Vendita</div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Giorni alla partenza</label>
+                        <div id="giorni_partenza_info"
+                             class="p-2 rounded bg-slate-800 border border-slate-600">
+                            -
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase">Biglietti venduti</label>
+                        <input type="number" id="biglietti_venduti" value="50"
+                               class="w-full p-2 rounded">
+                    </div>
+                </div>
+            </div>
+
+			<button
+				onclick="calcolaPrevisione()"
+				id="btn-calcola"
+				class="w-full bg-blue-600 hover:bg-blue-700
+					   text-white font-bold
+					   py-3 px-6
+					   rounded-lg
+					   text-center
+					   flex items-center justify-center">
+				Calcola Previsione
+			</button>
+
+
+            <div id="error-box"
+                 class="hidden bg-red-900/30 border border-red-700 text-red-400 p-3 rounded text-sm flex gap-2">
+                <i data-lucide="alert-circle"></i>
+                <span id="error-msg"></span>
+            </div>
+
+        </div>
+
+        <!-- RISULTATI -->
+        <div class="lg:col-span-2">
+
+            <div id="placeholder-state"
+                 class="h-full card flex flex-col items-center justify-center text-slate-500">
+                <i data-lucide="cloud-sun" class="w-14 h-14 mb-3 opacity-40"></i>
+                Inserisci i dati ed esegui la previsione
+            </div>
+
+            <div id="results-container" class="hidden space-y-6 fade-in">
+
+                <!-- Finale -->
+                <div class="card p-6 text-center">
+                    <div class="text-xs text-slate-400 uppercase mb-2">Previsione Finale</div>
+                    <div class="text-5xl font-black text-cyan-400">
+                        <span id="res-finale">0</span>
+                    </div>
+                    <div id="ci-finale" class="text-slate-400 text-sm mt-2"></div>
+                </div>
+
+                <!-- Breakdown -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <div class="card p-4 min-h-[140px] flex flex-col justify-between">
+                        <div class="text-xs text-slate-400 uppercase leading-tight">Biglietti giornalieri totali previsti</div>
+                        <div id="res-macro" class="text-2xl font-bold text-blue-300">0</div>
+                        <div id="ci-macro"></div>
+                    </div>
+
+                    <div class="card p-4 min-h-[140px] flex flex-col justify-between">
+                        <div class="text-xs text-slate-400 uppercase leading-tight">Biglietti giornalieri per quella specificata tratta</div>
+                        <div id="res-base" class="text-2xl font-bold text-yellow-300">0</div>
+                        <div id="ci-base"></div>
+                    </div>
+
+                    <div class="card p-4 relative min-h-[140px] flex flex-col justify-between">
+                        <div id="bar-adjust" class="absolute right-0 top-0 w-1 h-full bg-green-500"></div>
+                        <div class="text-xs text-slate-400 uppercase leading-tight">Fattore di Correzione</div>
+                        <div id="res-adjust" class="text-2xl font-bold text-green-400">+0</div>
+                        <div id="ci-adjust"></div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT -->
+<script>
+const BACKEND = "http://87.26.178.190:15080";
+
+
+/////////////////////////////////////////////
+// 0. DATA MINIMA / DEFAULT = OGGI (SE NO URL)
+/////////////////////////////////////////////
+const inputData = document.getElementById("giorno_target");
+const oggi = new Date().toISOString().split("T")[0];
+inputData.setAttribute("min", oggi);
+
+const params = new URLSearchParams(window.location.search);
+
+if (!params.has("corsa")) {
+    inputData.value = oggi;
+}
+
+
+/////////////////////////////////////////////
+// 1. CARICAMENTO TRATTE E ORARI DAL BACKEND
+/////////////////////////////////////////////
+async function loadTratte() {
+    const sel = document.getElementById("tratta");
+    sel.innerHTML = "";
+
+    try {
+        const res = await fetch(`${BACKEND}/tratta/lista`);
+        if (!res.ok) {
+            console.error("Errore GET /tratta/lista", res.status);
+            return;
+        }
+        const data = await res.json();
+
+        data.forEach(t => {
+            const opt = document.createElement("option");
+            opt.value = t.id;       // es: "AMA-MIN-MAI-CET-VIE-SA"
+            opt.textContent = t.id;
+            sel.appendChild(opt);
+        });
+
+        await loadOrari();
+    } catch (e) {
+        console.error("Eccezione loadTratte:", e);
+    }
+}
+
+/////////////////////////////////////////////
+// URL PARAM (AUTO-COMPILAZIONE CORSA) — FIX
+/////////////////////////////////////////////
+async function applyCorsaFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("corsa")) return;
+
+    const corsa = params.get("corsa").trim();
+    const match = corsa.match(/^(.+)-(\d{8})-(\d{4})$/);
+    if (!match) return;
+
+    const trattaUrl = match[1];
+    const dataUrl   = match[2];
+    const oraUrl    = match[3];
+
+    const dataISO =
+        dataUrl.slice(0,4) + "-" +
+        dataUrl.slice(4,6) + "-" +
+        dataUrl.slice(6,8);
+
+    // 1) data
+    const dataInput = document.getElementById("giorno_target");
+    dataInput.value = dataISO;
+
+    // 2) ricarica orari DOPO data
+    await loadOrari();
+
+    // 3) tratta
+    const trattaSel = document.getElementById("tratta");
+    trattaSel.value = trattaUrl;
+
+    // 4) ricarica orari DOPO tratta
+    await loadOrari();
+
+    // 5) orario
+    const orarioSel = document.getElementById("orario");
+    orarioSel.value = oraUrl;
+}
+
+
+async function loadOrari() {
+    const trattaId = document.getElementById("tratta").value;
+    const dataSel  = document.getElementById("giorno_target").value;
+    const sel = document.getElementById("orario");
+    sel.innerHTML = "";
+
+    if (!trattaId || !dataSel) return;
+
+    try {
+        const res = await fetch(
+            `${BACKEND}/corsa/orari/${trattaId}?data=${dataSel}`
+        );
+
+        if (!res.ok) {
+            console.error("Errore GET /corsa/orari", res.status);
+            return;
+        }
+
+        const data = await res.json();
+
+        if (!data.orari || data.orari.length === 0) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "Nessun orario disponibile";
+            sel.appendChild(opt);
+            return;
+        }
+
+        data.orari.forEach(o => {
+            // o è già nel formato "HH:MM"
+            const hhmm = o.replace(":", "");
+
+            const opt = document.createElement("option");
+            opt.value = hhmm;              // es "0930"
+            opt.textContent = o;           // es "09:30"
+            sel.appendChild(opt);
+        });
+
+    } catch (e) {
+        console.error("Eccezione loadOrari:", e);
+    }
+}
+
+
+document.getElementById("tratta").addEventListener("change", loadOrari);
+
+// carico tratte all'avvio
+(async () => {
+    await loadTratte();
+    await applyCorsaFromUrl();
+})();
+
+
+
+/////////////////////////////////////////////
+// 2. UTILITY: COLORAZIONE CI
+/////////////////////////////////////////////
+function ciBadge(id, low, high, estimate) {
+    const el = document.getElementById(id);
+    const width = (high - low) / Math.max(estimate, 1);
+
+    let cls = "bg-green-100 text-green-700 border border-green-300";
+    if (width > 0.25) cls = "bg-red-100 text-red-700 border border-red-300";
+    else if (width > 0.10) cls = "bg-yellow-100 text-yellow-700 border border-yellow-300";
+
+    el.className = "text-xs mt-2 px-2 py-1 rounded font-medium w-fit " + cls;
+    el.textContent = `CI 95%: ${Math.round(low)} – ${Math.round(high)}`;
+}
+
+
+/////////////////////////////////////////////
+// 3. CALCOLO PREVISIONE (SENZA CREARE CORSA)
+/////////////////////////////////////////////
+async function calcolaPrevisione() {
+
+    const trattaId   = document.getElementById("tratta").value;
+    const dataStr    = document.getElementById("giorno_target").value; // "2025-11-23"
+    const orarioHHMM = document.getElementById("orario").value;        // "1040"
+    const venduti    = parseFloat(document.getElementById("biglietti_venduti").value);
+	const festivo = document.getElementById("festivo").checked;
+
+    const btn = document.getElementById("btn-calcola");
+    const errorBox = document.getElementById("error-box");
+    const errorMsg = document.getElementById("error-msg");
+    errorBox.classList.add("hidden");
+    errorMsg.innerText = "";
+
+    if (!trattaId || !dataStr || !orarioHHMM) {
+        errorBox.classList.remove("hidden");
+        errorMsg.innerText = "Seleziona tratta, data e orario.";
+        return;
+    }
+
+    // ID corsa nel formato TRATTA-YYYYMMDD-HHMM
+    const giornoCompat = dataStr.replace(/-/g, ""); // 20251123
+    const corsaId = `${trattaId}-${giornoCompat}-${orarioHHMM}`;
+
+    btn.innerText = "Calcolo in corso…";
+    btn.disabled = true;
+
+    try {
+        // 1) CHIAMATA AL BACKEND: NON CREA LA CORSA, SOLO PREVEDE
+        const bodyPred = {
+            biglietti_venduti_al_sample: venduti,
+			festivo: festivo
+        };
+
+        const res = await fetch(`${BACKEND}/corsa/${corsaId}/prevedi`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bodyPred)
+        });
+
+        if (res.status === 404) {
+            const j = await res.json();
+            errorBox.classList.remove("hidden");
+            errorMsg.innerText = j.detail || "Corsa non trovata nel database.";
+            btn.innerHTML = '<i data-lucide="calculator" class="w-5 h-5"></i> Calcola Previsione';
+            btn.disabled = false;
+            lucide.createIcons();
+            return;
+        }
+
+        if (!res.ok) {
+            const j = await res.text();
+            console.error("Errore previsione:", res.status, j);
+            errorBox.classList.remove("hidden");
+            errorMsg.innerText = "Errore durante la previsione.";
+            btn.innerHTML = '<i data-lucide="calculator" class="w-5 h-5"></i> Calcola Previsione';
+            btn.disabled = false;
+            lucide.createIcons();
+            return;
+        }
+
+        const pred = await res.json();
+        const data = pred.dettagli;  // output del servizio ML
+
+        // ------------------------------
+        // Aggiornamento UI
+        // ------------------------------
+        // Meteo
+        document.getElementById("meteo_info").innerText = data.meteo_auto ?? "-";
+
+        // Giorni alla partenza
+        document.getElementById("giorni_partenza_info").innerText =
+            data.giorni_alla_partenza_auto + " giorni";
+
+        // Finale
+        document.getElementById("res-finale").innerText = data.micro_finale;
+        document.getElementById("ci-finale").innerText =
+            `Intervallo di confidenza al 95%: ${data.micro_finale_ci_95[0]} – ${data.micro_finale_ci_95[1]}`;
+
+        // Macro
+        document.getElementById("res-macro").innerText = data.totali_previsti;
+        ciBadge(
+            "ci-macro",
+            data.totali_ci_95[0],
+            data.totali_ci_95[1],
+            data.totali_previsti
+        );
+
+        // Micro base
+        document.getElementById("res-base").innerText = data.micro_base;
+        ciBadge(
+            "ci-base",
+            data.micro_base_ci_95[0],
+            data.micro_base_ci_95[1],
+            data.micro_base
+        );
+
+        // Adjust
+        const adjEl = document.getElementById("res-adjust");
+        const barEl = document.getElementById("bar-adjust");
+        const adj = data.micro_adjust;
+
+        adjEl.innerText = (adj >= 0 ? "+" : "") + adj;
+
+        if (adj < 0) {
+            adjEl.className = "text-2xl font-semibold text-red-600";
+            barEl.className = "absolute top-0 right-0 w-1 h-full bg-red-500";
+        } else {
+            adjEl.className = "text-2xl font-semibold text-green-600";
+            barEl.className = "absolute top-0 right-0 w-1 h-full bg-green-500";
+        }
+
+        ciBadge(
+            "ci-adjust",
+            data.micro_adjust_ci_95[0],
+            data.micro_adjust_ci_95[1],
+            adj
+        );
+
+        // Mostra risultati
+        document.getElementById("placeholder-state").classList.add("hidden");
+        document.getElementById("results-container").classList.remove("hidden");
+
+    } catch (e) {
+        console.error("Eccezione calcolaPrevisione:", e);
+        errorBox.classList.remove("hidden");
+        errorMsg.innerText = "Errore di comunicazione con il backend.";
+    }
+
+    btn.innerText = "Calcola Previsione";
+    btn.disabled = false;
+    //lucide.createIcons();
+}
+
+</script>
+<script>lucide.createIcons()</script>
+</body>
+</html>

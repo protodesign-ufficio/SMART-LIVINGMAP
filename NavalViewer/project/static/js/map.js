@@ -1,5 +1,7 @@
 // Initialize the map
 const map = L.map('map').setView([45.0, 10.0], 6);
+// expose map globally so other scripts can access it
+window.map = map;
 
 // Coordinate display box
 (function(){
