@@ -230,17 +230,26 @@ async function loadRouteInfo(mmsi) {
 
 async function loadVesselImage(mmsi) {
     const img = document.getElementById("vessel-image");
+    // Salva l'MMSI per cui è stato richiesto il caricamento
+    const requestedMMSI = mmsi;
+    loadedImageMMSI = mmsi;
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/image`);
         if (!res.ok) throw new Error();
         const blob = await res.blob();
-        img.src = URL.createObjectURL(blob);
-        img.classList.remove("hidden");
-        loadedImageMMSI = mmsi;
+        // Mostra l'immagine solo se l'MMSI selezionato non è cambiato nel frattempo
+        if (selectedMMSI === requestedMMSI) {
+            img.src = URL.createObjectURL(blob);
+            img.classList.remove("hidden");
+            loadedImageMMSI = mmsi;
+        }
     } catch {
-        img.src = "";
-        img.classList.add("hidden");
-        loadedImageMMSI = null;
+        // Nascondi l'immagine solo se l'MMSI selezionato non è cambiato nel frattempo
+        if (selectedMMSI === requestedMMSI) {
+            img.src = "";
+            img.classList.add("hidden");
+            loadedImageMMSI = null;
+        }
     }
 }
 
@@ -288,21 +297,37 @@ async function ensureVesselDetails(mmsi) {
 async function preloadVessels() {
     const list = await fetchVesselList();
 
-    list.forEach(item => {
+    // Precarica dettagli e immagini di tutti i vascelli
+    await Promise.all(list.map(async item => {
         const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
         if (!mmsi) return;
+
+        // Precarica dettagli
+        const vessel = await loadVesselInfo(mmsi);
+        const route = await loadRouteInfo(mmsi);
+
+        // Precarica immagine
+        let imageUrl = null;
+        try {
+            const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/image`);
+            if (res.ok) {
+                const blob = await res.blob();
+                imageUrl = URL.createObjectURL(blob);
+            }
+        } catch {}
 
         ships[mmsi] = ships[mmsi] || {
             history: Array(maxPoints).fill(0),
             last_delta: null,
-            destination: item.destination || item.destinazione || "--",
-            eta: item.eta || null,
-            color: generateColor(mmsi),
-            vessel: null,
-            route: null,
-            detailsLoaded: false
+            color: generateColor(mmsi)
         };
-    });
+        ships[mmsi].destination = item.destination || item.destinazione || "--";
+        ships[mmsi].eta = item.eta || null;
+        ships[mmsi].vessel = vessel;
+        ships[mmsi].route = route;
+        ships[mmsi].detailsLoaded = true;
+        ships[mmsi].imageUrl = imageUrl;
+    }));
 
     renderList();
 
