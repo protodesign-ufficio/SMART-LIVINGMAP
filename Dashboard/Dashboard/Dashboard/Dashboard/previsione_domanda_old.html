@@ -38,56 +38,22 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
-        
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-        
-        /* Firefox scrollbar */
-        * {
-            scrollbar-color: #475569 #0f172a;
-            scrollbar-width: thin;
-        }
     </style>
 </head>
 
-<body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
+<body class="min-h-screen p-6">
 
-<div class="flex flex-col gap-6 w-full h-full">
-
+<div class="max-w-6xl mx-auto flex flex-col gap-6">
 
     <!-- HEADER -->
     <div class="text-xl font-bold tracking-tight flex items-center gap-2">
         <span class="text-blue-400">Travelmar Sales Forecast</span>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-[260px_380px_1fr] gap-6 flex-1 overflow-hidden">
-    
-		<!-- COLONNA CORSE -->
-		<div class="card p-4 flex flex-col overflow-y-auto h-full">
-			<div class="text-xs text-slate-400 uppercase mb-3">Corse</div>
-			<div id="corse-list" class="space-y-2 text-sm text-slate-300">
-				<div class="text-slate-500">Seleziona una data</div>
-			</div>
-		</div>
-
+    <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr_1fr] gap-6">
 
         <!-- INPUT -->
-        <div class="space-y-6 flex flex-col h-full">
+        <div class="space-y-6">
 
             <!-- Parametri -->
             <div class="card p-5">
@@ -167,28 +133,25 @@
 
         </div>
 
-		<!-- RISULTATI -->
-		<div class="flex flex-col h-full">
+        <!-- RISULTATI -->
+        <div class="lg:col-span-2">
 
-			<!-- PLACEHOLDER -->
-			<div id="placeholder-state"
-				 class="flex-1 card flex flex-col items-center justify-center text-slate-500">
-				<i data-lucide="cloud-sun" class="w-14 h-14 mb-3 opacity-40"></i>
-				Inserisci i dati ed esegui la previsione
-			</div>
+            <div id="placeholder-state"
+                 class="h-full card flex flex-col items-center justify-center text-slate-500">
+                <i data-lucide="cloud-sun" class="w-14 h-14 mb-3 opacity-40"></i>
+                Inserisci i dati ed esegui la previsione
+            </div>
 
-			<!-- RISULTATI -->
-			<div id="results-container"
-				 class="hidden flex-1 flex flex-col space-y-6 overflow-y-auto">
+            <div id="results-container" class="hidden space-y-6 fade-in">
 
-				<!-- Finale -->
-				<div class="card p-6 text-center">
-					<div class="text-xs text-slate-400 uppercase mb-2">Previsione Finale</div>
-					<div class="text-5xl font-black text-cyan-400">
-						<span id="res-finale">0</span>
-					</div>
-					<div id="ci-finale" class="text-slate-400 text-sm mt-2"></div>
-				</div>
+                <!-- Finale -->
+                <div class="card p-6 text-center">
+                    <div class="text-xs text-slate-400 uppercase mb-2">Previsione Finale</div>
+                    <div class="text-5xl font-black text-cyan-400">
+                        <span id="res-finale">0</span>
+                    </div>
+                    <div id="ci-finale" class="text-slate-400 text-sm mt-2"></div>
+                </div>
 
                 <!-- Breakdown -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -223,20 +186,11 @@
 <script>
 const BACKEND = "http://87.26.178.190:15080";
 
-let selectedCorsaId = null;
-let corseDelGiorno = [];
-
 
 /////////////////////////////////////////////
 // 0. DATA MINIMA / DEFAULT = OGGI (SE NO URL)
 /////////////////////////////////////////////
 const inputData = document.getElementById("giorno_target");
-document.getElementById("giorno_target")
-    .addEventListener("change", async () => {
-        await loadCorseGiornaliere();
-        aggiornaSelectTratte();
-    });
-
 const oggi = new Date().toISOString().split("T")[0];
 inputData.setAttribute("min", oggi);
 
@@ -246,156 +200,6 @@ if (!params.has("corsa")) {
     inputData.value = oggi;
 }
 
-
-/////////////////////////////////////////////
-// 0. LOAD PER BARRA LATERALE
-/////////////////////////////////////////////
-async function loadCorseGiornaliere() {
-    const data = document.getElementById("giorno_target").value;
-    const box = document.getElementById("corse-list");
-    box.innerHTML = "";
-
-
-    if (!data) {
-	box.innerHTML = `<div class="text-slate-500">Seleziona una data</div>`;
-        return;
-    }
-	
-    try {
-        const res = await fetch(`${BACKEND}/corsa/giorno?giorno=${data}`);
-        if (!res.ok) {
-            box.innerHTML = `<div class="text-red-400">Errore caricamento corse</div>`;
-            return;
-        }
-
-        const corse = await res.json();
-        corseDelGiorno = corse;
-
-        if (!corse.length) {
-            box.innerHTML = `<div class="text-slate-500">Nessuna corsa</div>`;
-            return;
-        }
-
-        corse.forEach(c => {
-			const corsaId = `${c.tratta}-${data.replace(/-/g,"")}-${c.orario.replace(":","")}`;
-			const isSel = corsaId === selectedCorsaId;
-			
-            const el = document.createElement("div");
-            const isSelected = corsaId === selectedCorsaId;
-			el.className =
-				"p-2 rounded border cursor-pointer " +
-				(isSelected
-					? "bg-blue-900 border-blue-400 ring-2 ring-blue-400"
-					: "bg-slate-800 border-slate-600 hover:bg-slate-700");
-
-
-            el.innerHTML = `
-                <div class="font-mono text-xs">${c.tratta}</div>
-                <div class="text-cyan-300 font-bold">${c.orario}</div>
-            `;
-
-            el.onclick = () => selezionaCorsa(c);
-            box.appendChild(el);
-        });
-
-    } catch {
-        box.innerHTML = `<div class="text-red-400">Backend non raggiungibile</div>`;
-    }
-}
-
-async function selezionaCorsa(c) {
-    const data = document.getElementById("giorno_target").value;
-
-    selectedCorsaId =
-        `${c.tratta}-${data.replace(/-/g,"")}-${c.orario.replace(":","")}`;
-
-    const trattaSel = document.getElementById("tratta");
-    trattaSel.value = c.tratta;
-
-    await loadOrari();
-
-    const orarioSel = document.getElementById("orario");
-    orarioSel.value = c.orario.replace(":", "");
-
-    // SOLO highlight, non ricostruzione select
-    renderCorseSidebar();
-}
-
-function renderCorseSidebar() {
-    const data = document.getElementById("giorno_target").value;
-    const box = document.getElementById("corse-list");
-    box.innerHTML = "";
-
-    corseDelGiorno.forEach(c => {
-        const corsaId = `${c.tratta}-${data.replace(/-/g,"")}-${c.orario.replace(":","")}`;
-        const isSelected = corsaId === selectedCorsaId;
-
-        const el = document.createElement("div");
-        el.className =
-            "p-2 rounded border cursor-pointer " +
-            (isSelected
-                ? "bg-blue-900 border-blue-400 ring-2 ring-blue-400"
-                : "bg-slate-800 border-slate-600 hover:bg-slate-700");
-
-        el.innerHTML = `
-            <div class="font-mono text-xs">${c.tratta}</div>
-            <div class="text-cyan-300 font-bold">${c.orario}</div>
-        `;
-
-        el.onclick = () => selezionaCorsa(c);
-        box.appendChild(el);
-    });
-}
-
-/////////////////////////////////////////////
-// AGGIORNA SELECT TRATTE (SELEZIONE CORSA)
-/////////////////////////////////////////////
-function aggiornaSelectTratte() {
-    const sel = document.getElementById("tratta");
-    sel.innerHTML = "";
-
-    if (!corseDelGiorno.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "Nessuna tratta disponibile";
-        sel.appendChild(opt);
-        return;
-    }
-
-    // estrai tratte uniche
-    const tratteUniche = [...new Set(corseDelGiorno.map(c => c.tratta))];
-
-    tratteUniche.forEach(t => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        sel.appendChild(opt);
-    });
-
-    // se la tratta attuale è già valida, non toccarla
-    if (tratteUniche.includes(sel.value)) {
-        return;
-    }
-
-    // se ho una corsa selezionata, prova a dedurre la tratta corretta dalla lista corse del giorno
-    if (selectedCorsaId) {
-        const found = corseDelGiorno.find(c => {
-            const dataISO = document.getElementById("giorno_target").value;
-            const id = `${c.tratta}-${dataISO.replace(/-/g,"")}-${c.orario.replace(":","")}`;
-            return id === selectedCorsaId;
-        });
-
-        if (found && tratteUniche.includes(found.tratta)) {
-            sel.value = found.tratta;
-            loadOrari();
-            return;
-        }
-    }
-
-    // fallback
-    sel.value = tratteUniche[0];
-    loadOrari();
-}
 
 /////////////////////////////////////////////
 // 1. CARICAMENTO TRATTE E ORARI DAL BACKEND
@@ -449,23 +253,17 @@ async function applyCorsaFromUrl() {
     const dataInput = document.getElementById("giorno_target");
     dataInput.value = dataISO;
 
-    // 2) STATO SELEZIONE (QUI)
-    selectedCorsaId = corsa;
+    // 2) ricarica orari DOPO data
+    await loadOrari();
 
-    // 3) ORA posso caricare la lista corse
-    await loadCorseGiornaliere();
-
-    // 4) Popola il select delle tratte con le corse del giorno
-    aggiornaSelectTratte();
-
-    // 5) Seleziona la tratta desiderata
+    // 3) tratta
     const trattaSel = document.getElementById("tratta");
     trattaSel.value = trattaUrl;
 
-    // 6) Carica gli orari per quella tratta
+    // 4) ricarica orari DOPO tratta
     await loadOrari();
 
-    // 7) Seleziona l'orario desiderato
+    // 5) orario
     const orarioSel = document.getElementById("orario");
     orarioSel.value = oraUrl;
 }
@@ -515,38 +313,14 @@ async function loadOrari() {
 }
 
 
-document.getElementById("tratta").addEventListener("change", async () => {
-    await loadOrari();
-
-    // se dopo il reload degli orari esiste un valore selezionato, aggiorna selectedCorsaId e highlight
-    const tratta = document.getElementById("tratta").value;
-    const data   = document.getElementById("giorno_target").value;
-    const orario = document.getElementById("orario").value;
-
-    if (tratta && data && orario) {
-        selectedCorsaId = `${tratta}-${data.replace(/-/g,"")}-${orario}`;
-        await loadCorseGiornaliere();
-    }
-});
-
-
-document.getElementById("orario").addEventListener("change", () => {
-    const tratta = document.getElementById("tratta").value;
-    const data   = document.getElementById("giorno_target").value;
-    const orario = document.getElementById("orario").value;
-
-    if (!tratta || !data || !orario) return;
-
-    selectedCorsaId = `${tratta}-${data.replace(/-/g,"")}-${orario}`;
-    renderCorseSidebar();
-});
-
-
+document.getElementById("tratta").addEventListener("change", loadOrari);
 
 // carico tratte all'avvio
 (async () => {
+    await loadTratte();
     await applyCorsaFromUrl();
 })();
+
 
 
 /////////////////////////////////////////////
