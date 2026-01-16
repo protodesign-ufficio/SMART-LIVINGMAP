@@ -24,6 +24,7 @@ class ConsumerAIS(threading.Thread):
         self._stop = threading.Event()
         self.bootstrap = bootstrap or os.getenv("KAFKA_BOOTSTRAP", "87.26.178.190:29092")
         self.group_id = group_id or os.getenv("KAFKA_GROUP", "navalviewer_ais")
+        print(f"[ConsumerAIS] Initialized for topic '{self.topic}' on bootstrap '{self.bootstrap}' with group_id '{self.group_id}'", flush=True)
 
     def stop(self):
         self._stop.set()

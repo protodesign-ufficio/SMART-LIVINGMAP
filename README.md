@@ -61,7 +61,6 @@ Dopo l'attivazione, il prompt dovrebbe mostrare il prefisso `(VENV_SMART)`.
 È buona pratica aggiornare `pip` prima dell'installazione:
 
 ```cmd
-python -m pip install --upgrade pip
 pip install -r ProjectSMART\requirements.txt
 ```
 

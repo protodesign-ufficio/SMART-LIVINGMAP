@@ -7,7 +7,8 @@ from flask_socketio import SocketIO
 # ----------------------------------------------------
 # CONFIG
 # ----------------------------------------------------
-BOOTSTRAP_SERVERS = "http://87.26.178.190:29092"
+# NOTE: bootstrap servers must be host:port (no http scheme)
+BOOTSTRAP_SERVERS = "87.26.178.190:29092"
 ANALYTICS_TOPIC = "analytics_ais.raw"
 
 # ----------------------------------------------------
@@ -17,7 +18,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def log(msg):
-    print(f"[consumer] {msg}", flush=True)
+    print(f"[ConsumerDashboard] {msg}", flush=True)
 
 # ----------------------------------------------------
 # STATE (CACHE IN MEMORIA)

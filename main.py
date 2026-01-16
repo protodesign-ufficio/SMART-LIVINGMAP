@@ -12,14 +12,15 @@ from PyQt5.QtWidgets import QApplication
 
 from main_window import MainWindow
 try:
-	# start dashboard in background when launching GUI
 	from consumer_dashboards import start_dashboard
 except Exception:
+	print("[main] consumer_dashboards.start_dashboard not available", flush=True)
 	start_dashboard = None
 
 try:
 	from consumer_ais import ConsumerAIS
 except Exception:
+	print("[main] consumer_ais.ConsumerAIS not available", flush=True)
 	ConsumerAIS = None
 
 
