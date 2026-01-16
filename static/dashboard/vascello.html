@@ -38,6 +38,10 @@
             scrollbar-color: #475569 #0f172a;
             scrollbar-width: thin;
         }
+        /* Toggle icon */
+        #toggle-btn { display:flex; align-items:center; justify-content:center; width:36px; height:28px; }
+        .toggle-icon { display:block; transition: transform 0.25s ease; transform-origin: center; }
+        #toggle-btn.rotated .toggle-icon { transform: rotate(180deg); }
     </style>
 </head>
 
@@ -58,7 +62,7 @@
     </div>
 
     <!-- MAIN -->
-    <div class="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 p-4">
+    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0 " style="padding-left: 20px;">
 
         <!-- TOP PANEL COLLAPSABLE -->
         <div class="card overflow-hidden transition-all duration-300 flex-shrink-0">
@@ -67,8 +71,11 @@
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
                 <div class="text-xs text-slate-400 uppercase">Vessel Details</div>
                 <button id="toggle-btn"
-                        class="text-slate-300 hover:text-white text-sm font-bold select-none">
-                    ▲
+                        class="text-slate-300 hover:text-white text-sm font-bold select-none"
+                        aria-expanded="true">
+                    <svg class="toggle-icon" width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M1.25 1.25L7.25 7.25L13.25 1.25" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </button>
             </div>
 
@@ -542,7 +549,8 @@ let collapsed = false;
 toggleBtn.onclick = () => {
     collapsed = !collapsed;
     panelContent.style.display = collapsed ? "none" : "grid";
-    toggleBtn.innerText = collapsed ? "▼" : "▲";
+    toggleBtn.classList.toggle('rotated', collapsed);
+    try{ toggleBtn.setAttribute('aria-expanded', String(!collapsed)); }catch(e){}
     setTimeout(() => chart.resize(), 300);
 };
 </script>

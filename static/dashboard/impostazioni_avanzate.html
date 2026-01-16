@@ -14,6 +14,8 @@
         .btn-save:hover { background:#059669; }
         .btn-reset { background:#ef4444; color:white; padding:0.5rem 1rem; border-radius:0.375rem; cursor:pointer; margin-left:0.5rem; transition:background 0.2s; }
         .btn-reset:hover { background:#dc2626; }
+        .btn-load { background:rgb(107, 107, 247); color:white; padding:0.5rem 1rem; border-radius:0.375rem; cursor:pointer; margin-left:0.5rem; transition:background 0.2s; }
+        .btn-load:hover { background:#105cff; }
         .status-success { color:#10b981; }
         .status-error { color:#ef4444; }
         .status-info { color:#60a5fa; }
@@ -23,85 +25,87 @@
 
 <body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
 
-<div class="flex flex-col gap-6 w-full h-full overflow-y-auto">
+    <div class="space-y-6 flex-col gap-6 w-full h-full overflow-y-auto">
 
-<!-- HEADER -->
-<div class="flex justify-between items-end">
-    <div class="text-2xl font-bold tracking-tight flex items-center gap-2">
-        <span class="text-blue-400">Impostazioni Avanzate</span>
+        <!-- HEADER -->
+        <div class="flex justify-between items-end">
+            <div class="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <span class="text-blue-400">Impostazioni Avanzate</span>
+            </div>
+            <div class="text-sm text-slate-400">
+                Ultimo aggiornamento: <span id="last-sync" class="text-white font-mono">--</span>
+            </div>
+        </div>
+
+        <!-- PARAMETERS GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- WINDOW_FUTURE -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">1. WINDOW_FUTURE</div>
+                <div class="description">
+                    Finestra temporale di calcolo delle imbarcazioni in arrivo espressa in minuti.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di calcolo dell'occupazione della banchina.
+                    <br>
+                    <strong>Default:</strong> 30 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="window_future" class="input-field flex-1" placeholder="30" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- PUBLISH_INTERVAL -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">2. PUBLISH_INTERVAL</div>
+                <div class="description">
+                    Intervallo di pubblicazione dati in secondi. Controlla con quale frequenza i messaggi elaborati vengono inviati ai topic Kafka.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di calcolo dell'occupazione della banchina.
+                    <br>
+                    <strong>Default:</strong> 30 secondi
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="publish_interval" class="input-field flex-1" placeholder="30" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">sec</span>
+                </div>
+            </div>
+
+            <!-- PUBLISH_INTERVAL_SEC -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">3. PUBLISH_INTERVAL_SEC</div>
+                <div class="description">
+                    Intervallo di pubblicazione per le statistiche di utilizzo componenti in secondi. Controlla la frequenza di invio dei dati aggregati di usura componenti ai topic analytics.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di calcolo dell'usura dei componenti.
+                    <br>
+                    <strong>Default:</strong> 30 secondi
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="publish_interval_sec" class="input-field flex-1" placeholder="30" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">sec</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="flex gap-5 mt-6">
+            <button id="btn-save" class="btn-save font-bold">Salva Configurazione</button>
+            <button id="btn-reset" class="btn-reset font-bold">Reimposta Valori Default</button>
+            <button id="btn-load" class="btn-load font-bold">Carica Valori Attuali</button>
+        </div>
+
+        <!-- STATUS MESSAGE -->
+        <div id="status-message" class="hidden card p-4 rounded flex items-center gap-3">
+            <span id="status-icon">ℹ️</span>
+            <span id="status-text"></span>
+        </div>
+
     </div>
-    <div class="text-sm text-slate-400">
-        Ultimo aggiornamento: <span id="last-sync" class="text-white font-mono">--</span>
-    </div>
-</div>
 
-<!-- STATUS MESSAGE -->
-<div id="status-message" class="hidden card p-4 rounded flex items-center gap-3">
-    <span id="status-icon">ℹ️</span>
-    <span id="status-text"></span>
-</div>
-
-<!-- PARAMETERS GRID -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-    <!-- WINDOW_FUTURE -->
-    <div class="card p-6">
-        <div class="text-xs text-slate-400 uppercase font-bold mb-2">1. WINDOW_FUTURE</div>
-        <div class="description">
-            Finestra temporale di calcolo delle imbarcazioni in arrivo espressa in minuti.
-            <br><br>
-            <strong>Uso:</strong> Servizio di calcolo dell'occupazione della banchina.
-            <br>
-            <strong>Default:</strong> 30 minuti
-        </div>
-        <div class="mt-4 flex gap-2">
-            <input type="number" id="window_future" class="input-field flex-1" placeholder="30" step="1" min="1">
-            <span class="text-slate-400 text-sm self-center">min</span>
-        </div>
-    </div>
-
-    <!-- PUBLISH_INTERVAL -->
-    <div class="card p-6">
-        <div class="text-xs text-slate-400 uppercase font-bold mb-2">2. PUBLISH_INTERVAL</div>
-        <div class="description">
-            Intervallo di pubblicazione dati in secondi. Controlla con quale frequenza i messaggi elaborati vengono inviati ai topic Kafka.
-            <br><br>
-            <strong>Uso:</strong> Servizio di calcolo dell'occupazione della banchina.
-            <br>
-            <strong>Default:</strong> 30 secondi
-        </div>
-        <div class="mt-4 flex gap-2">
-            <input type="number" id="publish_interval" class="input-field flex-1" placeholder="30" step="1" min="1">
-            <span class="text-slate-400 text-sm self-center">sec</span>
-        </div>
-    </div>
-
-    <!-- PUBLISH_INTERVAL_SEC -->
-    <div class="card p-6">
-        <div class="text-xs text-slate-400 uppercase font-bold mb-2">3. PUBLISH_INTERVAL_SEC</div>
-        <div class="description">
-            Intervallo di pubblicazione per le statistiche di utilizzo componenti in secondi. Controlla la frequenza di invio dei dati aggregati di usura componenti ai topic analytics.
-            <br><br>
-            <strong>Uso:</strong> Servizio di calcolo dell'usura dei componenti.
-            <br>
-            <strong>Default:</strong> 30 secondi
-        </div>
-        <div class="mt-4 flex gap-2">
-            <input type="number" id="publish_interval_sec" class="input-field flex-1" placeholder="30" step="1" min="1">
-            <span class="text-slate-400 text-sm self-center">sec</span>
-        </div>
-    </div>
-
-</div>
-
-<!-- ACTION BUTTONS -->
-<div class="flex gap-3 mt-6">
-    <button id="btn-save" class="btn-save font-bold">Salva Configurazione</button>
-    <button id="btn-reset" class="btn-reset font-bold">Reimposta Valori Default</button>
-    <button id="btn-load" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold">Carica Valori Attuali</button>
-</div>
-
-
+</body>
 <script>
 // =====================================================
 // CONFIG
@@ -267,7 +271,4 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
-</div>
-
-</body>
 </html>

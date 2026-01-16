@@ -56,7 +56,7 @@
         <div id="port-list" class="space-y-2"></div>
     </div>
 
-    <div class="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 p-4">
+    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0" style="padding-left: 20px;">
 
         <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-6 items-center flex-shrink-0">
 
@@ -75,8 +75,6 @@
             <div class="text-xs text-slate-400 uppercase">Status</div>
             <div id="port-status" class="text-lg font-bold text-blue-200">ACTIVE</div>
 
-            <div></div><div></div><div></div><div></div>
-
             <div class="col-span-4 text-xs text-slate-400 uppercase mt-2 text-center">
                 Incoming Vessels Count
             </div>
@@ -86,14 +84,14 @@
 
         </div>
 
-        <div class="flex flex-1 gap-6 overflow-hidden min-h-0">
+        <div class="space-x-6 flex flex-1 gap-6 overflow-hidden min-h-0">
 
-        <div class="card p-4 flex-1 flex flex-col min-h-0">
-             <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
-             <div class="flex-1 min-h-0">
-                 <canvas id="portChart" class="w-full h-full"></canvas>
-             </div>
-         </div>
+            <div class="card p-4 flex-1 flex flex-col min-h-0">
+                <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
+                <div class="flex-1 min-h-0">
+                    <canvas id="portChart" class="w-full h-full"></canvas>
+                </div>
+            </div>
 
             <div class="card p-4 w-80 flex flex-col overflow-hidden min-h-0">
                 <div class="text-xs text-slate-400 uppercase mb-2">Incoming vessels</div>

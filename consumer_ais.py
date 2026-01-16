@@ -23,8 +23,7 @@ class ConsumerAIS(threading.Thread):
         self.out_queue = out_queue
         self._stop = threading.Event()
         self.bootstrap = bootstrap or os.getenv("KAFKA_BOOTSTRAP", "87.26.178.190:29092")
-        self.group_id = group_id or os.getenv("KAFKA_GROUP", "navalviewer_ais")
-        print(f"[ConsumerAIS] Initialized for topic '{self.topic}' on bootstrap '{self.bootstrap}' with group_id '{self.group_id}'", flush=True)
+        # self.group_id = group_id or os.getenv("KAFKA_GROUP", "navalviewer_ais")
 
     def stop(self):
         self._stop.set()
@@ -34,15 +33,17 @@ class ConsumerAIS(threading.Thread):
             consumer = KafkaConsumer(
                 self.topic,
                 bootstrap_servers=self.bootstrap,
-                group_id=self.group_id,
+                # group_id=self.group_id,
                 key_deserializer=lambda k: k.decode("utf-8") if k else None,
                 value_deserializer=lambda v: json.loads(v.decode("utf-8")) if v else None,
                 auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET", "latest"),
                 consumer_timeout_ms=1000,
             )
             # connected
+            print(f"[ConsumerAIS] Connected to Kafka at {self.bootstrap} for topic '{self.topic}'", flush=True)
         except Exception:
             # failed to create consumer
+            print(f"[ConsumerAIS] Failed to connect to Kafka at {self.bootstrap} for topic '{self.topic}': {traceback.format_exc()}", flush=True)
             return
 
         try:

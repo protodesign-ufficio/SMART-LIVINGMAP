@@ -40,7 +40,7 @@ def kafka_loop():
         bootstrap_servers=BOOTSTRAP_SERVERS,
         value_deserializer=lambda x: json.loads(x.decode("utf-8")),
         auto_offset_reset="latest",
-        group_id="analytics_dashboard_consumer_2",
+        # group_id="analytics_dashboard_consumer_2",
     )
 
     log("Kafka connected, streaming analytics...")

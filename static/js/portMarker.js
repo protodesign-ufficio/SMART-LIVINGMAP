@@ -74,22 +74,6 @@ function addOrUpdatePort(p){
 
 function popupForPort(name, lat, lon){
   const safe = escapeHtml(name);
-  // build an index.html URL in the same static folder and open fragment with port param
-  let base = window.location.href || '';
-  // try to replace map.html or map.* with index.html, fallback to directory + index.html
-  let indexUrl = base.replace(/map\.html($|[?#].*$)/, 'dashboard/index.html');
-  if(indexUrl === base){
-    // didn't replace, build from path
-    try{
-      const parts = base.split('/');
-      parts.pop();
-      indexUrl = parts.join('/') + '/dashboard/index.html';
-    }catch(e){
-      indexUrl = 'dashboard/index.html';
-    }
-  }
-  const frag = '#/porto?port=' + encodeURIComponent(name || '');
-  const full = indexUrl + frag;
   const html = `<div><b>${safe}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/><br/><button onclick="openDashboardFromPopup('${encodeURIComponent(name)}')">Mostra in Dashboard</button></div>`;
   return html;
 }

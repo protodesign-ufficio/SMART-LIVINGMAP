@@ -2,41 +2,66 @@
 // Manage ship markers and tracks on the Leaflet map.
 
 window._nv_ships = window._nv_ships || {};
+
+// Called from popup button. Attempts to call into the PyQt application via
+// the QWebChannel bridge; falls back to opening a new browser window.
+function openDashboardVesselFromPopup(encodedMmsi){
+  var mmsi = '';
+  try{ mmsi = decodeURIComponent(encodedMmsi || ''); }catch(e){ mmsi = encodedMmsi || ''; }
+  var pageRelative = 'static/dashboard/index.html#/vascello';
+  // if bridge available, call Python method (openDashboard(page_relative, query_json, title, width, height))
+  try{
+    if(window.pyMain && typeof window.pyMain.openDashboard === 'function'){
+      try{
+        window.pyMain.openDashboard(pageRelative, JSON.stringify({mmsi: mmsi}), 'Vascello: ' + mmsi, 1500, 800);
+        return;
+      }catch(e){ /* fallthrough to fallback */ }
+    }
+  }catch(e){ }
+  // fallback: open the dashboard URL in a new tab/window
+  try{
+    var base = window.location.href || '';
+    var indexUrl = base.replace(/map\.html($|[?#].*$)/, 'dashboard/index.html');
+    if(indexUrl === base){
+      try{ var parts = base.split('/'); parts.pop(); indexUrl = parts.join('/') + '/dashboard/index.html'; }catch(e){ indexUrl = 'dashboard/index.html'; }
+    }
+    var full = indexUrl + '#/vascello?mmsi=' + encodeURIComponent(mmsi || '');
+    window.open(full, '_blank');
+  }catch(e){ /* ignore */ }
+}
+
+
+function makeShipIcon(color, heading){
+  const h = (heading || 0);
+  // simple arrow-shaped SVG; rotation applied via inline style
+  const html = `<div style="transform: rotate(${h}deg); display:inline-block;">
+    <svg width="24" height="13" viewBox="0 0 24 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 6.5L24 0L17 6.5L24 13L0 6.5Z" fill="${color || '#ff6600'}" stroke="black"/>
+    </svg>
+  </div>`;
+  return L.divIcon({
+    className: 'nv-ship-icon',
+    html: html,
+    iconSize: [24,13],
+    iconAnchor: [12,6]
+  });
+}
+
+function popupHtml(m){
+  const staticInfo = m.static || {};
+  return `<div style="font-size:12px">
+    <b>${staticInfo.shipname || ''}</b><br/>
+    MMSI: ${m.mmsi || ''}<br/>
+    Speed: ${m.speed != null ? m.speed : ''}<br/>
+    Heading: ${m.heading != null ? m.heading : ''} <br/>
+    Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
+    Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}<br/><br/>
+    <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}')">Mostra in Dashboard</button>
+  </div>`;
+}
+
 (function(){
   const ships = {};
-
-  // debug removed per user request
-
-  function makeSvg(color, heading){
-    const h = (heading || 0);
-    // simple arrow-shaped SVG; rotation applied via inline style
-    return `<div style="transform: rotate(${h}deg); display:inline-block;">
-      <svg width="24" height="13" viewBox="0 0 24 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M0 6.5L24 0L17 6.5L24 13L0 6.5Z" fill="${color || '#ff6600'}" stroke="black"/>
-      </svg>
-    </div>`;
-  }
-
-  function makeIcon(color, heading){
-    return L.divIcon({
-      className: 'nv-ship-icon',
-      html: makeSvg(color, heading),
-      iconSize: [24,13],
-      iconAnchor: [12,6]
-    });
-  }
-
-  function popupHtml(m){
-    const staticInfo = m.static || {};
-    return `<div style="font-size:12px">
-      <b>${staticInfo.shipname || ''}</b><br/>
-      MMSI: ${m.mmsi || ''}<br/>
-      Speed: ${m.speed != null ? m.speed : ''}<br/>
-      Heading: ${m.heading != null ? m.heading : ''} <br/>
-      Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
-      Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}
-    </div>`;
-  }
 
   window.updateShip = function(data){
     try{
@@ -59,7 +84,7 @@ window._nv_ships = window._nv_ships || {};
         s.lat = lat; s.lon = lon; s.speed = payload.speed; s.heading = heading;
 
         if(s.marker === null){
-          s.marker = L.marker([lat, lon], {icon: makeIcon(s.static.color || '#ff6600', heading), riseOnHover: true}).addTo(window.map);
+          s.marker = L.marker([lat, lon], {icon: makeShipIcon(s.static.color || '#ff6600', heading), riseOnHover: true}).addTo(window.map);
           // bind popup once and open on click
           s.marker.bindPopup(popupHtml(s));
           s.marker.on('click', function(){
