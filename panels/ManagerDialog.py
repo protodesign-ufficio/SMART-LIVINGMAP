@@ -1,5 +1,6 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTabWidget
+from PyQt5.QtGui import QIcon  # <--- RICCARDO
 
 from panels.ParametriPanel import ParametriPanel
 from panels.ServiziPanel import ServiziPanel
@@ -10,6 +11,8 @@ class ManagerDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon("static/icon/icon_manager.ico"))  # RICCARDO
+
         self.setWindowTitle('Manager')
         # make dialog a top-level window with minimize and maximize buttons
         self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)

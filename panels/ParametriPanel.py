@@ -1,4 +1,6 @@
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTabWidget
+from PyQt5.QtGui import QIcon # RICCARDO
 
 from subpanels.PortiPanel import PortiPanel
 from subpanels.VascelliPanel import VascelliPanel
@@ -11,6 +13,7 @@ class ParametriPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setWindowIcon(QIcon("static/icon/settings_icon.ico")) # RICCARDO
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
 

@@ -11,7 +11,6 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QProgressDialog,
 )
-
 # Import get_json and post_json with fallback
 try:
     from ApiClient import get_json, post_json

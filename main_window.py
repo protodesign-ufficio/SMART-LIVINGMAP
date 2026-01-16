@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QLabel,
 )
+from PyQt5.QtGui import QIcon  # <--- RICCARDO
 
 # Manager dialog will live in panels/ManagerDialog.py
 try:
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         # Accept an optional `queue.Queue` with AIS messages produced by
         # `consumer_ais.ConsumerAIS` running in a background thread.
         super().__init__()
+        self.setWindowIcon(QIcon("static/icon/settings_icon.ico")) # RICCARDO
         self._ais_queue = queue
         self.setWindowTitle("NavalViewer - Chart Viewer")
         self.resize(1000, 700)
