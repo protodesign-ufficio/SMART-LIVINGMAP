@@ -92,20 +92,6 @@
         </div>
     </div>
 
-    <!-- API_BASE -->
-    <div class="card p-6">
-        <div class="text-xs text-slate-400 uppercase font-bold mb-2">4. API_BASE</div>
-        <div class="description">
-            URL base dell'API esterna.
-            <br><br>
-            <strong>Uso:</strong> Servizio per richieste API per calcoli ETA.
-            <br>
-            <strong>Default:</strong> http://87.26.178.190:15080
-        </div>
-        <div class="mt-4">
-            <input type="text" id="api_base" class="input-field w-full" placeholder="http://87.26.178.190:15080">
-        </div>
-    </div>
 </div>
 
 <!-- ACTION BUTTONS -->
@@ -124,11 +110,10 @@
 const DEFAULT_VALUES = {
     "window_future": "30",
     "publish_interval": "30",
-    "publish_interval_sec": "30",
-    "api_base": "http://87.26.178.190:15080"
+    "publish_interval_sec": "30"
 };
 
-const API_ENDPOINT = DEFAULT_VALUES.api_base;
+const API_ENDPOINT = "http://87.26.178.190:15080";
 // =====================================================
 // UTILITY FUNCTIONS
 // =====================================================
@@ -187,7 +172,6 @@ async function loadCurrentValues() {
         document.getElementById("window_future").value = data.window_future || DEFAULT_VALUES.window_future;
         document.getElementById("publish_interval").value = data.publish_interval || DEFAULT_VALUES.publish_interval;
         document.getElementById("publish_interval_sec").value = data.publish_interval_sec || DEFAULT_VALUES.publish_interval_sec;
-        document.getElementById("api_base").value = data.api_base || DEFAULT_VALUES.api_base;
 
         updateLastSync();
         showStatus("✓ Valori caricati con successo", "success");
@@ -207,7 +191,6 @@ function loadDefaultValues() {
     document.getElementById("window_future").value = DEFAULT_VALUES.window_future;
     document.getElementById("publish_interval").value = DEFAULT_VALUES.publish_interval;
     document.getElementById("publish_interval_sec").value = DEFAULT_VALUES.publish_interval_sec;
-    document.getElementById("api_base").value = DEFAULT_VALUES.api_base;
     showStatus("✓ Valori default caricati", "success");
     updateLastSync();
 }
@@ -218,10 +201,10 @@ function loadDefaultValues() {
 async function saveConfiguration() {
     try {
         // Validation
+
         const window_future = parseInt(document.getElementById("window_future").value);
         const publish_interval = parseInt(document.getElementById("publish_interval").value);
         const publish_interval_sec = parseInt(document.getElementById("publish_interval_sec").value);
-        const api_base = document.getElementById("api_base").value.trim();
 
         if (!window_future || window_future < 1) {
             throw new Error("WINDOW_FUTURE deve essere un numero > 0");
@@ -232,17 +215,13 @@ async function saveConfiguration() {
         if (!publish_interval_sec || publish_interval_sec < 1) {
             throw new Error("PUBLISH_INTERVAL_SEC deve essere un numero > 0");
         }
-        if (!api_base || !api_base.startsWith("http")) {
-            throw new Error("API_BASE deve essere un URL valido (http://... o https://...)");
-        }
 
         showStatus("Salvataggio configurazione...", "info");
 
         const payload = {
             window_future,
             publish_interval,
-            publish_interval_sec,
-            api_base
+            publish_interval_sec
         };
 
         const response = await fetch(`${API_ENDPOINT}/api/config/kafka-settings`, {
