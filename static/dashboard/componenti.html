@@ -7,7 +7,12 @@
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; font-family: monospace; }
-        .card { background:#1e293b; border:1px solid #334155; border-radius:0.75rem; }
+        .card{
+        background:#1e293b;
+        border:1px solid #334155;
+        border-radius:0.75rem;
+        box-shadow: 0 6px 18px rgba(0,0,0,.25);
+        }
         
         /* Scrollbar styling */
         ::-webkit-scrollbar {
@@ -53,10 +58,10 @@
     </div>
 
     <!-- MAIN PANEL -->
-    <div class="flex-1 flex flex-col gap-6 overflow-hidden">
+    <div class="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 p-4">
 
         <!-- CURRENT DATA -->
-        <div class="card p-6 mb-6">
+        <div class="card p-6 flex-shrink-0">
             <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
             <div id="mmsi" class="text-2xl font-bold text-blue-300">--</div>
         </div>
@@ -90,6 +95,17 @@
    - ?mmsi=1111022,1111023
    - ?mmsi=1111022&mmsi=1111023
 ===================================================== */
+
+async function loadVesselInfo(mmsi) {
+    try {
+        const res = await fetch(`http://87.26.178.190:15080/vascello/by_mmsi/${mmsi}`);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
+
 const urlParams = new URLSearchParams(window.location.search);
 const allowedMMSI = new Set();
 
@@ -233,6 +249,15 @@ socket.on("analytics_update", msg => {
     if (msg.vessel_name) {
         vessels[mmsi].vessel_name = msg.vessel_name;
     }
+
+    if (!vessels[mmsi].vessel_name) {
+    loadVesselInfo(mmsi).then(v => {
+        if (v && v.nome) {
+            vessels[mmsi].vessel_name = v.nome;
+            renderShips();
+        }
+    });
+}
 
     // Se selezionata non è valida (es. filtro cambiato), forza selezione
     if (!selectedMMSI || !vessels[selectedMMSI]) {

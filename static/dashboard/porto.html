@@ -8,8 +8,13 @@
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; font-family: monospace; }
-        .card { background:#1e293b; border:1px solid #334155; border-radius:0.75rem; }
-        
+        .card{
+            background:#1e293b;
+            border:1px solid #334155;
+            border-radius:0.75rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,.25);
+            }
+
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
@@ -51,9 +56,9 @@
         <div id="port-list" class="space-y-2"></div>
     </div>
 
-    <div class="flex-1 flex flex-col gap-6 overflow-hidden">
+    <div class="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 p-4">
 
-        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-6 items-center">
+        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-6 items-center flex-shrink-0">
 
             <div class="text-xs text-slate-400 uppercase">Selected Port</div>
             <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
@@ -81,14 +86,16 @@
 
         </div>
 
-        <div class="flex flex-1 gap-6 overflow-hidden">
+        <div class="flex flex-1 gap-6 overflow-hidden min-h-0">
 
-            <div class="card p-4 flex-1 flex flex-col overflow-hidden">
-                <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
-                <canvas id="portChart"></canvas>
-            </div>
+        <div class="card p-4 flex-1 flex flex-col min-h-0">
+             <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
+             <div class="flex-1 min-h-0">
+                 <canvas id="portChart" class="w-full h-full"></canvas>
+             </div>
+         </div>
 
-            <div class="card p-4 w-80 flex flex-col overflow-hidden">
+            <div class="card p-4 w-80 flex flex-col overflow-hidden min-h-0">
                 <div class="text-xs text-slate-400 uppercase mb-2">Incoming vessels</div>
                 <div id="incoming-ranking" class="flex-1 overflow-y-auto space-y-2 text-sm">
                     <div class="text-slate-500">--</div>

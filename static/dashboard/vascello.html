@@ -8,7 +8,12 @@
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; font-family: monospace; }
-        .card { background:#1e293b; border:1px solid #334155; border-radius:0.75rem; }
+        .card{
+  background:#1e293b;
+  border:1px solid #334155;
+  border-radius:0.75rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
         
         /* Scrollbar styling */
         ::-webkit-scrollbar {
@@ -53,10 +58,10 @@
     </div>
 
     <!-- MAIN -->
-    <div class="flex-1 flex flex-col gap-6 overflow-hidden">
+    <div class="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 p-4">
 
         <!-- TOP PANEL COLLAPSABLE -->
-        <div class="card overflow-hidden transition-all duration-300">
+        <div class="card overflow-hidden transition-all duration-300 flex-shrink-0">
 
             <!-- HEADER -->
             <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
@@ -131,9 +136,11 @@
         </div>
 
         <!-- GRAPH -->
-        <div class="card p-3 flex-1 flex flex-col overflow-hidden">
+        <div class="card p-4 flex-1 flex flex-col min-h-0">
             <div class="text-xs text-slate-400 uppercase mb-2">Delta History</div>
-            <canvas id="deltaChart"></canvas>
+            <div class="flex-1 min-h-0">
+                <canvas id="deltaChart" class="w-full h-full"></canvas>
+            </div>
         </div>
 
     </div>
