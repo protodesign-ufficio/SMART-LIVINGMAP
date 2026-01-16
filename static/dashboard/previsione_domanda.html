@@ -235,6 +235,7 @@ document.getElementById("giorno_target")
     .addEventListener("change", async () => {
         await loadCorseGiornaliere();
         aggiornaSelectTratte();
+        await loadOrari();
     });
 
 const oggi = new Date().toISOString().split("T")[0];
@@ -374,6 +375,7 @@ function aggiornaSelectTratte() {
 
     // se la tratta attuale è già valida, non toccarla
     if (tratteUniche.includes(sel.value)) {
+        loadOrari();
         return;
     }
 
