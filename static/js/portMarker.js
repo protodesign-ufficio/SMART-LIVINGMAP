@@ -20,6 +20,33 @@ function escapeHtml(s){
   });
 }
 
+// Called from popup button. Attempts to call into the PyQt application via
+// the QWebChannel bridge; falls back to opening a new browser window.
+function openDashboardFromPopup(encodedPortName){
+  var portName = '';
+  try{ portName = decodeURIComponent(encodedPortName || ''); }catch(e){ portName = encodedPortName || ''; }
+  var pageRelative = 'static/dashboard/index.html#/porto';
+  // if bridge available, call Python method (openDashboard(page_relative, query_json, title, width, height))
+  try{
+    if(window.pyMain && typeof window.pyMain.openDashboard === 'function'){
+      try{
+        window.pyMain.openDashboard(pageRelative, JSON.stringify({port: portName}), 'Porto: ' + portName, 1500, 800);
+        return;
+      }catch(e){ /* fallthrough to fallback */ }
+    }
+  }catch(e){ }
+  // fallback: open the dashboard URL in a new tab/window
+  try{
+    var base = window.location.href || '';
+    var indexUrl = base.replace(/map\.html($|[?#].*$)/, 'dashboard/index.html');
+    if(indexUrl === base){
+      try{ var parts = base.split('/'); parts.pop(); indexUrl = parts.join('/') + '/dashboard/index.html'; }catch(e){ indexUrl = 'dashboard/index.html'; }
+    }
+    var full = indexUrl + '#/porto?port=' + encodeURIComponent(portName || '');
+    window.open(full, '_blank');
+  }catch(e){ /* ignore */ }
+}
+
 function clearPorts(){
   for(const k in window.portMarkers){
     try{ map.removeLayer(window.portMarkers[k]); }catch(e){}
@@ -63,7 +90,7 @@ function popupForPort(name, lat, lon){
   }
   const frag = '#/porto?port=' + encodeURIComponent(name || '');
   const full = indexUrl + frag;
-  const html = `<div><b>${safe}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/><br/><button onclick="window.open('${full}', '_blank')">Mostra in Dashboard</button></div>`;
+  const html = `<div><b>${safe}</b><br/>Lat: ${lat.toFixed(6)}<br/>Lon: ${lon.toFixed(6)}<br/><br/><button onclick="openDashboardFromPopup('${encodeURIComponent(name)}')">Mostra in Dashboard</button></div>`;
   return html;
 }
 

@@ -4,6 +4,8 @@ from pathlib import Path
 from PyQt5.QtCore import QUrl, QTimer
 # logging removed per user request
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtCore import QObject, pyqtSlot
 from PyQt5.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -24,6 +26,27 @@ try:
     from ApiClient import get_json
 except Exception:
     get_json = None
+
+# Classe _webbridge: helper QObject exposed to the web page via QWebChannel
+class _WebBridge(QObject):
+    def __init__(self, main_window):
+        super().__init__()
+        self._mw = main_window
+
+    @pyqtSlot(str, str, str, int, int)
+    def openDashboard(self, page_relative, query_json, title, width, height):
+        try:
+            q = None
+            if query_json:
+                import json as _json
+                try:
+                    q = _json.loads(query_json)
+                except Exception:
+                    q = None
+            # call the MainWindow helper to open the dashboard
+            self._mw.open_dashboard_embedded(page_relative, query=q, title=title or None, size=(width or 1500, height or 800))
+        except Exception:
+            pass
 
 
 class MainWindow(QMainWindow):
@@ -102,6 +125,19 @@ class MainWindow(QMainWindow):
             self.view.setPage(popup_page)
         except Exception:
             # fallback: leave default page
+            pass
+        # expose a small webchannel bridge object to the page so JS can
+        # request the application to open embedded dashboards
+        try:
+            self._webbridge = _WebBridge(self)
+            channel = QWebChannel(self.view.page())
+            channel.registerObject('pyMain', self._webbridge)
+            try:
+                self.view.page().setWebChannel(channel)
+            except Exception:
+                # older/newer PyQt variants may not need this call
+                pass
+        except Exception:
             pass
         map_path = Path(__file__).parent / 'static/map.html'
         self.view.load(QUrl.fromLocalFile(str(map_path.resolve())))

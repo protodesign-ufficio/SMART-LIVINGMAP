@@ -13,6 +13,16 @@
   
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Qt WebChannel support for calling into the PyQt application -->
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script>
+    if (typeof QWebChannel !== 'undefined') {
+      new QWebChannel(qt.webChannelTransport, function(channel) {
+        try { window.pyMain = channel.objects.pyMain; } catch(e) { }
+      });
+    }
+  </script>
+
   <script src="js/map.js"></script>
   <script src="js/ships.js"></script>
   <script src="js/portMarker.js"></script>
