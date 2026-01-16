@@ -135,7 +135,7 @@ class MainWindow(QMainWindow):
         self.open_advanced_btn = QPushButton("Impostazioni Avanzate")
         self.open_advanced_btn.clicked.connect(
             lambda: self.open_dashboard_embedded(
-                'static/impostazioni_avanzate.html',
+                'static/dashboard/impostazioni_avanzate.html',
                 title='Impostazioni Avanzate',
                 size=(1500, 800),
             )
