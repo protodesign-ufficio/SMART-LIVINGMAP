@@ -113,6 +113,27 @@
                 </div>
             </div>
 
+            <!-- CACHE_DELTA_MIN -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">
+                    4. CACHE_DELTA_MIN
+                </div>
+                <div class="description">
+                    Delta minimo espresso in minuti per il caricamento di una nuova ottimizzazione.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di ottimizzazione delle rotte.
+                    <br>
+                    <strong>Default:</strong> 120 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="cache_delta_minutes"
+                        class="input-field flex-1"
+                        placeholder="120" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+
         </div>
 
         <!-- ACTION BUTTONS -->
@@ -137,9 +158,10 @@
 // =====================================================
 
 const DEFAULT_VALUES = {
-    "window_future": "30",
-    "publish_interval": "30",
-    "publish_interval_sec": "30"
+    window_future: "30",
+    publish_interval: "30",
+    publish_interval_sec: "30",
+    cache_delta_minutes: "120"
 };
 
 const API_ENDPOINT = "http://87.26.178.190:15080";
@@ -184,6 +206,26 @@ function updateLastSync() {
 // =====================================================
 // LOAD CURRENT VALUES
 // =====================================================
+async function loadCacheDelta() {
+    try {
+        const response = await fetch(`${API_ENDPOINT}/config`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+
+        document.getElementById("cache_delta_minutes").value =
+            data.cache_delta_minutes || DEFAULT_VALUES.cache_delta_minutes;
+
+    } catch (error) {
+    console.error("Errore cache delta:", error);
+    showStatus("Errore nel caricamento Cache Delta", "error");
+    }
+}
+
 async function loadCurrentValues() {
     try {
         showStatus("Caricamento valori attuali...", "info");
@@ -206,10 +248,8 @@ async function loadCurrentValues() {
         showStatus("✓ Valori caricati con successo", "success");
 
     } catch (error) {
-        console.error("Errore nel caricamento:", error);
-        showStatus(`Errore nel caricamento: ${error.message}`, "error");
-        // Fallback to defaults
-        loadDefaultValues();
+    console.error("Errore nel caricamento:", error);
+    showStatus(`Errore nel caricamento: ${error.message}`, "error");
     }
 }
 
@@ -220,54 +260,87 @@ function loadDefaultValues() {
     document.getElementById("window_future").value = DEFAULT_VALUES.window_future;
     document.getElementById("publish_interval").value = DEFAULT_VALUES.publish_interval;
     document.getElementById("publish_interval_sec").value = DEFAULT_VALUES.publish_interval_sec;
+    document.getElementById("cache_delta_minutes").value = DEFAULT_VALUES.cache_delta_minutes;
     showStatus("✓ Valori default caricati", "success");
-    updateLastSync();
+    //updateLastSync();
 }
 
 // =====================================================
 // SAVE CONFIGURATION
 // =====================================================
+
+async function saveCacheDelta() {
+    const value = parseInt(
+        document.getElementById("cache_delta_minutes").value
+    );
+
+    if (!value || value < 1) {
+        throw new Error("CACHE_DELTA_MIN deve essere un numero > 0");
+    }
+
+    const response = await fetch(`${API_ENDPOINT}/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            cache_delta_minutes: value
+        })
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+
 async function saveConfiguration() {
     try {
-        // Validation
+        await saveKafkaConfig();
+        await saveCacheDelta();
 
-        const window_future = parseInt(document.getElementById("window_future").value);
-        const publish_interval = parseInt(document.getElementById("publish_interval").value);
-        const publish_interval_sec = parseInt(document.getElementById("publish_interval_sec").value);
-
-        if (!window_future || window_future < 1) {
-            throw new Error("WINDOW_FUTURE deve essere un numero > 0");
-        }
-        if (!publish_interval || publish_interval < 1) {
-            throw new Error("PUBLISH_INTERVAL deve essere un numero > 0");
-        }
-        if (!publish_interval_sec || publish_interval_sec < 1) {
-            throw new Error("PUBLISH_INTERVAL_SEC deve essere un numero > 0");
-        }
-
-        showStatus("Salvataggio configurazione...", "info");
-
-        const payload = {
-            window_future,
-            publish_interval,
-            publish_interval_sec
-        };
-
-        const response = await fetch(`${API_ENDPOINT}/api/config/kafka-settings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const result = await response.json();
         updateLastSync();
-        showStatus("✓ Configurazione salvata con successo! I servizi Kafka dovranno essere riavviati per caricare i nuovi valori.", "success");
+        showStatus(
+            "Configurazione salvata. Riavvio servizi necessario.",
+            "success"
+        );
 
     } catch (error) {
-        console.error("Errore nel salvataggio:", error);
+        console.error("Errore salvataggio:", error);
         showStatus(`Errore: ${error.message}`, "error");
+    }
+}
+
+async function saveKafkaConfig() {
+    const window_future_el = document.getElementById("window_future").value;
+    const publish_interval_el = document.getElementById("publish_interval").value;
+    const publish_interval_sec_el = document.getElementById("publish_interval_sec").value;
+
+    const window_future = parseInt(window_future_el, 10);
+    const publish_interval = parseInt(publish_interval_el, 10);
+    const publish_interval_sec = parseInt(publish_interval_sec_el, 10);
+
+    if (!Number.isInteger(window_future) || window_future < 1) {
+        throw new Error("WINDOW_FUTURE deve essere un intero > 0");
+    }
+    if (!Number.isInteger(publish_interval) || publish_interval < 1) {
+        throw new Error("PUBLISH_INTERVAL deve essere un intero > 0");
+    }
+    if (!Number.isInteger(publish_interval_sec) || publish_interval_sec < 1) {
+        throw new Error("PUBLISH_INTERVAL_SEC deve essere un intero > 0");
+    }
+
+    const payload = {
+        window_future: String(window_future),
+        publish_interval: String(publish_interval),
+        publish_interval_sec: String(publish_interval_sec)
+    };
+
+    const response = await fetch(`${API_ENDPOINT}/api/config/kafka-settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw new Error(`HTTP ${response.status}${text ? " - " + text : ""}`);
     }
 }
 
@@ -286,13 +359,14 @@ function resetToDefaults() {
 // =====================================================
 document.getElementById("btn-save").addEventListener("click", saveConfiguration);
 document.getElementById("btn-reset").addEventListener("click", resetToDefaults);
-document.getElementById("btn-load").addEventListener("click", loadCurrentValues);
+// document.getElementById("btn-load").addEventListener("click", loadCurrentValues);
 
 // =====================================================
 // INITIALIZATION
 // =====================================================
-document.addEventListener("DOMContentLoaded", () => {
-    loadCurrentValues();
+document.getElementById("btn-load").addEventListener("click", () => {
+    loadCurrentValues();   // Kafka
+    loadCacheDelta();      // Cache
 });
 </script>
 
