@@ -132,7 +132,31 @@
                     <span class="text-slate-400 text-sm self-center pl-2">min</span>
                 </div>
             </div>
+            <!-- KAFKA MODE -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">
+                    5. MODALITÀ KAFKA
+                </div>
+                <div class="description">
+                    Seleziona la modalità di lettura dei messaggi Kafka da parte dei servizi Consumer.
+                    <br><br>
+                    <strong>Uso:</strong> Controllo ambiente dati AIS.
+                    <br>
+                    <strong>Default:</strong> Reale
+                </div>
 
+                <div class="mt-4 flex gap-4">
+                    <button id="kafka-mode-real"
+                        class="px-4 py-2 rounded border border-slate-500 text-slate-200">
+                        Reale
+                    </button>
+
+                    <button id="kafka-mode-sim"
+                        class="px-4 py-2 rounded border border-slate-500 text-slate-200">
+                        Simulata
+                    </button>
+                </div>
+            </div>
 
         </div>
 
@@ -163,6 +187,7 @@ const DEFAULT_VALUES = {
     publish_interval_sec: "30",
     cache_delta_minutes: "120"
 };
+let kafkaTopic = "ais.raw"; // Default topic
 
 const API_ENDPOINT = "http://87.26.178.190:15080";
 // =====================================================
@@ -244,6 +269,12 @@ async function loadCurrentValues() {
         document.getElementById("publish_interval").value = data.publish_interval || DEFAULT_VALUES.publish_interval;
         document.getElementById("publish_interval_sec").value = data.publish_interval_sec || DEFAULT_VALUES.publish_interval_sec;
 
+        if (data.kafka_topic) {
+            setKafkaMode(data.kafka_topic);
+        } else {
+            setKafkaMode("ais.raw");
+        }
+
         updateLastSync();
         showStatus("✓ Valori caricati con successo", "success");
 
@@ -256,11 +287,27 @@ async function loadCurrentValues() {
 // =====================================================
 // LOAD DEFAULT VALUES
 // =====================================================
+function setKafkaMode(topic) {
+    kafkaTopic = topic;
+
+    const realBtn = document.getElementById("kafka-mode-real");
+    const simBtn = document.getElementById("kafka-mode-sim");
+
+    if (topic === "ais_simulation.raw") {
+        simBtn.classList.add("bg-blue-600", "border-blue-500");
+        realBtn.classList.remove("bg-blue-600", "border-blue-500");
+    } else {
+        realBtn.classList.add("bg-blue-600", "border-blue-500");
+        simBtn.classList.remove("bg-blue-600", "border-blue-500");
+    }
+}
+
 function loadDefaultValues() {
     document.getElementById("window_future").value = DEFAULT_VALUES.window_future;
     document.getElementById("publish_interval").value = DEFAULT_VALUES.publish_interval;
     document.getElementById("publish_interval_sec").value = DEFAULT_VALUES.publish_interval_sec;
     document.getElementById("cache_delta_minutes").value = DEFAULT_VALUES.cache_delta_minutes;
+    setKafkaMode("ais.raw");
     showStatus("✓ Valori default caricati", "success");
     //updateLastSync();
 }
@@ -329,7 +376,8 @@ async function saveKafkaConfig() {
     const payload = {
         window_future: String(window_future),
         publish_interval: String(publish_interval),
-        publish_interval_sec: String(publish_interval_sec)
+        publish_interval_sec: String(publish_interval_sec),
+        kafka_topic: kafkaTopic
     };
 
     const response = await fetch(`${API_ENDPOINT}/api/config/kafka-settings`, {
@@ -359,6 +407,14 @@ function resetToDefaults() {
 // =====================================================
 document.getElementById("btn-save").addEventListener("click", saveConfiguration);
 document.getElementById("btn-reset").addEventListener("click", resetToDefaults);
+document.getElementById("kafka-mode-real").addEventListener("click", () => {
+    setKafkaMode("ais.raw");
+});
+
+document.getElementById("kafka-mode-sim").addEventListener("click", () => {
+    setKafkaMode("ais_simulation.raw");
+});
+
 // document.getElementById("btn-load").addEventListener("click", loadCurrentValues);
 
 // =====================================================
