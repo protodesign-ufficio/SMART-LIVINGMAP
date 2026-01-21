@@ -30,7 +30,7 @@ function openDashboardFromPopup(encodedPortName){
   try{
     if(window.pyMain && typeof window.pyMain.openDashboard === 'function'){
       try{
-        window.pyMain.openDashboard(pageRelative, JSON.stringify({port: portName}), 'Porto: ' + portName, 1500, 800);
+        window.pyMain.openDashboard(pageRelative, JSON.stringify({port: portName}), 'Porto: ' + portName, 1500, 900);
         return;
       }catch(e){ /* fallthrough to fallback */ }
     }

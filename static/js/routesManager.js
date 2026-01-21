@@ -28,7 +28,7 @@
   }
 
   function makeDiamondIcon(color, size){
-    size = size || 12;
+    size = size || 10;
     const half = Math.round(size/2);
     const html = `<div style="width:${size}px;height:${size}px;background:${color};transform:rotate(45deg);border:1px solid #000;border-radius:1px;box-shadow:0 0 1px rgba(0,0,0,0.6);"></div>`;
     return L.divIcon({className: 'route-diamond-icon', html: html, iconSize: [size,size], iconAnchor: [half,half]});
@@ -51,12 +51,12 @@
 
     const latlngs = coordsToLatLngs(geom.coordinates);
 
-    const lineStyle = Object.assign({color: options.color || '#ff0000', weight: options.weight || 3, opacity: options.opacity || 0.8}, options.lineStyle || {});
+    const lineStyle = Object.assign({color: options.color || '#9f9d9d', weight: options.weight || 3, opacity: options.opacity || 0.8}, options.lineStyle || {});
     const poly = L.polyline(latlngs, lineStyle).addTo(map);
 
     // create diamond waypoints
     const markers = latlngs.map(function(ll, idx){
-      const icon = makeDiamondIcon(options.waypointColor || '#ffffff', options.waypointSize || 12);
+      const icon = makeDiamondIcon(options.waypointColor || '#ffffff', options.waypointSize);
       const m = L.marker(ll, {icon: icon, interactive: !!options.interactive}).addTo(map);
       if(options.interactive){
         const label = route.corsa_id ? (`${route.corsa_id} — wp ${idx+1}`) : (`wp ${idx+1}`);

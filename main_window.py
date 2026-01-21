@@ -44,7 +44,7 @@ class _WebBridge(QObject):
                 except Exception:
                     q = None
             # call the MainWindow helper to open the dashboard
-            self._mw.open_dashboard_embedded(page_relative, query=q, title=title or None, size=(width or 1500, height or 800))
+            self._mw.open_dashboard_embedded(page_relative, query=q, title=title or None, size=(width or 1500, height or 900))
         except Exception:
             pass
 
@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
             lambda: self.open_dashboard_embedded(
                 'static/dashboard/impostazioni_avanzate.html',
                 title='Impostazioni Avanzate',
-                size=(1500, 800),
+                size=(1500, 900),
             )
         )
         right_layout.addWidget(self.open_advanced_btn)
@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-    def open_dashboard_embedded(self, page_relative: str, query: dict = None, title: str = None, size=(1500,800)):
+    def open_dashboard_embedded(self, page_relative: str, query: dict = None, title: str = None, size=(1500,900)):
         """Open or reuse an embedded dashboard dialog inside the application.
 
         This uses the same profile as the main view so cookies and session are shared.
