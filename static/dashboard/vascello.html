@@ -455,7 +455,7 @@ function updateInfo() {
 
     if (s.route && s.route.percorso) {
         document.getElementById("route-id").innerText =
-            s.route.percorso.tratta_id ?? "--";
+            s.route.percorso.tratta_nome || s.route.percorso.tratta_id || "--";
         document.getElementById("route-departure").innerText =
             formatISO(s.route.percorso.orario_partenza_schedulato);
         document.getElementById("route-time").innerText =
