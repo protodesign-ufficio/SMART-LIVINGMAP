@@ -345,7 +345,7 @@ function renderCorseSidebar() {
 /////////////////////////////////////////////
 // AGGIORNA SELECT TRATTE (SELEZIONE CORSA)
 /////////////////////////////////////////////
-function aggiornaSelectTratte() {
+async function aggiornaSelectTratte() {
     const sel = document.getElementById("tratta");
     sel.innerHTML = "";
 
@@ -357,32 +357,32 @@ function aggiornaSelectTratte() {
         return;
     }
 
+    // Popola le opzioni (Nomi Tratta univoci)
     const tratteUniche = [...new Set(corseDelGiorno.map(c => c.tratta))];
-
     tratteUniche.forEach(t => {
         const opt = document.createElement("option");
-        opt.value = t; // Qui usiamo il nome (es: SAL-AMA) perché la select lavora con i nomi
+        opt.value = t;
         opt.textContent = t;
         sel.appendChild(opt);
     });
 
-    if (tratteUniche.includes(sel.value)) {
-        loadOrari();
-        return;
-    }
-
-    // Se ho una corsa selezionata (UUID), trovo la sua tratta
+    // SELEZIONE AUTOMATICA:
+    // Se abbiamo una corsa selezionata (selectedCorsaId), selezioniamo la sua tratta
     if (selectedCorsaId) {
         const found = corseDelGiorno.find(c => c.id === selectedCorsaId);
         if (found && tratteUniche.includes(found.tratta)) {
             sel.value = found.tratta;
-            loadOrari();
+            // Carica orari e attende la fine prima di selezionare l'orario
+            await loadOrari(); 
             return;
         }
     }
 
-    sel.value = tratteUniche[0];
-    loadOrari();
+    // Fallback: seleziona la prima tratta se quella attuale non è valida
+    if (!tratteUniche.includes(sel.value)) {
+        sel.value = tratteUniche[0];
+    }
+    await loadOrari();
 }
 
 /////////////////////////////////////////////
@@ -420,85 +420,90 @@ async function loadTratte() {
 // URL PARAM (AUTO-COMPILAZIONE CORSA)
 /////////////////////////////////////////////
 async function applyCorsaFromUrl() {
-    // Questa parte è complessa perché l'URL contiene probabilmente l'ID vecchio stile o l'UUID
-    // Se l'URL ha ?corsa=UUID, è facile. Se ha ?corsa=SAL-AMA-DATA..., dobbiamo cercare.
     const params = new URLSearchParams(window.location.search);
     if (!params.has("corsa")) return;
 
-    const paramCorsa = params.get("corsa").trim();
+    const param = params.get("corsa").trim();
     
-    // Assumiamo che se c'è un parametro, impostiamo la data.
-    // Se è un UUID, non possiamo estrarre la data facilmente senza chiamare il backend.
-    // Se è il vecchio formato "SAL-AMA-2025...", proviamo a parsare.
-    const match = paramCorsa.match(/^(.+)-(\d{8})-(\d{4})$/);
-    
-    if (match) {
-        // Vecchio formato stringa
-        const dataUrl = match[2];
-        const dataISO = dataUrl.slice(0,4) + "-" + dataUrl.slice(4,6) + "-" + dataUrl.slice(6,8);
-        document.getElementById("giorno_target").value = dataISO;
+    // Controlliamo se è un UUID (36 caratteri, numeri e lettere a-f)
+    const isUUID = /^[0-9a-fA-F-]{36}$/.test(param);
+
+    if (isUUID) {
+        // --- CASO 1: È UN UUID ---
+        try {
+            // 1. Chiediamo al backend i dettagli per sapere la DATA
+            const res = await fetch(`${BACKEND}/corsa/${param}`);
+            if (!res.ok) return; 
+            const dataCorsa = await res.json();
+
+            // 2. Estraiamo la data (es: "2026-01-21T10:30:00" -> "2026-01-21")
+            const dataIso = dataCorsa.orario_partenza_schedulato.split("T")[0];
+            document.getElementById("giorno_target").value = dataIso;
+            
+            // 3. Impostiamo lo stato globale
+            selectedCorsaId = param;
+
+            // 4. Carichiamo le corse di quel giorno
+            await loadCorseGiornaliere();
+            
+            // 5. Aggiorniamo le tendine (Tratta -> Orario)
+            // Nota: aggiornaSelectTratte ora è intelligente e userà selectedCorsaId
+            await aggiornaSelectTratte();
+
+        } catch (e) {
+            console.error("Errore recupero corsa da UUID", e);
+        }
+
     } else {
-        // È un UUID o altro formato, non cambiamo data per ora o usiamo oggi
-    }
+        // --- CASO 2: VECCHIO FORMATO STRINGA (SAL-AMA-2025...) ---
+        const match = param.match(/^(.+)-(\d{8})-(\d{4})$/);
+        if (match) {
+            const dataUrl = match[2];
+            const dataISO = dataUrl.slice(0,4) + "-" + dataUrl.slice(4,6) + "-" + dataUrl.slice(6,8);
+            document.getElementById("giorno_target").value = dataISO;
 
-    await loadCorseGiornaliere();
-    
-    // Cerchiamo la corsa nell'elenco caricato
-    // Se paramCorsa è UUID
-    let found = corseDelGiorno.find(c => c.id === paramCorsa);
-    
-    // Se non trovata, proviamo a ricostruire l'ID stringa e cercare (fallback)
-    if (!found && match) {
-        const nomeCostruito = match[0]; // es SAL-AMA-2025...
-        // Backend ora ritorna {id: uuid, nome: "SAL-AMA-..."} in alcune view
-        // Ma /corsa/giorno ritorna {id, tratta, orario}.
-        // Quindi cerchiamo per corrispondenza parametri
-        const trattaUrl = match[1];
-        const oraUrl = match[3]; // 0930
-        const oraFormatted = oraUrl.slice(0,2) + ":" + oraUrl.slice(2,4);
-        
-        found = corseDelGiorno.find(c => c.tratta === trattaUrl && c.orario === oraFormatted);
-    }
+            await loadCorseGiornaliere();
 
-    if (found) {
-        selezionaCorsa(found);
+            // Cerchiamo l'UUID reale corrispondente a Tratta e Orario della stringa
+            const trattaNome = match[1];
+            const orarioHHMM = match[3];
+            const orarioFormatted = orarioHHMM.slice(0,2) + ":" + orarioHHMM.slice(2,4);
+
+            const found = corseDelGiorno.find(c => c.tratta === trattaNome && c.orario === orarioFormatted);
+            if (found) {
+                selectedCorsaId = found.id;
+                await aggiornaSelectTratte();
+            }
+        }
     }
 }
 
-
 async function loadOrari() {
-    // La select 'tratta' ora potrebbe contenere UUID (se caricata da loadTratte) 
-    // o NOMI (se caricata da aggiornaSelectTratte).
-    // Dobbiamo gestire entrambi i casi.
-    let trattaVal = document.getElementById("tratta").value;
+    const trattaNome = document.getElementById("tratta").value;
     const dataSel  = document.getElementById("giorno_target").value;
     const sel = document.getElementById("orario");
     sel.innerHTML = "";
 
-    if (!trattaVal || !dataSel) return;
+    if (!trattaNome || !dataSel) return;
 
-    // Se trattaVal è un nome (es "SAL-AMA"), dobbiamo trovare l'UUID corrispondente
-    // se vogliamo usare l'endpoint /corsa/orari/{tratta_id}.
-    // Però, l'endpoint /corsa/orari/{tratta_id} si aspetta l'UUID della tratta.
-    
-    // FIX: Se 'trattaVal' non è un UUID (lunghezza 36), cerchiamo l'UUID nei dati che abbiamo.
-    if (trattaVal.length !== 36 && corseDelGiorno.length > 0) {
-         const found = corseDelGiorno.find(c => c.tratta === trattaVal);
-         if (found) {
-             trattaVal = found.tratta_id; // Assicurati che /corsa/giorno ritorni anche tratta_id
-         }
+    // Dobbiamo trovare l'UUID della tratta partendo dal Nome, 
+    // perché l'endpoint /corsa/orari/{id} vuole l'UUID della tratta.
+    let trattaIdUuid = null;
+    const corsaEsempio = corseDelGiorno.find(c => c.tratta === trattaNome);
+    if (corsaEsempio) {
+        trattaIdUuid = corsaEsempio.tratta_id; // Assicurati che /corsa/giorno restituisca questo campo
     }
 
-    try {
-        const res = await fetch(
-            `${BACKEND}/corsa/orari/${trattaVal}?data=${dataSel}`
-        );
+    // Fallback: se non troviamo l'UUID della tratta nei dati locali, proviamo a usare il nome
+    // (ma funzionerà solo se il backend accetta nomi, altrimenti fallirà)
+    const idPerChiamata = trattaIdUuid || trattaNome;
 
+    try {
+        const res = await fetch(`${BACKEND}/corsa/orari/${idPerChiamata}?data=${dataSel}`);
         if (!res.ok) return;
 
         const data = await res.json();
-        // Backend ora ritorna {tratta_id, tratta_nome, orari: []}
-
+        
         if (!data.orari || data.orari.length === 0) {
             const opt = document.createElement("option");
             opt.value = "";
@@ -515,11 +520,20 @@ async function loadOrari() {
             sel.appendChild(opt);
         });
 
+        // SELEZIONE AUTOMATICA ORARIO:
+        // Se c'è una corsa selezionata, selezioniamo il suo orario
+        if (selectedCorsaId) {
+            const found = corseDelGiorno.find(c => c.id === selectedCorsaId);
+            if (found && found.tratta === trattaNome) {
+                const orarioClean = found.orario.replace(":", ""); // "09:30" -> "0930"
+                sel.value = orarioClean;
+            }
+        }
+
     } catch (e) {
         console.error("Eccezione loadOrari:", e);
     }
 }
-
 
 document.getElementById("tratta").addEventListener("change", async () => {
     await loadOrari();
