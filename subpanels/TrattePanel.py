@@ -29,10 +29,19 @@ except Exception:
 
 
 class AddTrattaDialog(QDialog):
-    def __init__(self, parent=None, port_names=None):
+    def __init__(self, parent=None, port_names=None, port_items=None):
         super().__init__(parent)
         self.setWindowTitle('Aggiungi Tratta')
-        self.port_names = port_names or []
+        # port_items: optional list of dicts {'id': ..., 'nome': ...}
+        self.port_items = port_items or []
+        # derive display names and mapping name->id for payloads
+        if self.port_items:
+            self.port_display_names = [str(p.get('nome') or p.get('id')) for p in self.port_items]
+            self.name_to_id = {str(p.get('nome') or p.get('id')): str(p.get('id')) for p in self.port_items}
+        else:
+            self.port_display_names = port_names or []
+            # no id mapping available
+            self.name_to_id = {}
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -43,9 +52,9 @@ class AddTrattaDialog(QDialog):
         form.addRow('Tipo', self.mode_cb)
 
         self.start_cb = QComboBox()
-        self.start_cb.addItems(self.port_names)
+        self.start_cb.addItems(self.port_display_names)
         self.end_cb = QComboBox()
-        self.end_cb.addItems(self.port_names)
+        self.end_cb.addItems(self.port_display_names)
         self.lbl_start = QLabel('Partenza')
         self.lbl_arrival = QLabel('Arrivo')
         form.addRow(self.lbl_start, self.start_cb)
@@ -57,7 +66,7 @@ class AddTrattaDialog(QDialog):
         lists_row = QHBoxLayout()
 
         self.available_list = QListWidget()
-        self.available_list.addItems(self.port_names)
+        self.available_list.addItems(self.port_display_names)
         lists_row.addWidget(self.available_list)
 
         mid_btns = QVBoxLayout()
@@ -149,38 +158,39 @@ class AddTrattaDialog(QDialog):
 
     def get_payloads(self):
         mode = self.mode_cb.currentText()
-        def abbrev(n):
-            return (n[:3].upper() if n else '')
-
+        # Build payloads using porto IDs when available.
         if mode == 'Semplice':
-            partenza = self.start_cb.currentText()
-            arrivo = self.end_cb.currentText()
-            tratta_id = f"{abbrev(partenza)}-{abbrev(arrivo)}"
+            partenza_name = self.start_cb.currentText()
+            arrivo_name = self.end_cb.currentText()
+            # prefer IDs if mapping exists
+            partenza_id = self.name_to_id.get(partenza_name) or partenza_name
+            arrivo_id = self.name_to_id.get(arrivo_name) or arrivo_name
             payload = {
-                'id': tratta_id,
-                'porto_partenza': partenza,
-                'porto_arrivo': arrivo,
-                'distanza_miglia': None,
+                'porto_partenza_id': partenza_id,
+                'porto_arrivo_id': arrivo_id,
             }
+            print('Payload:')
+            print(payload)
             return 'tratta/crea', payload
         else:
             names = [self.selected_list.item(i).text() for i in range(self.selected_list.count())]
             if len(names) < 2:
                 return None, None
-            tratta_id = '-'.join(abbrev(n) for n in names)
+            ids = [self.name_to_id.get(n) or n for n in names]
             payload = {
-                'id': tratta_id,
-                'porti': names,
-                'distanza_miglia': None,
+                'porti_ids': ids,
             }
             return 'tratta/crea_multi', payload
 
     def _on_create(self):
         mode = self.mode_cb.currentText()
         if mode == 'Semplice':
-            partenza = self.start_cb.currentText()
-            arrivo = self.end_cb.currentText()
-            if partenza == arrivo:
+            partenza_name = self.start_cb.currentText()
+            arrivo_name = self.end_cb.currentText()
+            # prefer ID comparison if mapping available
+            partenza_id = self.name_to_id.get(partenza_name) or partenza_name
+            arrivo_id = self.name_to_id.get(arrivo_name) or arrivo_name
+            if partenza_id == arrivo_id:
                 QMessageBox.warning(self, 'Errore', 'Porto di partenza e di arrivo non possono essere uguali')
                 return
         else:
@@ -207,12 +217,14 @@ class TrattePanel(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
 
-        self.table = QTableWidget(0, 4, self)
+        # columns: Nome, Partenza, Arrivo, Intermedi, ID
+        self.table = QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels([
-            "ID",
+            "Nome",
             "Partenza",
             "Arrivo",
             "Intermedi",
+            "ID",
         ])
         layout.addWidget(self.table)
 
@@ -285,6 +297,8 @@ class TrattePanel(QWidget):
             self.table.insertRow(row)
 
             item_id = str(item.get('id', ''))
+            # nome della tratta (se presente)
+            item_name = str(item.get('nome', '') or item.get('nome_tratta', ''))
 
             # origine/destinazione possono essere solo ID oppure oggetti: gestiamo entrambi
             partenza_id = item.get('porto_partenza_id')
@@ -310,40 +324,46 @@ class TrattePanel(QWidget):
             intermedi_names = [self.get_port_name(x) for x in intermedi_list]
             intermedi_text = ', '.join([n for n in intermedi_names if n])
 
-            it_id = QTableWidgetItem(item_id)
+            it_name = QTableWidgetItem(item_name)
             it_partenza = QTableWidgetItem(partenza_name)
             it_arrivo = QTableWidgetItem(arrivo_name)
             it_intermedi = QTableWidgetItem(intermedi_text)
+            it_id = QTableWidgetItem(item_id)
 
-            # store the full object in the first column for convenience
+            # store the full object in the last column for convenience
             it_id.setData(Qt.UserRole, item)
 
             # make items read-only
-            for it in (it_id, it_partenza, it_arrivo, it_intermedi):
+            for it in (it_name, it_partenza, it_arrivo, it_intermedi, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            self.table.setItem(row, 0, it_id)
+            # Nome, Partenza, Arrivo, Intermedi, ID
+            self.table.setItem(row, 0, it_name)
             self.table.setItem(row, 1, it_partenza)
             self.table.setItem(row, 2, it_arrivo)
             self.table.setItem(row, 3, it_intermedi)
+            self.table.setItem(row, 4, it_id)
 
         self.table.resizeColumnsToContents()
 
     def open_add_dialog(self):
-        port_names = []
+        port_items = []
         if get_json is not None:
             try:
                 ports = get_json('porto/lista')
                 if isinstance(ports, list):
                     for p in ports:
                         if isinstance(p, dict):
-                            port_names.append(p.get('nome') or str(p.get('id', '')))
+                            pid = p.get('id')
+                            name = p.get('nome') or str(pid)
+                            port_items.append({'id': str(pid), 'nome': str(name)})
                         else:
-                            port_names.append(str(p))
+                            s = str(p)
+                            port_items.append({'id': s, 'nome': s})
             except Exception:
-                port_names = []
+                port_items = []
 
-        dlg = AddTrattaDialog(self, port_names=port_names)
+        dlg = AddTrattaDialog(self, port_items=port_items)
         if dlg.exec_() != QDialog.Accepted:
             return
         endpoint, payload = dlg.get_payloads()

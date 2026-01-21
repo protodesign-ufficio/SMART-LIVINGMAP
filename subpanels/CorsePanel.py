@@ -50,10 +50,14 @@ class AddCorsaDialog(QDialog):
 
         self.tratta_cb = QComboBox()
         for t in self.tratta_list:
+            # if tratta is dict prefer to show its name but store its id as data
             if isinstance(t, dict):
-                self.tratta_cb.addItem(str(t.get('id') or ''))
+                tid = str(t.get('id', ''))
+                name = t.get('nome') or t.get('name') or tid
+                self.tratta_cb.addItem(str(name), tid)
             else:
-                self.tratta_cb.addItem(str(t))
+                s = str(t)
+                self.tratta_cb.addItem(s, s)
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
@@ -85,8 +89,9 @@ class AddCorsaDialog(QDialog):
         layout.addLayout(btn_row)
 
     def _on_create(self):
-        tratta = self.tratta_cb.currentText()
-        if not tratta:
+        # prefer the stored id (userData); fallback to visible text
+        tratta_id = self.tratta_cb.currentData() or self.tratta_cb.currentText()
+        if not tratta_id:
             QMessageBox.warning(self, 'Errore', 'Seleziona una tratta')
             return
         date_str = self.date_edit.date().toString('yyyy-MM-dd')
@@ -99,7 +104,7 @@ class AddCorsaDialog(QDialog):
         arr_time_str = arr_time.toString('HH:mm')
 
         self._payload = {
-            'tratta_id': tratta,
+            'tratta_id': tratta_id,
             'data': date_str,
             'orario': time_str,
             'orario_arrivo_max': arr_time_str,
@@ -126,13 +131,20 @@ class OptimizationDialog(QDialog):
         layout = QVBoxLayout(self)
         form = QFormLayout()
 
-        # show selected corsa id (non editabile)
-        self.corsa_label = QLabel(self.corsa_id)
-        self.name_edit = QLineEdit()
+        # show selected corsa name (non editabile). If available, resolve via API.
+        display_name = self.corsa_id
+        try:
+            if get_json is not None and self.corsa_id:
+                resp = get_json(f'corsa/{self.corsa_id}')
+                if isinstance(resp, dict):
+                    display_name = resp.get('nome') or resp.get('name') or display_name
+        except Exception:
+            # fallback to id on any error
+            display_name = self.corsa_id
+        self.corsa_label = QLabel(display_name)
         self.vascello_cb = QComboBox()
 
-        form.addRow('Corsa Selezionata (ID)', self.corsa_label)
-        form.addRow('Nome Ottimizzazione', self.name_edit)
+        form.addRow('Corsa Selezionata', self.corsa_label)
         form.addRow('Vascello', self.vascello_cb)
 
         layout.addLayout(form)
@@ -169,12 +181,9 @@ class OptimizationDialog(QDialog):
             self.vascello_cb.addItem(str(name), vid)
 
     def start_optimization(self):
-        name = self.name_edit.text().strip()
         vascello_id = self.vascello_cb.currentData() or self.vascello_cb.currentText()
         corsa_id = self.corsa_id
-        if not name:
-            QMessageBox.warning(self, 'Errore', 'Inserisci il Nome Ottimizzazione')
-            return
+        # name is optional for the payload; keep field for UX but do not send it
         if not corsa_id:
             QMessageBox.warning(self, 'Errore', 'ID corsa non disponibile')
             return
@@ -189,8 +198,11 @@ class OptimizationDialog(QDialog):
         payload = {
             'corsa_id': corsa_id,
             'vascello_id': vascello_id,
-            'optimization_id': name,
+            'eps_time': 0,
         }
+
+        print('Starting optimization with payload:')
+        print(payload)
 
         progress = QProgressDialog('Avviando ottimizzazione...', None, 0, 0, self)
         progress.setWindowTitle('Ottimizzazione')
@@ -226,13 +238,15 @@ class CorsePanel(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
 
-        self.table = QTableWidget(0, 5, self)
+        # columns: Nome, Tratta (nome), Orario Partenza, Previsione Passeggeri, Arrivo Max, ID
+        self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels([
-            "ID",
+            "Nome",
             "Tratta",
             "Orario Partenza",
             "Previsione Passeggeri",
             "Arrivo Max",
+            "ID",
         ])
 
         # select whole rows on click and allow single selection
@@ -277,6 +291,9 @@ class CorsePanel(QWidget):
         # connect selection change now that details button exists
         self.table.itemSelectionChanged.connect(self.update_details_button_state)
 
+        # cache for tratta names
+        self.tratta_cache = {}
+
         # load initial data
         self.load_data()
 
@@ -292,6 +309,32 @@ class CorsePanel(QWidget):
             return dt.strftime('%d/%m/%Y %H:%M')
         except Exception:
             return str(s)
+
+    def get_tratta_name(self, tratta_id):
+        """Resolve tratta name from id using simple cache and GET /tratta/{id}.
+
+        If `tratta_id` is falsy returns empty string.
+        """
+        if not tratta_id:
+            return ''
+        tid = str(tratta_id)
+        if tid in self.tratta_cache:
+            return self.tratta_cache[tid]
+        # if tratta_id looks like an object, try to extract name
+        try:
+            # attempt API call if available
+            if get_json is not None:
+                resp = get_json(f'tratta/{tid}')
+                if isinstance(resp, dict):
+                    name = resp.get('nome') or resp.get('name') or tid
+                else:
+                    name = tid
+            else:
+                name = tid
+        except Exception:
+            name = tid
+        self.tratta_cache[tid] = str(name)
+        return str(name)
 
     def load_data(self):
         if get_json is None:
@@ -335,9 +378,17 @@ class CorsePanel(QWidget):
         for item in items:
             row = self.table.rowCount()
             self.table.insertRow(row)
-
             cid = str(item.get('id', ''))
-            tratta = str(item.get('tratta_id', ''))
+            # corsa name if present
+            corsa_name = str(item.get('nome') or item.get('nome_corsa') or item.get('name') or '')
+            tratta_raw = item.get('tratta_id')
+            # tratta can be an object or id
+            tratta_id = None
+            if isinstance(tratta_raw, dict):
+                tratta_id = tratta_raw.get('id')
+            else:
+                tratta_id = tratta_raw
+            tratta = self.get_tratta_name(tratta_id)
             orario_raw = item.get('orario_partenza_schedulato', '')
             orario = self._format_dt(orario_raw)
             arrivo_max = item.get('orario_arrivo_max')
@@ -347,23 +398,25 @@ class CorsePanel(QWidget):
             pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
             pax_text = '' if pax is None else str(pax)
 
-            it_id = QTableWidgetItem(cid)
+            it_name = QTableWidgetItem(corsa_name)
             it_tratta = QTableWidgetItem(tratta)
             it_orario = QTableWidgetItem(orario)
             it_pax = QTableWidgetItem(pax_text)
             it_arrivo = QTableWidgetItem(arrivo_text)
-
-            # store full object in first column
+            # ID cell (last column) holds the full object in Qt.UserRole
+            it_id = QTableWidgetItem(cid)
             it_id.setData(Qt.UserRole, item)
 
-            for it in (it_id, it_tratta, it_orario, it_pax, it_arrivo):
+            for it in (it_name, it_tratta, it_orario, it_pax, it_arrivo, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            self.table.setItem(row, 0, it_id)
+            # Nome, Tratta, Orario, Previsione, Arrivo, ID
+            self.table.setItem(row, 0, it_name)
             self.table.setItem(row, 1, it_tratta)
             self.table.setItem(row, 2, it_orario)
             self.table.setItem(row, 3, it_pax)
             self.table.setItem(row, 4, it_arrivo)
+            self.table.setItem(row, 5, it_id)
 
         self.table.resizeColumnsToContents()
 
@@ -387,7 +440,9 @@ class CorsePanel(QWidget):
             QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
             return
         row = sel[0].row()
-        item = self.table.item(row, 0)
+        # full object stored in last column
+        last_col = self.table.columnCount() - 1
+        item = self.table.item(row, last_col)
         corsa = item.data(Qt.UserRole) if item is not None else None
         dlg = PercorsiDialog(self, corsa=corsa)
         dlg.exec_()
@@ -398,7 +453,8 @@ class CorsePanel(QWidget):
             QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
             return
         row = sel[0].row()
-        item = self.table.item(row, 0)
+        last_col = self.table.columnCount() - 1
+        item = self.table.item(row, last_col)
         corsa = item.data(Qt.UserRole) if item is not None else None
         corsa_id = None
         if isinstance(corsa, dict):
@@ -416,14 +472,16 @@ class CorsePanel(QWidget):
             QMessageBox.warning(self, 'Errore', 'Nessuna corsa selezionata')
             return
         row = sel[0].row()
-        item = self.table.item(row, 0)
+        last_col = self.table.columnCount() - 1
+        item = self.table.item(row, last_col)
         if item is None:
             QMessageBox.warning(self, 'Errore', 'Elemento selezionato non valido')
             return
         corsa = item.data(Qt.UserRole) or {}
         # try to get a friendly label
         corsa_id = str(corsa.get('id') if isinstance(corsa, dict) else item.text())
-        desc = corsa.get('tratta_id') if isinstance(corsa, dict) else corsa_id
+        corsa_name = str(corsa.get('nome') or corsa.get('name'))
+        print(f'Opening dashboard for corsa: {corsa_name} (ID: {corsa_id})')
 
         # find ancestor MainWindow or fallback to top-level widgets (same approach as PortiPanel)
         p = self
@@ -456,6 +514,6 @@ class CorsePanel(QWidget):
             return
 
         try:
-            main.open_dashboard_embedded('static/dashboard/index.html#/previsione_domanda', {'corsa': corsa_id}, title=f'Previsione Corsa: {corsa_id}', size=(1500, 900))
+            main.open_dashboard_embedded('static/dashboard/index.html#/previsione_domanda', {'corsa': corsa_id}, title=f'Previsione Corsa: {corsa_name}', size=(1500, 900))
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')

@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QAbstractItemView,
 )
+import os
+import json
 
 # Import get_json with fallback like other modules
 try:
@@ -20,6 +22,43 @@ except Exception:
         from project.ApiClient import get_json
     except Exception:
         get_json = None
+
+
+# persistence helpers for visible routes
+def _get_visible_routes_path():
+    try:
+        # place file next to project root (one level up from this module)
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    except Exception:
+        base = os.getcwd()
+    return os.path.join(base, 'visible_routes.json')
+
+
+def _load_visible_routes():
+    path = _get_visible_routes_path()
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return set(str(x) for x in data)
+    except Exception:
+        pass
+    return set()
+
+
+def _save_visible_routes(s):
+    path = _get_visible_routes_path()
+    try:
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(list(s), f)
+        try:
+            os.replace(tmp, path)
+        except Exception:
+            os.rename(tmp, path)
+    except Exception:
+        pass
 
 
 class PercorsiDialog(QDialog):
@@ -63,7 +102,7 @@ class PercorsiDialog(QDialog):
                 if not isinstance(data, dict):
                     raise ValueError('Risposta non valida')
 
-                tratta = data.get('tratta_id', '')
+                tratta = data.get('tratta_nome', '')
                 orario = data.get('orario_partenza_schedulato', '')
                 previsione = data.get('previsione') or {}
                 pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
@@ -119,7 +158,8 @@ class PercorsiDialog(QDialog):
         try:
             if parent is not None:
                 if not hasattr(parent, '_visible_routes'):
-                    parent._visible_routes = set()
+                    # load persisted visible routes from disk
+                    parent._visible_routes = _load_visible_routes()
         except Exception:
             pass
 
@@ -325,7 +365,9 @@ class PercorsiDialog(QDialog):
                     parent = self.parent()
                     if parent is not None:
                         try:
-                            parent._visible_routes.add(str(rid))
+                                parent._visible_routes.add(str(rid))
+                                # save to disk
+                                _save_visible_routes(parent._visible_routes)
                         except Exception:
                             pass
                 else:
@@ -337,6 +379,8 @@ class PercorsiDialog(QDialog):
                         if parent is not None:
                             try:
                                 parent._visible_routes.discard(str(rid))
+                                # save to disk
+                                _save_visible_routes(parent._visible_routes)
                             except Exception:
                                 pass
             except Exception:
