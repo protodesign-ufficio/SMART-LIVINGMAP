@@ -97,12 +97,13 @@ class PercorsiDialog(QDialog):
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
 
-        # table of percorsi: only keep checkbox, tempo and consumo columns
-        self.table = QTableWidget(0, 3, self)
+        # table of percorsi: checkbox, tempo, consumo and comfort columns
+        self.table = QTableWidget(0, 4, self)
         self.table.setHorizontalHeaderLabels([
             'Mostra',
             'Tempo Percorrenza',
             'Consumo',
+            'Comfort',
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -182,6 +183,7 @@ class PercorsiDialog(QDialog):
             self.table.insertRow(row)
             tempo = p.get('tempo_percorrenza', '')
             consumo = p.get('consumo', '')
+            comfort = p.get('comfort', '')
 
             # checkbox item in first column; store full percorso object on it via UserRole
             it_check = QTableWidgetItem()
@@ -191,8 +193,9 @@ class PercorsiDialog(QDialog):
 
             it_tempo = QTableWidgetItem(str(tempo))
             it_consumo = QTableWidgetItem(str(consumo))
+            it_comfort = QTableWidgetItem(str(comfort))
 
-            for it in (it_tempo, it_consumo):
+            for it in (it_tempo, it_consumo, it_comfort):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
             # suppress itemChanged while inserting
@@ -200,6 +203,7 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 0, it_check)
             self.table.setItem(row, 1, it_tempo)
             self.table.setItem(row, 2, it_consumo)
+            self.table.setItem(row, 3, it_comfort)
             self._suppress_item_changed = False
 
         # after populating, restore checked state from parent and draw any persisted routes
@@ -285,7 +289,7 @@ class PercorsiDialog(QDialog):
                 if view is None:
                     print('PercorsiDialog._run_js: no QWebEngineView found')
                     return
-            print('PercorsiDialog._run_js executing JS:', js)
+            # print('PercorsiDialog._run_js executing JS:', js)
             if callback is None:
                 view.page().runJavaScript(js)
             else:
@@ -315,7 +319,7 @@ class PercorsiDialog(QDialog):
                 if checked:
                     # draw route
                     js = f"window.routesManager.drawRoute({_json.dumps(route_obj)})"
-                    print('PercorsiDialog: drawing route', rid)
+                    # print('PercorsiDialog: drawing route', rid)
                     self._run_js(js)
                     # persist selection in parent set
                     parent = self.parent()
@@ -327,7 +331,7 @@ class PercorsiDialog(QDialog):
                 else:
                     if rid is not None:
                         js = f"window.routesManager.removeRoute({_json.dumps(rid)})"
-                        print('PercorsiDialog: removing route', rid)
+                        # print('PercorsiDialog: removing route', rid)
                         self._run_js(js)
                         parent = self.parent()
                         if parent is not None:
