@@ -1,4 +1,4 @@
-"""Launcher for the NavalViewer application.
+"""Launcher for the LivingMap application.
 
 This file provides a minimal entry point that imports `MainWindow` from
 `main_window.py` and runs the Qt application.
