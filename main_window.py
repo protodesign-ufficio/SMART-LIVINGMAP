@@ -202,35 +202,6 @@ class MainWindow(QMainWindow):
             self._load_ports_to_map()
         except Exception:
             pass
-        # load persisted visible routes and draw them
-        try:
-            # visible_routes.json stored in project root
-            from pathlib import Path
-            vis_path = Path(__file__).parent / 'visible_routes.json'
-            if vis_path.exists() and get_json is not None:
-                try:
-                    with open(vis_path, 'r', encoding='utf-8') as f:
-                        import json as _json
-                        ids = _json.load(f)
-                        if isinstance(ids, list):
-                            for rid in ids:
-                                try:
-                                    # attempt to fetch route object from API
-                                    route = get_json(f'percorso/{rid}')
-                                    # if API returns wrapper, try common keys
-                                    if isinstance(route, dict) and 'id' in route and ('geom_rotta' in route or 'geom' in route):
-                                        js = f"window.routesManager.drawRoute({_json.dumps(route)})"
-                                        try:
-                                            self.view.page().runJavaScript(js)
-                                        except Exception:
-                                            pass
-                                except Exception:
-                                    # ignore per-route errors
-                                    pass
-                except Exception:
-                    pass
-        except Exception:
-            pass
 
     def _load_ports_to_map(self):
         if get_json is None:

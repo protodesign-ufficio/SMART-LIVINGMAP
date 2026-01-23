@@ -11,8 +11,6 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QAbstractItemView,
 )
-import os
-import json
 
 # Import get_json with fallback like other modules
 try:
@@ -23,42 +21,7 @@ except Exception:
     except Exception:
         get_json = None
 
-
-# persistence helpers for visible routes
-def _get_visible_routes_path():
-    try:
-        # place file next to project root (one level up from this module)
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    except Exception:
-        base = os.getcwd()
-    return os.path.join(base, 'visible_routes.json')
-
-
-def _load_visible_routes():
-    path = _get_visible_routes_path()
-    try:
-        if os.path.exists(path):
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    return set(str(x) for x in data)
-    except Exception:
-        pass
-    return set()
-
-
-def _save_visible_routes(s):
-    path = _get_visible_routes_path()
-    try:
-        tmp = path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(list(s), f)
-        try:
-            os.replace(tmp, path)
-        except Exception:
-            os.rename(tmp, path)
-    except Exception:
-        pass
+import json
 
 
 class PercorsiDialog(QDialog):
@@ -154,12 +117,15 @@ class PercorsiDialog(QDialog):
         self._suppress_item_changed = False
         self.table.itemChanged.connect(self._on_item_changed)
 
-        # ensure parent has a visible routes set to persist selections across dialog instances
+        # ensure parent has an in-memory set to persist visible routes during app runtime
         try:
             if parent is not None:
                 if not hasattr(parent, '_visible_routes'):
-                    # load persisted visible routes from disk
-                    parent._visible_routes = _load_visible_routes()
+                    parent._visible_routes = set()
+            else:
+                # fallback: keep a dialog-local set for sessions without parent
+                if not hasattr(self, '_visible_routes'):
+                    self._visible_routes = set()
         except Exception:
             pass
 
@@ -246,35 +212,35 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 3, it_comfort)
             self._suppress_item_changed = False
 
-        # after populating, restore checked state from parent and draw any persisted routes
+        # restore checked state from in-memory parent._visible_routes (no disk persistence)
         try:
             parent = self.parent()
             if parent is not None and hasattr(parent, '_visible_routes'):
                 visible = parent._visible_routes
-                import json as _json
-                for row_idx in range(self.table.rowCount()):
-                    id_item = self.table.item(row_idx, 0)
-                    if id_item is None:
-                        continue
-                    route_obj = id_item.data(Qt.UserRole)
-                    if not isinstance(route_obj, dict):
-                        continue
-                    rid = route_obj.get('id')
-                    if rid is None:
-                        continue
-                    # if persisted visible, set checkbox and draw route
-                    if str(rid) in visible:
-                        chk = self.table.item(row_idx, 0)
-                        if chk:
-                            # set without triggering handler
-                            self._suppress_item_changed = True
-                            chk.setCheckState(Qt.Checked)
-                            self._suppress_item_changed = False
-                            try:
-                                js = f"window.routesManager.drawRoute({_json.dumps(route_obj)})"
-                                self._run_js(js)
-                            except Exception:
-                                pass
+            else:
+                visible = getattr(self, '_visible_routes', set())
+            for row_idx in range(self.table.rowCount()):
+                id_item = self.table.item(row_idx, 0)
+                if id_item is None:
+                    continue
+                route_obj = id_item.data(Qt.UserRole)
+                if not isinstance(route_obj, dict):
+                    continue
+                rid = route_obj.get('id')
+                if rid is None:
+                    continue
+                # if marked visible in-memory, set checkbox and draw route
+                if str(rid) in visible:
+                    chk = self.table.item(row_idx, 0)
+                    if chk:
+                        self._suppress_item_changed = True
+                        chk.setCheckState(Qt.Checked)
+                        self._suppress_item_changed = False
+                        try:
+                            js = f"window.routesManager.drawRoute({json.dumps(route_obj)})"
+                            self._run_js(js)
+                        except Exception:
+                            pass
         except Exception:
             pass
 
@@ -354,35 +320,32 @@ class PercorsiDialog(QDialog):
                 return
             # use JSON serialization for safe JS passing
             try:
-                import json as _json
                 rid = route_obj.get('id')
                 if checked:
                     # draw route
-                    js = f"window.routesManager.drawRoute({_json.dumps(route_obj)})"
-                    # print('PercorsiDialog: drawing route', rid)
+                    js = f"window.routesManager.drawRoute({json.dumps(route_obj)})"
                     self._run_js(js)
-                    # persist selection in parent set
+                    # store selection in-memory on parent (or locally if no parent)
                     parent = self.parent()
-                    if parent is not None:
-                        try:
-                                parent._visible_routes.add(str(rid))
-                                # save to disk
-                                _save_visible_routes(parent._visible_routes)
-                        except Exception:
-                            pass
+                    try:
+                        if parent is not None:
+                            parent._visible_routes.add(str(rid))
+                        else:
+                            self._visible_routes.add(str(rid))
+                    except Exception:
+                        pass
                 else:
                     if rid is not None:
-                        js = f"window.routesManager.removeRoute({_json.dumps(rid)})"
-                        # print('PercorsiDialog: removing route', rid)
+                        js = f"window.routesManager.removeRoute({json.dumps(rid)})"
                         self._run_js(js)
                         parent = self.parent()
-                        if parent is not None:
-                            try:
+                        try:
+                            if parent is not None:
                                 parent._visible_routes.discard(str(rid))
-                                # save to disk
-                                _save_visible_routes(parent._visible_routes)
-                            except Exception:
-                                pass
+                            else:
+                                self._visible_routes.discard(str(rid))
+                        except Exception:
+                            pass
             except Exception:
                 pass
         except Exception:
