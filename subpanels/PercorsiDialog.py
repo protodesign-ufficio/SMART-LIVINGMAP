@@ -13,14 +13,15 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
 )
 
-# Import get_json with fallback like other modules
+# Import get_json and post_json with fallback like other modules
 try:
-    from ApiClient import get_json
+    from ApiClient import get_json, post_json
 except Exception:
     try:
-        from project.ApiClient import get_json
+        from project.ApiClient import get_json, post_json
     except Exception:
         get_json = None
+        post_json = None
 
 import json
 
@@ -118,14 +119,15 @@ class PercorsiDialog(QDialog):
         except Exception:
             pass
 
-        # table of percorsi: checkbox, tempo, consumo, comfort and vascello columns
-        self.table = QTableWidget(0, 5, self)
+        # table of percorsi: checkbox, tempo, consumo, comfort, vascello and delete button
+        self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels([
             'Mostra',
             'Tempo Percorrenza',
             'Consumo',
             'Comfort',
             'Vascello',
+            'Elimina',
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -288,6 +290,17 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 2, it_consumo)
             self.table.setItem(row, 3, it_comfort)
             self.table.setItem(row, 4, it_vascello)
+            # delete button in last column
+            try:
+                btn = QPushButton('🗑')
+                btn.setToolTip('Elimina percorso')
+                # store route id on button for handler
+                rid = p.get('id') if isinstance(p, dict) else None
+                btn.setProperty('route_id', str(rid) if rid is not None else '')
+                btn.clicked.connect(self._on_delete_clicked)
+                self.table.setCellWidget(row, 5, btn)
+            except Exception:
+                pass
             self._suppress_item_changed = False
         
 
@@ -320,6 +333,7 @@ class PercorsiDialog(QDialog):
                             self._run_js(js)
                         except Exception:
                             pass
+                # ensure delete buttons reflect row indices (no-op here since buttons stored per-row)
         except Exception:
             pass
 
@@ -366,6 +380,61 @@ class PercorsiDialog(QDialog):
                 if idx != -1:
                     self.vascello_combo.setCurrentIndex(idx)
             self.vascello_combo.blockSignals(False)
+        except Exception:
+            pass
+
+    def _on_delete_clicked(self):
+        """Handle delete button clicked: confirm, call API, remove row and route from map."""
+        try:
+            sender = self.sender()
+            if sender is None:
+                return
+            rid = sender.property('route_id') or ''
+            if not rid:
+                QMessageBox.warning(self, 'Errore', 'ID percorso non disponibile')
+                return
+            # confirmation
+            resp = QMessageBox.question(self, 'Conferma eliminazione', f'Eliminare il percorso selezionato?', QMessageBox.Yes | QMessageBox.No)
+            if resp != QMessageBox.Yes:
+                return
+            if post_json is None:
+                QMessageBox.warning(self, 'Errore', 'Client API non disponibile per eliminazione')
+                return
+            # call API
+            try:
+                post_json('percorso/elimina', payload={'id': rid})
+            except Exception as e:
+                QMessageBox.warning(self, 'Errore', f'Eliminazione fallita: {e}')
+                return
+            # remove any drawn route on map
+            try:
+                self._run_js(f"window.routesManager.removeRoute({json.dumps(rid)})")
+            except Exception:
+                pass
+            # remove row from table (find by matching UserRole id)
+            try:
+                for row_idx in range(self.table.rowCount()):
+                    it = self.table.item(row_idx, 0)
+                    if it is None:
+                        continue
+                    route_obj = it.data(Qt.UserRole)
+                    if not isinstance(route_obj, dict):
+                        continue
+                    if str(route_obj.get('id')) == str(rid):
+                        self.table.removeRow(row_idx)
+                        break
+            except Exception:
+                pass
+            # remove from visible set if present
+            try:
+                parent = self.parent()
+                if parent is not None and hasattr(parent, '_visible_routes'):
+                    parent._visible_routes.discard(str(rid))
+                else:
+                    getattr(self, '_visible_routes', set()).discard(str(rid))
+            except Exception:
+                pass
+            QMessageBox.information(self, 'Successo', 'Percorso eliminato')
         except Exception:
             pass
 

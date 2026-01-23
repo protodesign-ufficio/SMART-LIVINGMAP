@@ -17,6 +17,8 @@ from PyQt5.QtWidgets import (
     QDateEdit,
     QTimeEdit,
     QProgressDialog,
+    QSpinBox,
+    QCheckBox,
 )
 
 # Import get_json and post_json with fallback to support different import styles
@@ -143,9 +145,17 @@ class OptimizationDialog(QDialog):
             display_name = self.corsa_id
         self.corsa_label = QLabel(display_name)
         self.vascello_cb = QComboBox()
+        self.eps_spin = QSpinBox()
+        self.eps_spin.setRange(0, 3600)
+        self.eps_spin.setValue(5)
+        self.optimize_all_cb = QCheckBox('Ottimizza per tutti i vascelli')
+        self.optimize_all_cb.setToolTip("Esegue l'ottimizzazione per tutti i vascelli disponibili")
+        self.optimize_all_cb.toggled.connect(self._on_optimize_all_toggled)
 
         form.addRow('Corsa Selezionata', self.corsa_label)
         form.addRow('Vascello', self.vascello_cb)
+        form.addRow('Eps Time', self.eps_spin)
+        form.addRow('', self.optimize_all_cb)
 
         layout.addLayout(form)
 
@@ -171,6 +181,8 @@ class OptimizationDialog(QDialog):
             vascello_list = []
 
         self.vascello_cb.clear()
+        # keep a copy of the raw list for "optimize all" option
+        self._vascello_list = vascello_list
         for v in vascello_list:
             if isinstance(v, dict):
                 vid = str(v.get('id', ''))
@@ -180,43 +192,108 @@ class OptimizationDialog(QDialog):
                 name = vid
             self.vascello_cb.addItem(str(name), vid)
 
+    def _on_optimize_all_toggled(self, checked: bool):
+        # when optimizing all, disable the vascello selector to avoid confusion
+        try:
+            self.vascello_cb.setEnabled(not checked)
+        except Exception:
+            pass
+
     def start_optimization(self):
         vascello_id = self.vascello_cb.currentData() or self.vascello_cb.currentText()
         corsa_id = self.corsa_id
-        # name is optional for the payload; keep field for UX but do not send it
+        eps_time = int(self.eps_spin.value())
+        # basic validations
         if not corsa_id:
             QMessageBox.warning(self, 'Errore', 'ID corsa non disponibile')
-            return
-        if not vascello_id:
-            QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
             return
 
         if post_json is None:
             QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
             return
 
-        payload = {
-            'corsa_id': corsa_id,
-            'vascello_id': vascello_id,
-            'eps_time': 0,
-        }
-
-        print('Starting optimization with payload:')
-        print(payload)
-
-        progress = QProgressDialog('Avviando ottimizzazione...', None, 0, 0, self)
-        progress.setWindowTitle('Ottimizzazione')
-        progress.setCancelButton(None)
-        progress.setModal(True)
-        progress.show()
+        # disable UI controls to prevent duplicate submits
         try:
-            post_json('ottimizzatore', payload=payload, timeout=300)
-            progress.close()
-            QMessageBox.information(self, 'Successo', 'Ottimizzazione avviata con successo')
+            self.start_btn.setEnabled(False)
+            self.vascello_cb.setEnabled(False)
+            self.optimize_all_cb.setEnabled(False)
+        except Exception:
+            pass
+
+        # show a simple status dialog with only a text label (no progress bar)
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QApplication
+        corsa_name = self.corsa_label.text() or str(corsa_id)
+        status_dlg = QDialog(self)
+        status_dlg.setWindowTitle('Ottimizzazione')
+        status_dlg.setWindowModality(Qt.ApplicationModal)
+        status_layout = QVBoxLayout(status_dlg)
+        status_label = QLabel(f"Avvio ottimizzazione per la corsa {corsa_name}")
+        status_layout.addWidget(status_label)
+        status_dlg.show()
+        QApplication.processEvents()
+
+        errors = []
+        try:
+            if self.optimize_all_cb.isChecked():
+                vlist = getattr(self, '_vascello_list', []) or []
+                if not vlist:
+                    QMessageBox.warning(self, 'Errore', 'Nessun vascello disponibile per ottimizzare')
+                    return
+                for v in vlist:
+                    if isinstance(v, dict):
+                        vid = str(v.get('id', ''))
+                        name = v.get('nome') or v.get('name') or vid
+                    else:
+                        vid = str(v)
+                        name = vid
+                    # update progress label with current target
+                    status_label.setText(f"Ottimizzazione percorsi per la corsa {corsa_name} per il vascello {name}")
+                    QApplication.processEvents()
+                    try:
+                        post_json('weather_routing/carico', payload={
+                            'corsa_id': corsa_id,
+                            'vascello_id': vid,
+                            'eps_time': eps_time,
+                            'fake_data': True,
+                        }, timeout=300)
+                    except Exception as e:
+                        errors.append((vid, str(e)))
+                status_dlg.close()
+                if errors:
+                    QMessageBox.warning(self, 'Errore', f'Ottimizzazione completata con errori: {errors}')
+                else:
+                    QMessageBox.information(self, 'Successo', 'Ottimizzazione completata per tutti i vascelli')
+                self.accept()
+                return
+
+            # single vascello flow
+            if not vascello_id:
+                QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
+                return
+
+            vname = self.vascello_cb.currentText() or str(vascello_id)
+            payload = {
+                'corsa_id': corsa_id,
+                'vascello_id': vascello_id,
+                'eps_time': eps_time,
+                'fake_data': True,
+            }
+            status_label.setText(f"Ottimizzazione percorsi per la corsa {corsa_name} per il vascello {vname}")
+            QApplication.processEvents()
+            post_json('weather_routing/carico', payload=payload, timeout=300)
+            status_dlg.close()
+            QMessageBox.information(self, 'Successo', 'Ottimizzazione completata con successo')
             self.accept()
         except Exception as e:
             progress.close()
             QMessageBox.warning(self, 'Errore', f'Ottimizzazione fallita: {e}')
+        finally:
+            try:
+                self.start_btn.setEnabled(True)
+                self.vascello_cb.setEnabled(True)
+                self.optimize_all_cb.setEnabled(True)
+            except Exception:
+                pass
 
 
 
