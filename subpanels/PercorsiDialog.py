@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QTableWidget,
     QTableWidgetItem,
+    QComboBox,
     QHeaderView,
     QAbstractItemView,
 )
@@ -99,13 +100,32 @@ class PercorsiDialog(QDialog):
         self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
 
-        # table of percorsi: checkbox, tempo, consumo and comfort columns
-        self.table = QTableWidget(0, 4, self)
+        # vascello filter: show all by default
+        self._current_corsa_id = corsa_id
+        filter_row = QHBoxLayout()
+        filter_row.addStretch()
+        self.vascello_combo = QComboBox(self)
+        self.vascello_combo.setToolTip('Seleziona vascello per filtrare i percorsi')
+        self.vascello_combo.addItem('Tutti', None)
+        self.vascello_combo.currentIndexChanged.connect(self._on_vascello_changed)
+        filter_row.addWidget(QLabel('Vascello:'))
+        filter_row.addWidget(self.vascello_combo)
+        layout.addLayout(filter_row)
+
+        # populate vascello combo with full list from API (show names, store ids)
+        try:
+            self._load_vascelli_list()
+        except Exception:
+            pass
+
+        # table of percorsi: checkbox, tempo, consumo, comfort and vascello columns
+        self.table = QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels([
             'Mostra',
             'Tempo Percorrenza',
             'Consumo',
             'Comfort',
+            'Vascello',
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -132,27 +152,30 @@ class PercorsiDialog(QDialog):
         # label shown when no percorsi are available
         self.empty_label = QLabel('')
         self.empty_label.setWordWrap(True)
+        self.empty_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.empty_label.hide()
         layout.addWidget(self.empty_label)
 
         # try to load percorsi for this corsa
         if corsa_id is not None and get_json is not None:
             try:
-                self.load_percorsi(corsa_id)
+                self.load_percorsi(corsa_id) 
             except Exception:
                 # silent fallback; show message
                 self.table.setRowCount(0)
-                self.table.hide()
+                self.table.show()
                 self.empty_label.setText('Impossibile caricare i percorsi per la corsa selezionata.')
                 self.empty_label.show()
         else:
-            # if API not available or no id, leave table empty
+            # if API not available or no id, leave table empty 
             if corsa_id is None:
-                self.table.hide()
+                self.table.setRowCount(0)
+                self.table.show()
                 self.empty_label.setText('ID corsa non fornito.')
                 self.empty_label.show()
             elif get_json is None:
-                self.table.hide()
+                self.table.setRowCount(0) 
+                self.table.show()
                 self.empty_label.setText('Client API non disponibile per recuperare percorsi.')
                 self.empty_label.show()
 
@@ -163,19 +186,51 @@ class PercorsiDialog(QDialog):
         btn_row.addWidget(ok)
         layout.addLayout(btn_row)
 
-    def load_percorsi(self, corsa_id):
+    def load_percorsi(self, corsa_id, vascello_id=None):
         """Carica i percorsi da `/percorso/by_corsa/{corsa_id}` e popola la tabella."""
         if get_json is None:
             QMessageBox.warning(self, 'Errore', 'Client API non disponibile per recuperare percorsi')
             return
-        data = get_json(f'percorso/by_corsa/{corsa_id}')
+        # support optional vascello_id query parameter
+
+        path = f'percorso/by_corsa/{corsa_id}'
+        if vascello_id is not None:
+            path = f"{path}?vascello_id={vascello_id}"
+
+        # call API and handle error cases (404 may return a {'detail':...} payload)
+        try:
+            data = get_json(path)
+        except Exception:
+            # treat API failures as "no percorsi" for the selected filter
+            self.table.setRowCount(0)
+            self.table.show()
+            self.empty_label.setText('Nessun percorso presente sul database per la corsa selezionata')
+            self.empty_label.show()
+            return
+
         if not isinstance(data, dict):
             raise ValueError('Risposta percorsi non valida')
+
+        # some endpoints may return 404 with a {'detail': ...} body
+        if 'detail' in data and not data.get('percorsi'):
+            self.table.setRowCount(0)
+            self.table.show() 
+            self.empty_label.setText('Nessun percorso presente sul database per la corsa selezionata')
+            self.empty_label.show()
+            return
+
         percorsi = data.get('percorsi') or []
+
+        # DEBUG
+        # print(f'PercorsiDialog: loaded {len(percorsi)} percorsi for \ncorsa: {corsa_id}\nvascello filter: {vascello_id}')
+        # for p in percorsi:
+        #     print(p.get('id'), p.get('vascello_id'))
+        
         if not percorsi:
+            print('PercorsiDialog: no percorsi found for vascello filter', vascello_id)
             # no percorsi — show message and hide table
             self.table.setRowCount(0)
-            self.table.hide()
+            self.table.show() 
             self.empty_label.setText('Nessun percorso presente sul database per la corsa selezionata')
             self.empty_label.show()
             return
@@ -201,8 +256,30 @@ class PercorsiDialog(QDialog):
             it_consumo = QTableWidgetItem(str(consumo))
             it_comfort = QTableWidgetItem(str(comfort))
 
+            # determine vascello name for this percorso
+            vname = ''
+            try:
+                # prefer explicit name fields if present
+                if isinstance(p, dict):
+                    if p.get('vascello_nome'):
+                        vname = str(p.get('vascello_nome'))
+                    else:
+                        vid = p.get('vascello_id')
+                        if vid is not None:
+                            vname = self._vascello_map.get(str(vid), str(vid))
+                        else:
+                            # try nested vascello object
+                            vobj = p.get('vascello')
+                            if isinstance(vobj, dict):
+                                vname = vobj.get('nome') or vobj.get('name') or ''
+            except Exception:
+                vname = ''
+
             for it in (it_tempo, it_consumo, it_comfort):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
+
+            it_vascello = QTableWidgetItem(str(vname))
+            it_vascello.setFlags(it_vascello.flags() & ~Qt.ItemIsEditable)
 
             # suppress itemChanged while inserting
             self._suppress_item_changed = True
@@ -210,7 +287,9 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 1, it_tempo)
             self.table.setItem(row, 2, it_consumo)
             self.table.setItem(row, 3, it_comfort)
+            self.table.setItem(row, 4, it_vascello)
             self._suppress_item_changed = False
+        
 
         # restore checked state from in-memory parent._visible_routes (no disk persistence)
         try:
@@ -252,6 +331,41 @@ class PercorsiDialog(QDialog):
             def _cb(res):
                 print('PercorsiDialog: routesManager present?', res)
             self._run_js("Boolean(window.routesManager && window.routesManager.drawRoute)", _cb)
+        except Exception:
+            pass
+
+    def _load_vascelli_list(self):
+        """Load the full list of vascelli from API and populate the combo with names."""
+        if get_json is None:
+            return
+        try:
+            vascello_list = get_json('vascello/lista') or []
+        except Exception:
+            vascello_list = []
+
+        try:
+            # preserve current selection
+            cur = self.vascello_combo.currentData()
+            self.vascello_combo.blockSignals(True)
+            self.vascello_combo.clear()
+            self.vascello_combo.addItem('Tutti', None)
+            # keep a mapping id -> name for lookup when populating table
+            self._vascello_map = {}
+            for v in vascello_list:
+                if isinstance(v, dict):
+                    vid = str(v.get('id', ''))
+                    name = v.get('nome') or v.get('name') or vid
+                else:
+                    vid = str(v)
+                    name = vid
+                self.vascello_combo.addItem(str(name), vid)
+                self._vascello_map[vid] = str(name)
+            # restore previous selection if still present
+            if cur is not None:
+                idx = self.vascello_combo.findData(cur)
+                if idx != -1:
+                    self.vascello_combo.setCurrentIndex(idx)
+            self.vascello_combo.blockSignals(False)
         except Exception:
             pass
 
@@ -303,6 +417,18 @@ class PercorsiDialog(QDialog):
         except Exception:
             import traceback
             traceback.print_exc()
+
+    def _on_vascello_changed(self, index:int):
+        """Handle vascello filter changes and reload percorsi accordingly."""
+        try:
+            vid = self.vascello_combo.currentData()
+            # reload percorsi for current corsa id with optional vascello_id
+            try:
+                self.load_percorsi(self._current_corsa_id, vascello_id=vid)
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def _on_item_changed(self, item):
         """Handle checkbox toggles in the 'Mostra' column to show/hide routes on the map."""
