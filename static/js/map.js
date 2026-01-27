@@ -1,7 +1,10 @@
-// Initialize the map
-const map = L.map('map').setView([45.0, 10.0], 6);
+// Initialize the map (disable world copy wrapping and keep map bounded)
+// Set sensible zoom limits to avoid excessive zooming
+const map = L.map('map', { worldCopyJump: false, maxBoundsViscosity: 1, minZoom: 3, maxZoom: 18 }).setView([40.65, 14.6], 12);
 // expose map globally so other scripts can access it
 window.map = map;
+// Restrict map to a single world view (no infinite longitudinal panning)
+map.setMaxBounds([[-90, -180], [90, 180]]);
 
 // Coordinate display box
 (function(){
@@ -22,12 +25,14 @@ window.map = map;
 
 // OpenStreetMap base layer
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap contributors'
+  maxZoom: 18,
+  attribution: '© OpenStreetMap contributors',
+  noWrap: true
 }).addTo(map);
 
 // OpenSeaMap seamark overlay
 const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
   maxZoom: 18,
-  attribution: '© OpenSeaMap'
+  attribution: '© OpenSeaMap',
+  noWrap: true
 }).addTo(map);
