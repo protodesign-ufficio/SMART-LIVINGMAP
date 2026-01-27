@@ -2,8 +2,11 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTabWidget
 from PyQt5.QtGui import QIcon  # <--- RICCARDO
 
-from panels.ParametriPanel import ParametriPanel
-from panels.ServiziPanel import ServiziPanel
+# import the subpanels directly
+from subpanels.PortiPanel import PortiPanel
+from subpanels.VascelliPanel import VascelliPanel
+from subpanels.TrattePanel import TrattePanel
+from subpanels.CorsePanel import CorsePanel
 
 
 class ManagerDialog(QDialog):
@@ -16,15 +19,20 @@ class ManagerDialog(QDialog):
         self.setWindowTitle('Manager')
         # make dialog a top-level window with minimize and maximize buttons
         self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 700)
 
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
 
-        self.parametri = ParametriPanel(self)
-        self.servizi = ServiziPanel(self)
+        # add subpanels directly as tabs
+        self.porti = PortiPanel(self)
+        self.vascelli = VascelliPanel(self)
+        self.tratte = TrattePanel(self)
+        self.corse = CorsePanel(self)
 
-        self.tabs.addTab(self.parametri, 'Parametri')
-        self.tabs.addTab(self.servizi, 'Servizi')
+        self.tabs.addTab(self.porti, 'Porti')
+        self.tabs.addTab(self.vascelli, 'Vascelli')
+        self.tabs.addTab(self.tratte, 'Tratte')
+        self.tabs.addTab(self.corse, 'Corse')
 
         layout.addWidget(self.tabs)

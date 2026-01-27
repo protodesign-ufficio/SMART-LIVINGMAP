@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import (
     QProgressDialog,
     QSpinBox,
     QCheckBox,
+    QGroupBox,
 )
 
 # Import get_json and post_json with fallback to support different import styles
@@ -45,6 +46,7 @@ class AddCorsaDialog(QDialog):
     def __init__(self, parent=None, tratta_list=None):
         super().__init__(parent)
         self.setWindowTitle('Aggiungi Corsa')
+        self.resize(300,150)
         self.tratta_list = tratta_list or []
 
         layout = QVBoxLayout(self)
@@ -332,25 +334,22 @@ class CorsePanel(QWidget):
         # update details button when selection changes
         # (connected later after details button exists)
 
-        layout.addWidget(self.table)
-        # buttons
-        btn_row = QHBoxLayout()
+        # create buttons (they will be placed in right-side groups)
         self.add_btn = QPushButton('Aggiungi')
         self.add_btn.clicked.connect(self.open_add_dialog)
         if post_json is None:
             self.add_btn.setEnabled(False)
-        btn_row.addWidget(self.add_btn)
 
         # details button to show PercorsiDialog for selected row
         self.details_btn = QPushButton('Dettagli Percorsi')
         self.details_btn.setEnabled(False)
         self.details_btn.clicked.connect(self.open_details_dialog)
-        btn_row.addWidget(self.details_btn)
+
         # button to show selected corsa in the dashboard (similar to PortiPanel)
         self.show_dashboard_btn = QPushButton('Mostra in Dashboard')
         self.show_dashboard_btn.setEnabled(False)
         self.show_dashboard_btn.clicked.connect(self._open_dashboard)
-        btn_row.addWidget(self.show_dashboard_btn)
+
         # optimize button to start optimization for selected corsa
         self.optimize_btn = QPushButton('Ottimizza Percorsi')
         self.optimize_btn.setEnabled(False)
@@ -358,12 +357,37 @@ class CorsePanel(QWidget):
         if post_json is None:
             # posting required to start optimization
             self.optimize_btn.setEnabled(False)
-        btn_row.addWidget(self.optimize_btn)
-        btn_row.addStretch()
+
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
-        btn_row.addWidget(self.refresh_btn)
-        layout.addLayout(btn_row)
+
+        # assemble main content: table on the left, controls grouped on the right
+        content_row = QHBoxLayout()
+        content_row.addWidget(self.table)
+
+        # right-side vertical panel with two group boxes: Parametri and Servizi
+        right_panel_widget = QVBoxLayout()
+
+        # Parametri group: Aggiorna, Aggiungi
+        param_group = QGroupBox('Parametri')
+        param_layout = QVBoxLayout()
+        param_layout.addWidget(self.refresh_btn)
+        param_layout.addWidget(self.add_btn)
+        param_group.setLayout(param_layout)
+        right_panel_widget.addWidget(param_group)
+
+        # Servizi group: Mostra in Dashboard, Ottimizza Percorsi, Dettagli Percorsi
+        serv_group = QGroupBox('Servizi')
+        serv_layout = QVBoxLayout()
+        serv_layout.addWidget(self.show_dashboard_btn)
+        serv_layout.addWidget(self.details_btn)
+        serv_layout.addWidget(self.optimize_btn)
+        serv_group.setLayout(serv_layout)
+        right_panel_widget.addWidget(serv_group)
+
+        right_panel_widget.addStretch()
+        content_row.addLayout(right_panel_widget)
+        layout.addLayout(content_row)
 
         # connect selection change now that details button exists
         self.table.itemSelectionChanged.connect(self.update_details_button_state)

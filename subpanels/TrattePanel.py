@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QLabel,
+    QGroupBox,
 )
 
 # Import get_json and post_json with fallback to support different import styles
@@ -61,6 +62,7 @@ class AddTrattaDialog(QDialog):
         form.addRow(self.lbl_arrival, self.end_cb)
 
         layout.addLayout(form)
+        self.resize(300,100)
 
         # multi widgets: available list (left) and selected (right) with controls
         lists_row = QHBoxLayout()
@@ -126,7 +128,7 @@ class AddTrattaDialog(QDialog):
         if is_multi:
             self.resize(500, 400)
         else:
-            self.resize(300, 100)
+            self.resize(300,100)
 
     def _move_to_selected(self):
         for it in list(self.available_list.selectedItems()):
@@ -226,24 +228,35 @@ class TrattePanel(QWidget):
             "Intermedi",
             "ID",
         ])
-        layout.addWidget(self.table)
-
         # select whole rows on click and allow single selection
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
 
-        # buttons: Aggiungi (left) ... Aggiorna (right)
-        btn_row = QHBoxLayout()
+        # assemble main content: table on the left, grouped controls on the right
+        content_row = QHBoxLayout()
+        content_row.addWidget(self.table)
+
+        right_panel = QVBoxLayout()
+
+        # Parametri group: Aggiorna, Aggiungi
         self.add_btn = QPushButton('Aggiungi')
         self.add_btn.clicked.connect(self.open_add_dialog)
         if post_json is None:
             self.add_btn.setEnabled(False)
-        btn_row.addWidget(self.add_btn)
-        btn_row.addStretch()
+
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
-        btn_row.addWidget(self.refresh_btn)
-        layout.addLayout(btn_row)
+
+        param_group = QGroupBox('Parametri')
+        param_layout = QVBoxLayout()
+        param_layout.addWidget(self.refresh_btn)
+        param_layout.addWidget(self.add_btn)
+        param_group.setLayout(param_layout)
+        right_panel.addWidget(param_group)
+
+        right_panel.addStretch()
+        content_row.addLayout(right_panel)
+        layout.addLayout(content_row)
 
         # simple in-memory cache for port names keyed by porto_id
         self.port_cache = {}

@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QSizePolicy,
     QAbstractItemView,
+    QGroupBox,
 )
 
 from PyQt5.QtCore import QUrl
@@ -58,38 +59,48 @@ class VascelliPanel(QWidget):
         # select whole rows and single selection
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        layout.addWidget(self.table)
+        # assemble main content: table on the left, grouped controls on the right
+        content_row = QHBoxLayout()
+        content_row.addWidget(self.table)
 
-        # buttons: Aggiungi, Modifica (left) ... Aggiorna (right)
-        btn_row = QHBoxLayout()
+        right_panel = QVBoxLayout()
+
+        # Parametri group: Aggiorna, Aggiungi, Modifica
         self.add_btn = QPushButton('Aggiungi')
-        self.add_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.add_btn.clicked.connect(self.open_add_dialog)
         if post_json is None:
             self.add_btn.setEnabled(False)
-        btn_row.addWidget(self.add_btn)
 
-        # modify button (enabled when a row is selected) - placed next to Add
         self.modify_btn = QPushButton('Modifica')
         self.modify_btn.setEnabled(False)
-        self.modify_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.modify_btn.clicked.connect(self.open_modify_dialog)
-        btn_row.addWidget(self.modify_btn)
 
-        # button to show selected port in the dashboard (inline or external)
+        self.refresh_btn = QPushButton('Aggiorna')
+        self.refresh_btn.clicked.connect(self.load_data)
+
+        param_group = QGroupBox('Parametri')
+        param_layout = QVBoxLayout()
+        param_layout.addWidget(self.refresh_btn)
+        param_layout.addWidget(self.add_btn)
+        param_layout.addWidget(self.modify_btn)
+        param_group.setLayout(param_layout)
+        right_panel.addWidget(param_group)
+
+        # Servizi group: Mostra in Dashboard
         self.show_dashboard_btn = QPushButton('Mostra in Dashboard')
         self.show_dashboard_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.show_dashboard_btn.setEnabled(False)
         self.show_dashboard_btn.clicked.connect(self._open_dashboard)
-        btn_row.addWidget(self.show_dashboard_btn)
 
-        btn_row.addStretch()
+        serv_group = QGroupBox('Servizi')
+        serv_layout = QVBoxLayout()
+        serv_layout.addWidget(self.show_dashboard_btn)
+        serv_group.setLayout(serv_layout)
+        right_panel.addWidget(serv_group)
 
-        self.refresh_btn = QPushButton('Aggiorna')
-        self.refresh_btn.clicked.connect(self.load_data)
-        self.refresh_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        btn_row.addWidget(self.refresh_btn)
-        layout.addLayout(btn_row)
+        right_panel.addStretch()
+        content_row.addLayout(right_panel)
+        layout.addLayout(content_row)
 
         # load initial data
         self.load_data()
