@@ -6,17 +6,28 @@ window.map = map;
 // Restrict map to a single world view (no infinite longitudinal panning)
 map.setMaxBounds([[-90, -180], [90, 180]]);
 
-// Coordinate display box
+// Coordinate display box (show absolute values with N/S and E/W)
 (function(){
   const box = document.getElementById('coords-box');
   if (!box) return;
-  function fmt(n){ return (typeof n === 'number') ? n.toFixed(5) : '' }
+  function fmtLat(n){
+    if (typeof n !== 'number') return '';
+    const abs = Math.abs(n).toFixed(5);
+    const dir = (n >= 0) ? 'N' : 'S';
+    return abs + '° ' + dir;
+  }
+  function fmtLon(n){
+    if (typeof n !== 'number') return '';
+    const abs = Math.abs(n).toFixed(5);
+    const dir = (n >= 0) ? 'E' : 'W';
+    return abs + '° ' + dir;
+  }
   // update on mouse move over the map
   if (typeof map !== 'undefined' && map && map.on){
     map.on('mousemove', function(e){
-      const lat = fmt(e.latlng.lat);
-      const lon = fmt(e.latlng.lng);
-      box.textContent = lat + ' , ' + lon;
+      const lat = fmtLat(e.latlng.lat);
+      const lon = fmtLon(e.latlng.lng);
+      box.textContent = lat + '  ' + lon;
     });
     // clear when mouse leaves map
     map.on('mouseout', function(){ box.textContent = ''; });
