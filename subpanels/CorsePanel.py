@@ -298,7 +298,6 @@ class OptimizationDialog(QDialog):
                 pass
 
 
-
 class CorsePanel(QWidget):
     """Panel that displays scheduled runs (corse).
 
