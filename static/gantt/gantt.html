@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestione Piano Operativo</title>
+    <!-- Tailwind CSS (stessa versione della dashboard) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="gantt.css">
+    <style>
+        html, body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center h-16 shrink-0">
+        <div>
+            <h1 class="text-xl font-semibold text-white tracking-tight" id="page-title">
+                Gestione Piano Operativo
+            </h1>
+        </div>
+        
+        <div class="space-x-6 flex items-center gap-4">
+            <!-- Zoom Slider -->
+            <div class="space-x-2 flex items-center gap-2">
+                <label for="zoom-slider" class="text-sm font-medium text-slate-400">Zoom:</label>
+                <input type="range" id="zoom-slider" min="50" max="150" value="60" class="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <!-- Selettore Data -->
+            <div class="space-x-2 flex items-center">
+                <label for="date-select" class="text-sm font-medium text-slate-400">Data:</label>
+                <input type="date" id="date-select" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" />
+            </div>
+
+            <!-- Selettore Piano -->
+            <div class="space-x-2 flex items-center">
+                <label for="piano-select" class="text-sm font-medium text-slate-400">Piano:</label>
+                <select id="piano-select" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 p-2">
+                    <option value="">Seleziona un piano...</option>
+                </select>
+            </div>
+
+            <button id="btn-save" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Salva Piano
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content: Gantt Chart -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <!-- Gantt Header (Timeline) -->
+        <div class="h-10 bg-slate-900 border-b border-slate-800 flex shrink-0 z-30 relative" id="gantt-header">
+            <!-- Spazio per etichette righe (Es. Nome Corsa) -->
+            <div class="w-64 shrink-0 border-r border-slate-800 flex items-center justify-center font-bold text-sm text-slate-400 bg-slate-900 z-40">
+                Corsa
+            </div>
+            <!-- Timeline (Hours) -->
+            <div class="flex-1 relative flex overflow-hidden" id="timeline-hours">
+                <!-- Wrapper per scroll sync -->
+                <div id="timeline-scroll-content" class="flex h-full"> 
+                    <!-- Generato via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Gantt Body (Rows) -->
+        <div class="flex-1 overflow-auto bg-slate-950 custom-scrollbar relative" id="gantt-body">
+            <!-- Righe generate via JS -->
+        </div>
+
+    </main>
+
+    <!-- Modal Selezione Percorso -->
+    <div id="modal-percorso" class="fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white">Seleziona Percorso</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <div class="p-0 overflow-y-auto flex-1 custom-scrollbar">
+                <table class="w-full text-left text-sm text-slate-400">
+                    <thead class="bg-slate-800 text-slate-200 sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3">Vascello</th>
+                            <th class="px-4 py-3">Partenza - Arrivo</th>
+                            <th class="px-4 py-3">Tempo Percorrenza</th>
+                            <th class="px-4 py-3">Consumo</th>
+                            <th class="px-4 py-3">Comfort</th>
+                            <th class="px-4 py-3">Azione</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-percorsi-list" class="divide-y divide-slate-800">
+                        <!-- Righe popolate via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 rounded-b-xl">
+                <p class="text-xs text-slate-500">* I percorsi in conflitto con altre assegnazioni non sono selezionabili.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="gantt.js"></script>
+</body>
+</html>

@@ -180,6 +180,19 @@ class MainWindow(QMainWindow):
         )
         right_layout.addWidget(self.open_advanced_btn)
 
+        # TODO
+        # button to open the gantt dashboard
+        self.open_gantt_btn = QPushButton("Gantt")
+        self.open_gantt_btn.clicked.connect(
+            lambda: self.open_dashboard_embedded(
+                'static/gantt/gantt.html',
+                query={'giorno': '2026-01-29'},
+                title='Gantt',
+                size=(1500, 900),
+            )
+        )
+        right_layout.addWidget(self.open_gantt_btn)
+
         right_layout.addStretch()
         
         content.addWidget(right_col, 0)

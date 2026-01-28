@@ -1,0 +1,70 @@
+/* Gantt Specific Styles */
+
+/* Grid background for hours */
+#gantt-body {
+    background-size: var(--hour-width, 60px) 100%;
+    /* Line on the right side of the cell to match header border-right */
+    background-image: linear-gradient(to right, transparent calc(var(--hour-width, 60px) - 1px), #1e293b calc(var(--hour-width, 60px) - 1px), #1e293b var(--hour-width, 60px));
+    /* Offset by 16rem (w-64) to start after the sticky label */
+    background-position: 16rem 0; 
+    background-attachment: local;
+}
+
+#timeline-hours {
+    /* Ensure header matches body grid */
+}
+
+.hour-marker {
+    width: var(--hour-width, 60px);
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #64748b;
+    border-right: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Scrollbars customized to match dark theme */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #0f172a; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #334155; 
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #475569; 
+}
+
+/* Task Bar Styles */
+.task-bar {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.task-bar:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    z-index: 10;
+}
+
+/* Status Colors */
+.status-unassigned {
+    background-color: #ef4444; /* red-500 */
+}
+.status-assigned-server {
+    background-color: #3b82f6; /* blue-500 */
+}
+.status-assigned-local {
+    background-color: #22c55e; /* green-500 */
+}
+.status-conflict {
+    background-color: #f59e0b; /* amber-500 - warning state if needed */
+    opacity: 0.7;
+}

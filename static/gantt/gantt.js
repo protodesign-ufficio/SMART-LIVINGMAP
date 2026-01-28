@@ -1,0 +1,685 @@
+// Costanti & Configurazione
+const API_ROOT = 'http://87.26.178.190:15080/';
+const ENDPOINTS = {
+    VASCELLO_LISTA: API_ROOT + 'vascello/lista',
+    CORSA_GIORNO: API_ROOT + 'corsa/giorno', // ?giorno=YYYY-MM-DD
+    PERCORSO_CORSA: (id) => API_ROOT + `percorso/by_corsa/${id}`,
+    PIANO_LISTA: API_ROOT + 'piano/lista',   // ?data_riferimento=YYYY-MM-DD
+    ASSEGNAZIONE_PIANO: (id) => API_ROOT + `assegnazione/by_piano/${id}`,
+    ASSEGNAZIONE_CREA: API_ROOT + 'assegnazione/crea'
+};
+
+// Global State
+let state = {
+    today: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    corse: [], // Tutte le corse del giorno
+    vascelli: {}, // Mappa id -> nome
+    piani: [],
+    selectedPianoId: null,
+    assegnazioni: {}, // Mappa corsa_id -> { ...assegnazione, isLocal: bool }
+    activeModalCorsaId: null
+};
+
+// Configurazione Gantt
+const GANTT_CONFIG = {
+    hourWidth: 100, // px per ora
+    startHour: 0,
+    endHour: 24
+};
+
+// --- Initialization ---
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check URL params for date
+    const params = new URLSearchParams(window.location.search);
+    const queryGiorno = params.get('giorno');
+    if (queryGiorno) {
+        // Simple regex validation YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(queryGiorno)) {
+            state.today = queryGiorno;
+        }
+    }
+
+    initDateDisplay();
+    setupGanttGrid();
+    
+    // 1. Carica Cache Vascelli
+    await loadVascelli();
+    
+    // 2. Carica Corse del Giorno
+    await loadCorseDelGiorno();
+
+    // 3. Carica Piani Disponibili
+    await loadPiani();
+
+    // Event Listeners
+    document.getElementById('piano-select').addEventListener('change', handlePianoChange);
+    document.getElementById('btn-save').addEventListener('click', savePiano);
+    document.getElementById('date-select').addEventListener('change', handleDateChange);
+    
+    // Zoom Slider
+    const zoomSlider = document.getElementById('zoom-slider');
+    if (zoomSlider) {
+        zoomSlider.value = GANTT_CONFIG.hourWidth; // Set initial value
+        zoomSlider.addEventListener('input', handleZoomChange);
+    }
+
+    // Initial Render
+    renderGantt();
+});
+
+function handleZoomChange(e) {
+    const newVal = parseInt(e.target.value, 10);
+    GANTT_CONFIG.hourWidth = newVal;
+    
+    // Update CSS variable for grid background
+    document.documentElement.style.setProperty('--hour-width', `${newVal}px`);
+    
+    // Re-setup grid (header width) and re-render gantt (bars)
+    setupGanttGrid();
+    renderGantt();
+}
+
+function initDateDisplay() {
+    // Set input value
+    const dateInput = document.getElementById('date-select');
+    if (dateInput) {
+        dateInput.value = state.today;
+    }
+    
+    // Imposta variabile CSS (Initial)
+    document.documentElement.style.setProperty('--hour-width', `${GANTT_CONFIG.hourWidth}px`);
+}
+
+async function handleDateChange(e) {
+    const newDate = e.target.value;
+    if (!newDate) return;
+    
+    state.today = newDate;
+    
+    // Update URL query param without reloading
+    const url = new URL(window.location);
+    url.searchParams.set('giorno', newDate);
+    window.history.pushState({}, '', url);
+
+    // Reset State
+    state.corse = [];
+    state.piani = [];
+    state.selectedPianoId = null;
+    state.assegnazioni = {};
+    
+    // Clear UI
+    const pianoSelect = document.getElementById('piano-select');
+    pianoSelect.innerHTML = '<option value="">Seleziona un piano...</option>';
+    pianoSelect.value = "";
+    
+    renderGantt();
+
+    // Reload Data
+    // loadVascelli is static cache, no need to reload
+    await loadCorseDelGiorno();
+    await loadPiani();
+    renderGantt();
+}
+
+// --- Data Loading ---
+
+async function loadVascelli() {
+    try {
+        const res = await fetch(ENDPOINTS.VASCELLO_LISTA);
+        const data = await res.json();
+        state.vascelli = data.reduce((acc, v) => {
+            acc[v.id] = v;
+            return acc;
+        }, {});
+        console.log('Vascelli loaded:', Object.keys(state.vascelli).length);
+    } catch (e) {
+        console.error('Errore caricamento vascelli', e);
+    }
+}
+
+async function loadCorseDelGiorno() {
+    try {
+        const url = `${ENDPOINTS.CORSA_GIORNO}?giorno=${state.today}`;
+        const res = await fetch(url);
+        state.corse = await res.json();
+        
+        // Ordina corse per orario (opzionale per visualizzazione migliore)
+        // state.corse.sort((a, b) => a.orario.localeCompare(b.orario));
+        
+        console.log('Corse loaded:', state.corse.length);
+    } catch (e) {
+        console.error('Errore caricamento corse', e);
+        alert('Impossibile caricare le corse per la data odierna.');
+    }
+}
+
+async function loadPiani() {
+    try {
+        const url = `${ENDPOINTS.PIANO_LISTA}?data_riferimento=${state.today}`;
+        const res = await fetch(url);
+        state.piani = await res.json();
+        
+        const select = document.getElementById('piano-select');
+        select.innerHTML = '<option value="">Seleziona un piano...</option>';
+        state.piani.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            // Mostra ID o Versione o stato
+            opt.text = `Piano ${p.versione || p.id.substring(0,8)} (Profitto: €${p.kpi_profitto_stimato || 0}, ${Object.keys(p.assegnazioni || {}).length} ass.)`; 
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.error('Errore caricamento piani', e);
+    }
+}
+
+async function handlePianoChange(e) {
+    const pianoId = e.target.value;
+    state.selectedPianoId = pianoId;
+    state.assegnazioni = {}; // Reset visualizzazione assegnazioni
+    
+    if (!pianoId) {
+        renderGantt();
+        return;
+    }
+
+    try {
+        const url = ENDPOINTS.ASSEGNAZIONE_PIANO(pianoId);
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        // Mappa assegnazioni server
+        data.forEach(ass => {
+            state.assegnazioni[ass.id_corsa] = { ...ass, isLocal: false };
+        });
+        
+        console.log('Assegnazioni piano loaded:', data.length);
+        renderGantt();
+
+        // Background: Arricchisci assegnazioni con dettagli percorso (per durata corretta)
+        enrichAssignmentsWithDetails(data);
+
+    } catch (e) {
+        console.error('Errore caricamento assegnazioni', e);
+    }
+}
+
+// --- Background Data Enrichment ---
+
+async function enrichAssignmentsWithDetails(assegnazioniList) {
+    // Per ogni assegnazione, se non abbiamo i dettagli, cerchiamo di recuperarli
+    // Questo è pesante (N chiamate), ma necessario se il backend non fornisce i dettagli nell'assegnazione
+    
+    let updated = false;
+    
+    // Raggruppa per corsa per ottimizzare se necessario, ma qui facciamo semplice ciclo
+    // Promise.all per parallelizzare potrebbe essere troppo aggressivo per il server? 
+    // Andiamo a batch o sequenziale veloce. Proviamo un pool limitato o sequenziale.
+    
+    for (const ass of assegnazioniList) {
+        try {
+            // Se abbiamo già _percorsoDetails saltiamo (caching futuro?)
+            if (state.assegnazioni[ass.id_corsa]._percorsoDetails) continue;
+
+            const res = await fetch(ENDPOINTS.PERCORSO_CORSA(ass.id_corsa));
+            const data = await res.json();
+            const percorsi = data.percorsi || [];
+            
+            const targetPercorso = percorsi.find(p => p.id === ass.percorso_id);
+            
+            if (targetPercorso) {
+                // Arricchisci con logica orari
+                const corsa = state.corse.find(c => c.id === ass.id_corsa);
+                const enriched = enrichPercorsoData(targetPercorso, corsa);
+                
+                // Aggiorna stato
+                if (state.assegnazioni[ass.id_corsa]) {
+                    state.assegnazioni[ass.id_corsa]._percorsoDetails = enriched;
+                    updated = true;
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to enrich assignment', ass.id, e);
+        }
+    }
+
+    if (updated) {
+        console.log('Assegnazioni arricchite con dettagli orari');
+        renderGantt();
+    }
+}
+
+function enrichPercorsoData(percorsoRaw, corsaObj) {
+    // Logica centralizzata per calcolo orari
+    const startTimeStr = corsaObj ? corsaObj.orario : "00:00";
+    const durationMins = parseFloat(percorsoRaw.tempo_percorrenza || "0");
+    
+    const startObj = parseTime(startTimeStr);
+    const startTotalMins = (startObj.h * 60) + startObj.m;
+    const endTotalMins = startTotalMins + durationMins;
+    const endTimeStr = formatMinutesToTime(endTotalMins);
+
+    // Clona per sicurezza
+    const p = { ...percorsoRaw };
+    p.orario_partenza_schedulato = startTimeStr;
+    p.orario_arrivo_previsto = endTimeStr;
+    p._derivedDuration = durationMins;
+    
+    return p;
+}
+
+// --- Gantt Rendering ---
+
+function setupGanttGrid() {
+    const timelineContainer = document.getElementById('timeline-hours');
+    const timelineContent = document.getElementById('timeline-scroll-content');
+    
+    timelineContent.innerHTML = '';
+    
+    // Genera header orario 00-24
+    for (let h = GANTT_CONFIG.startHour; h < GANTT_CONFIG.endHour; h++) {
+        const div = document.createElement('div');
+        div.className = 'hour-marker';
+        div.innerText = `${h.toString().padStart(2, '0')}:00`;
+        timelineContent.appendChild(div);
+    }
+    // Aggiungi un marker finale finto per chiudere la griglia visivamente se serve
+    const divEnd = document.createElement('div');
+    divEnd.className = 'hour-marker';
+    divEnd.innerText = '24:00';
+    timelineContent.appendChild(divEnd);
+    
+    // Aggiungi spacer finale per evitare cut-off
+    const spacer = document.createElement('div');
+    spacer.style.width = '4rem'; // ~64px extra space
+    spacer.className = 'shrink-0';
+    timelineContent.appendChild(spacer);
+    
+    // Total width set on valid grid content wrapper not the container itself
+    const totalWidth = (GANTT_CONFIG.endHour - GANTT_CONFIG.startHour) * GANTT_CONFIG.hourWidth;
+    
+    // Sync Scroll Setup
+    const ganttBody = document.getElementById('gantt-body');
+    if (ganttBody) {
+        ganttBody.addEventListener('scroll', (e) => {
+            timelineContainer.scrollLeft = e.target.scrollLeft;
+        });
+    }
+}
+
+function renderGantt() {
+    const container = document.getElementById('gantt-body');
+    container.innerHTML = '';
+
+    if (state.corse.length === 0) {
+        container.innerHTML = '<div class="p-4 text-slate-500">Nessuna corsa pianificata per oggi.</div>';
+        return;
+    }
+
+    state.corse.forEach(corsa => {
+        const row = document.createElement('div');
+        row.className = 'flex h-12 border-b border-slate-800/50 hover:bg-slate-900/50 transition-colors group relative min-w-max';
+        
+        // Colonna Nome Corsa (Sticky)
+        const label = document.createElement('div');
+        label.className = 'w-64 shrink-0 border-r border-slate-800 flex flex-col justify-center px-4 truncate bg-slate-950 z-20 sticky left-0 border-b border-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.3)]';
+        label.innerHTML = `
+            <div class="text-sm font-medium text-slate-300 truncate" title="${corsa.nome}">${corsa.nome}</div>
+            <div class="text-xs text-slate-500">${corsa.tratta || corsa.tratta_nome || 'N/A'} - ${corsa.orario || 'N/A'}</div>
+        `;
+        row.appendChild(label);
+
+        // Area Gantt per la riga
+        const track = document.createElement('div');
+        track.className = 'relative shrink-0 h-full'; 
+        // Imposta larghezza esplicita per matchare l'header (+60 per 24:00 + 64 spacer)
+        const totalWidth = (GANTT_CONFIG.endHour - GANTT_CONFIG.startHour) * GANTT_CONFIG.hourWidth;
+        track.style.width = `${totalWidth + 60 + 64}px`;
+
+        // Verifica assegnazione
+        const assigned = state.assegnazioni[corsa.id];
+        
+        // Logica click sulla riga vuota o sulla barra?
+        // Facciamo che cliccando ovunque nella track si apre la modal
+        track.addEventListener('click', () => openCorsaModal(corsa.id));
+        track.style.cursor = 'pointer';
+
+        if (assigned) {
+            // Render Barra Assegnata
+            // Abbiamo bisogno di orario partenza e durata dal percorso assegnato...
+            // ATTENZIONE: l'endpoint assegnazione non ritorna i dettagli temporali.
+            // Se li abbiamo, bene, altrimenti dobbiamo mostrare un placeholder o fare un fetch extra?
+            // Per ora assumiamo di dover renderizzare *qualcosa*.
+            // Nel prompt dice: "per quanto riguarda la durate e la lunghezza della barra bisogna utilizzare 'orario_partenza_schedulato' e 'orario_arrivo_previsto'"
+            // Questi dati sono nel PERCORSO. Se ho solo l'assegnazione (che ha percorso_id), 
+            // potrei non avere i tempi se non ho caricato i dettagli del percorso. 
+            // TEMPORANEO: se ho i metadati nell'assegnazione locale li uso, se vengono dal server potrei non averli.
+            // Soluzione: Recuperare i dettagli è costoso per N corse. 
+            // Faccio una supposizione: renderizzo una barra placeholder sull'orario della Corsa schedulato se non ho i dettagli precisi, 
+            // ma se è un "assegnamento locale" ho l'oggetto percorso intero.
+            
+            let startParams = null;
+            let durationMinutes = 60; // Default
+
+            // Usa i dettagli percorso se disponibili (sia per locali che server arricchiti)
+            if (assigned._percorsoDetails) {
+                // Ho dettagli completi
+                startParams = parseTime(assigned._percorsoDetails.orario_partenza_schedulato);
+                // Utilizza durationMins calcolata se disponibile, o ricalcola differenza
+                if (assigned._percorsoDetails._derivedDuration) {
+                    durationMinutes = assigned._percorsoDetails._derivedDuration;
+                } else {
+                    const endParams = parseTime(assigned._percorsoDetails.orario_arrivo_previsto);
+                    durationMinutes = diffMinutes(startParams, endParams);
+                }
+            } else {
+                // E' dal server e non ho ancora i dettagli: uso orario corsa di base e default duration
+                // La "corsa" ha un campo "orario" es "08:00"
+                startParams = parseTime(corsa.orario);
+            }
+
+            if (startParams) {
+                const bar = document.createElement('div');
+                bar.className = `absolute h-8 top-2 rounded px-2 flex items-center shadow-lg text-xs font-bold text-white whitespace-nowrap overflow-hidden task-bar
+                    ${assigned.isLocal ? 'status-assigned-local' : 'status-assigned-server'}`;
+                
+                // Posizionamento
+                const leftPx = timeToPixels(startParams);
+                const widthPx = minutesToPixels(durationMinutes);
+                
+                bar.style.left = `${leftPx}px`;
+                bar.style.width = `${widthPx}px`;
+                
+                // Content
+                const vascelloName = state.vascelli[assigned.vascello_id] ? state.vascelli[assigned.vascello_id].nome : 'Vascello ' + assigned.vascello_id;
+                bar.innerText = vascelloName;
+                track.appendChild(bar);
+            }
+
+        } else {
+            // Non assegnato: Barra Rossa (Placeholder sullo slot orario schedulato della corsa)
+            // Corsa.orario è tipo "08:00" string
+            const timeParts = parseTime(corsa.orario);
+            if (timeParts) {
+                const bar = document.createElement('div');
+                bar.className = 'absolute h-8 top-2 rounded px-2 flex items-center border border-red-500 bg-red-500/20 text-red-400 text-xs font-bold whitespace-nowrap overflow-hidden task-bar status-unassigned';
+                // Default 1h duration visual hint
+                const leftPx = timeToPixels(timeParts);
+                const widthPx = minutesToPixels(60); 
+
+                bar.style.left = `${leftPx}px`;
+                bar.style.width = `${widthPx}px`;
+                bar.innerText = 'Da Assegnare';
+                
+                track.appendChild(bar);
+            }
+        }
+
+        row.appendChild(track);
+        container.appendChild(row);
+    });
+}
+
+// --- Modal & Interaction ---
+
+async function openCorsaModal(corsaId) {
+    state.activeModalCorsaId = corsaId;
+    const modal = document.getElementById('modal-percorso');
+    const tbody = document.getElementById('modal-percorsi-list');
+    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center"><div class="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full mx-auto"></div></td></tr>';
+    
+    modal.classList.remove('hidden');
+
+    try {
+        const res = await fetch(ENDPOINTS.PERCORSO_CORSA(corsaId));
+        const data = await res.json(); // { corsa_id, percorsi: [] }
+        const percorsi = data.percorsi || [];
+
+        // Recupera la Corsa corrente per prendere l'orario di partenza
+        const currentCorsa = state.corse.find(c => c.id === corsaId);
+        
+        tbody.innerHTML = '';
+        
+        percorsi.forEach(p => {
+             // CALCOLO ORARI MANCANTE NEL PAYLOAD v2
+            // 1. Prendi Orario Partenza da Corsa (es. "08:00")
+            // 2. Prendi Durata da Percorso
+            // 3. Calcola Arrivo
+            // 4. Inietta (Usa Helper Centralizzato)
+            
+            enrichPercorsoData(p, currentCorsa); // Modifica p in place o ritorna nuovo? La func ritorna nuovo.
+            
+            // Attenzione: enrichPercorsoData ritorna una copia "p" arricchita. 
+            // Qui dobbiamo aggiornare "p" nel loop o usare l'oggetto ritornato.
+            // Poiché forEach itera, meglio riassegnare o estendere
+            const enrichedP = enrichPercorsoData(p, currentCorsa);
+            
+            // Sovrascriviamo le proprietà nell'oggetto originale p per comodità del loop corrente che usa "p"
+            Object.assign(p, enrichedP);
+
+
+            // Validazione Conflitti (con i valori calcolati)
+            const conflict = checkConflict(p.vascello_id, p.orario_partenza_schedulato, p.orario_arrivo_previsto, corsaId);
+            
+            const tr = document.createElement('tr');
+            tr.className = `border-b border-slate-800 hover:bg-white/5 transition-colors ${conflict ? 'opacity-50 grayscale' : ''}`;
+            
+            const vascello = state.vascelli[p.vascello_id];
+            const nomeVascello = vascello ? vascello.nome : p.vascello_id;
+
+            tr.innerHTML = `
+                <td class="px-4 py-3 font-medium text-white">${nomeVascello}</td>
+                <td class="px-4 py-3 text-xs">
+                    ${formatTimeStr(p.orario_partenza_schedulato)} <span class="text-slate-500">➜</span> ${formatTimeStr(p.orario_arrivo_previsto)}
+                </td>
+                <td class="px-4 py-3">${Math.round(p._derivedDuration || 0)} min</td>
+                <td class="px-4 py-3">${p.consumo || '-'} L</td>
+                <td class="px-4 py-3">${p.comfort || '-'}</td>
+                <td class="px-4 py-3">
+                    <button 
+                        class="px-3 py-1 rounded text-xs font-bold ${conflict ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}"
+                        ${conflict ? 'disabled' : ''}
+                        onclick="${conflict ? '' : `selectPercorso('${p.id}')`}" 
+                        data-percorso-obj='${JSON.stringify(p).replace(/'/g, "&#39;")}'
+                    >
+                        ${conflict ? 'Occupato' : 'Seleziona'}
+                    </button>
+                    ${conflict ? `<div class="text-[10px] text-red-400 mt-1">Conflitto orario</div>` : ''}
+                </td>
+            `;
+
+            // Brutto hack per passare l'oggetto via onclick string, meglio addEventListener
+            // Ma per rapidità qui uso un trick: attach data to button row
+            const btn = tr.querySelector('button');
+            if (!conflict) {
+                btn.onclick = () => selectPercorso(p);
+            }
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (e) {
+        console.error('Error fetching percorsi', e);
+        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-red-400">Errore caricamento percorsi</td></tr>';
+    }
+}
+
+function formatMinutesToTime(totalMins) {
+    let h = Math.floor(totalMins / 60);
+    const m = Math.floor(totalMins % 60);
+    h = h % 24; // Wrap around 24h
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Deprecated or Unused parsing helper can be removed or kept just in case
+// function parseTempoPercorrenza...
+
+function selectPercorso(percorsoObj) {
+    if (!state.activeModalCorsaId) return;
+
+    // Aggiorna stato locale
+    state.assegnazioni[state.activeModalCorsaId] = {
+        id_corsa: state.activeModalCorsaId,
+        percorso_id: percorsoObj.id,
+        vascello_id: percorsoObj.vascello_id,
+        piano_id: state.selectedPianoId,
+        stato_esecuzione: "PIANIFICATA",
+        virtuale: true,
+        isLocal: true,
+        _percorsoDetails: percorsoObj // Salviamo i dettagli per il render corretto
+    };
+
+    closeModal();
+    renderGantt();
+}
+
+function closeModal() {
+    document.getElementById('modal-percorso').classList.add('hidden');
+    state.activeModalCorsaId = null;
+}
+
+// --- Conflict Logic ---
+
+function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
+    // startIso e endIso sono stringhe complete o parti? L'API dice "string"
+    // Assumiamo siano timestamp completi o orari. Se sono orari HH:MM, li normalizziamo a minuti
+    
+    const startMins = isoToMinutes(startIso);
+    const endMins = isoToMinutes(endIso);
+
+    // Itera tutte le assegnazioni correnti
+    for (const [cId, ass] of Object.entries(state.assegnazioni)) {
+        if (cId === currentCorsaId) continue; // Salta se stessa (caso edit)
+        if (ass.vascello_id !== vascelloId) continue; // Altro vascello, ok
+
+        // Recupera orari dell'altra assegnazione
+        // Qui sta il problema: se l'assegnazione viene dal server, potrei non avere gli orari precisi
+        // (Vedi note in renderGantt).
+        // PER ORA: controlliamo solo contro le assegnazioni LOCALI che hanno _percorsoDetails ricco.
+        // Se vogliamo controllare contro server, dovremmo avere info orarie nel payload server assegnazione.
+        // Assumiamo che per un MVP il controllo lato client avvenga perlopiù su quello che stiamo costruendo.
+        
+        if (ass.isLocal && ass._percorsoDetails) {
+            const otherStart = isoToMinutes(ass._percorsoDetails.orario_partenza_schedulato);
+            const otherEnd = isoToMinutes(ass._percorsoDetails.orario_arrivo_previsto);
+
+            // Overlap logic: (StartA < EndB) && (EndA > StartB)
+            if (startMins < otherEnd && endMins > otherStart) {
+                return true; // Conflict
+            }
+        }
+    }
+    return false;
+}
+
+// --- Saving ---
+
+async function savePiano() {
+    if (!state.selectedPianoId) {
+        alert('Seleziona un piano prima di salvare.');
+        return;
+    }
+
+    const localAssignments = Object.values(state.assegnazioni).filter(a => a.isLocal);
+    if (localAssignments.length === 0) {
+        alert('Nessuna nuova modifica da salvare.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-save');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'Salvataggio...';
+
+    let successCount = 0;
+    let errors = 0;
+
+    // L'endpoint crea una assegnazione alla volta secondo la specifica
+    // ENDPOINT_ASSEGNAZIONE/CREA
+    for (const ass of localAssignments) {
+        try {
+            const payload = {
+                piano_id: state.selectedPianoId,
+                percorso_id: ass.percorso_id,
+                stato_esecuzione: "PIANIFICATA",
+                virtuale: true
+            };
+
+            const res = await fetch(ENDPOINTS.ASSEGNAZIONE_CREA, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error('API Error');
+            
+            // Mark as saved (server)
+            state.assegnazioni[ass.id_corsa].isLocal = false;
+            successCount++;
+
+        } catch (e) {
+            console.error('Save failed for', ass, e);
+            errors++;
+        }
+    }
+
+    btn.disabled = false;
+    btn.innerText = originalText;
+
+    if (errors > 0) {
+        alert(`Salvato con errori. Successi: ${successCount}, Errori: ${errors}`);
+    } else {
+        // Reload per sicurezza e pulizia
+        // handlePianoChange({ target: { value: state.selectedPianoId }});
+        renderGantt(); // Rerender aggiorna colori a blu (server)
+        alert('Piano aggiornato con successo!');
+    }
+}
+
+// --- Utilities ---
+
+function parseTime(timeStr) {
+    // Gestisce "HH:MM", "HH:MM:SS" o ISO "YYYY-MM-DDTHH:MM..."
+    if (!timeStr) return null;
+    try {
+        if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            return { h: date.getHours(), m: date.getMinutes() };
+        }
+        const parts = timeStr.split(':');
+        return { h: parseInt(parts[0]), m: parseInt(parts[1]) };
+    } catch {
+        return null;
+    }
+}
+
+function timeToPixels(timeObj) {
+    if (!timeObj) return 0;
+    // Calcola pixel dall'inizio (00:00)
+    const minutes = (timeObj.h * 60) + timeObj.m;
+    return (minutes / 60) * GANTT_CONFIG.hourWidth;
+}
+
+function minutesToPixels(minutes) {
+    return (minutes / 60) * GANTT_CONFIG.hourWidth;
+}
+
+function diffMinutes(start, end) {
+    if (!start || !end) return 60;
+    const startMins = start.h * 60 + start.m;
+    const endMins = end.h * 60 + end.m;
+    return endMins - startMins;
+}
+
+function isoToMinutes(isoStr) {
+    const t = parseTime(isoStr);
+    if (!t) return 0;
+    return t.h * 60 + t.m;
+}
+
+function formatTimeStr(isoStr) {
+    const t = parseTime(isoStr);
+    if (!t) return '--:--';
+    return `${t.h.toString().padStart(2,'0')}:${t.m.toString().padStart(2,'0')}`;
+}
