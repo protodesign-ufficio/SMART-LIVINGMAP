@@ -3,42 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>AIS Berth Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; }
-        html, body { font-family: 'Segoe UI'; }
+        html, body { font-family: 'Segoe UI', sans-serif; }
         .card{
             background:#1e293b;
             border:1px solid #334155;
             border-radius:0.75rem;
             box-shadow: 0 6px 18px rgba(0,0,0,.25);
-            }
+        }
 
         /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-        
-        /* Firefox scrollbar */
-        * {
-            scrollbar-color: #475569 #0f172a;
-            scrollbar-width: thin;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
     </style>
 </head>
 
@@ -46,74 +30,107 @@
 
 <div class="flex flex-col gap-6 w-full h-full">
 
-<div class="text-xl font-bold tracking-tight flex items-center gap-2">
-    <span class="text-blue-400">AIS Berth Monitor</span>
-</div>
-
-<div class="flex flex-1 gap-6 overflow-hidden">
-
-    <div class="w-64 card p-4 flex flex-col overflow-y-auto">
-        <div class="text-xs text-slate-400 uppercase mb-2">Ports</div>
-        <div id="port-list" class="space-y-2"></div>
+    <!-- HEADER -->
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
+        <span class="text-blue-400">AIS Berth Monitor</span>
     </div>
 
-    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0" style="padding-left: 20px;">
+    <div class="flex flex-1 gap-6 overflow-hidden">
 
-        <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-6 gap-y-6 items-center flex-shrink-0">
+        <!-- SIDEBAR PORTS -->
+        <div class="w-64 card p-4 flex flex-col overflow-y-auto flex-shrink-0">
+            <div class="text-xs text-slate-400 uppercase mb-2">Ports</div>
+            <div id="port-list" class="space-y-2"></div>
+        </div>
 
-            <div class="text-xs text-slate-400 uppercase">Selected Port</div>
-            <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
+        <!-- MAIN CONTENT -->
+        <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0" style="padding-left: 20px;">
 
-            <div class="text-xs text-slate-400 uppercase">Latitude</div>
-            <div id="port-lat" class="text-lg font-bold text-green-400">--</div>
+            <!-- TOP CARD: INFO & COUNTERS -->
+            <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-8 gap-y-6 items-center flex-shrink-0">
 
-            <div class="text-xs text-slate-400 uppercase">Longitude</div>
-            <div id="port-lon" class="text-lg font-bold text-green-400">--</div>
+                <!-- ROW 1: Details -->
+                <div class="text-xs text-slate-400 uppercase">Selected Port</div>
+                <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
 
-            <div class="text-xs text-slate-400 uppercase">Window (min)</div>
-            <div id="window-min" class="text-lg font-bold text-purple-300">--</div>
+                <div class="text-xs text-slate-400 uppercase">Latitude</div>
+                <div id="port-lat" class="text-lg font-bold text-green-400">--</div>
 
-            <div class="text-xs text-slate-400 uppercase">Status</div>
-            <div id="port-status" class="text-lg font-bold text-blue-200">ACTIVE</div>
+                <div class="text-xs text-slate-400 uppercase">Longitude</div>
+                <div id="port-lon" class="text-lg font-bold text-green-400">--</div>
 
-            <div class="col-span-4 text-xs text-slate-400 uppercase mt-2 text-center">
-                Incoming Vessels Count
+                <div class="text-xs text-slate-400 uppercase">Window (min)</div>
+                <div id="window-min" class="text-lg font-bold text-purple-300">--</div>
+
+                <div class="text-xs text-slate-400 uppercase">Status</div>
+                <div id="port-status" class="text-lg font-bold text-blue-200">ACTIVE</div>
+
+                <!-- ROW 2: COUNTERS (REAL / SIM / TOTAL) -->
+                <div class="col-span-4 mt-2 border-t border-slate-700 pt-4">
+                    <div class="text-xs text-slate-400 uppercase text-center mb-3">Incoming Vessels Count</div>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <!-- REAL COUNTER -->
+                        <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 text-center">
+                            <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">REAL VESSELS</div>
+                            <div id="incoming-real" class="text-3xl font-black text-blue-400">--</div>
+                        </div>
+
+                        <!-- SIMULATION COUNTER -->
+                        <div class="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
+                            <div class="text-[10px] text-purple-400 font-bold uppercase mb-1">SIMULATION VESSELS</div>
+                            <div id="incoming-sim" class="text-3xl font-black text-purple-400">--</div>
+                        </div>
+
+                        <!-- TOTAL COUNTER -->
+                        <div class="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-3 text-center relative overflow-hidden">
+                            <div class="text-[10px] text-cyan-400 font-bold uppercase mb-1">TOTAL VESSELS</div>
+                            <div id="incoming-total" class="text-3xl font-black text-cyan-400">--</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            <div id="incoming-val" class="col-span-4 text-4xl font-black text-cyan-400 text-center">
-                --
+
+            <!-- BOTTOM ROW: CHART & LIST -->
+            <div class="space-x-6 flex flex-1 gap-6 overflow-hidden min-h-0">
+
+                <!-- CHART -->
+                <div class="card p-4 flex-1 flex flex-col min-h-0">
+                    <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
+                    <div class="flex-1 min-h-0 relative">
+                        <canvas id="portChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- INCOMING LIST -->
+                <div class="card p-4 w-96 flex flex-col overflow-hidden min-h-0 flex-shrink-0">
+                    <div class="text-xs text-slate-400 uppercase mb-2 flex justify-between items-center">
+                        <span>Incoming Details</span>
+                        <span class="text-[10px] text-slate-600">(Sorted by ETA)</span>
+                    </div>
+                    <div id="incoming-ranking" class="flex-1 overflow-y-auto space-y-2 text-sm pr-1">
+                        <div class="text-slate-500 italic text-center mt-4">No data</div>
+                    </div>
+                </div>
+
             </div>
 
         </div>
-
-        <div class="space-x-6 flex flex-1 gap-6 overflow-hidden min-h-0">
-
-            <div class="card p-4 flex-1 flex flex-col min-h-0">
-                <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
-                <div class="flex-1 min-h-0">
-                    <canvas id="portChart" class="w-full h-full"></canvas>
-                </div>
-            </div>
-
-            <div class="card p-4 w-80 flex flex-col overflow-hidden min-h-0">
-                <div class="text-xs text-slate-400 uppercase mb-2">Incoming vessels</div>
-                <div id="incoming-ranking" class="flex-1 overflow-y-auto space-y-2 text-sm">
-                    <div class="text-slate-500">--</div>
-                </div>
-            </div>
-
-        </div>
-
     </div>
-
-</div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
+/* =====================================================
+   CONFIG
+===================================================== */
 const API_BASE_URL = "http://87.26.178.190:15080";
 const SOCKET_URL   = "http://localhost:5000";
 
+/* =====================================================
+   STATE
+===================================================== */
 const urlParams = new URLSearchParams(window.location.search);
 let selectedPortFromURL = null;
 
@@ -128,6 +145,9 @@ let ports = {};
 let selectedPort = null;
 const maxPoints = 60;
 
+/* =====================================================
+   HELPERS
+===================================================== */
 function generateColor(name) {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -136,6 +156,9 @@ function generateColor(name) {
     return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
 }
 
+/* =====================================================
+   PRELOAD
+===================================================== */
 async function preloadPorts() {
     try {
         const res = await fetch(`${API_BASE_URL}/porto/lista`);
@@ -146,8 +169,14 @@ async function preloadPorts() {
             const name = p.nome.trim().toUpperCase();
 
             ports[name] = {
-                history: Array(maxPoints).fill(0),
-                last: 0,
+                // Stores 3 separate history arrays
+                history_total: Array(maxPoints).fill(0),
+                history_real: Array(maxPoints).fill(0),
+                history_sim: Array(maxPoints).fill(0),
+                
+                last_total: 0,
+                last_real: 0,
+                last_sim: 0,
                 window: 0,
                 color: generateColor(name),
                 details: { lat: p.lat, lon: p.lon },
@@ -171,6 +200,9 @@ async function preloadPorts() {
 
 preloadPorts();
 
+/* =====================================================
+   CHART
+===================================================== */
 const ctx = document.getElementById("portChart").getContext("2d");
 const chart = new Chart(ctx, {
     type: "line",
@@ -179,14 +211,27 @@ const chart = new Chart(ctx, {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
-            y: { beginAtZero: true },
+            y: { 
+                beginAtZero: true,
+                grid: { color: "rgba(148,163,184,0.1)" },
+                ticks: { color: "#94a3b8" }
+            },
             x: { display: false }
         },
-        plugins: { legend: { display: false } }
+        plugins: { 
+            legend: { 
+                display: true,
+                labels: { color: '#94a3b8', font: { size: 10 } }
+            } 
+        }
     }
 });
 
+/* =====================================================
+   UI RENDERERS
+===================================================== */
 function renderList() {
     const list = document.getElementById("port-list");
     list.innerHTML = "";
@@ -194,15 +239,22 @@ function renderList() {
     Object.keys(ports).sort().forEach(port => {
         const p = ports[port];
         const el = document.createElement("div");
-        el.className = `p-2 rounded cursor-pointer border ${
-            port === selectedPort ? "bg-blue-900 border-blue-400"
-                                  : "bg-slate-800 border-slate-600 hover:bg-slate-700"
+        const isSelected = port === selectedPort;
+        
+        el.className = `p-3 rounded cursor-pointer border transition-all ${
+            isSelected 
+                ? "bg-blue-900/40 border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.15)]" 
+                : "bg-slate-800 border-slate-600 hover:bg-slate-700 hover:border-slate-500"
         }`;
 
         el.innerHTML = `
-            <div class="font-bold font-mono">${port}</div>
-            <div class="text-sm font-bold" style="color:${p.color}">
-                ${p.last} incoming
+            <div class="flex justify-between items-center mb-1">
+                <div class="font-bold font-mono text-slate-200">${port}</div>
+                <div class="text-xs text-slate-400">WIN: ${p.window}m</div>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+                 <span class="text-slate-500">Incoming</span>
+                 <span class="font-bold text-lg" style="color:${p.color}">${p.last_total}</span>
             </div>
         `;
         el.onclick = () => selectPort(port);
@@ -212,15 +264,19 @@ function renderList() {
 
 function updateInfo() {
     if (!selectedPort || !ports[selectedPort]) {
-        ["port-name","port-lat","port-lon","window-min","incoming-val"]
+        ["port-name","port-lat","port-lon","window-min","incoming-total","incoming-real","incoming-sim"]
             .forEach(id => document.getElementById(id).innerText = "--");
         return;
     }
 
     const p = ports[selectedPort];
     document.getElementById("port-name").innerText = selectedPort;
-    document.getElementById("incoming-val").innerText = p.last;
     document.getElementById("window-min").innerText = p.window;
+
+    // UPDATE COUNTERS
+    document.getElementById("incoming-total").innerText = p.last_total;
+    document.getElementById("incoming-real").innerText = p.last_real;
+    document.getElementById("incoming-sim").innerText = p.last_sim;
 
     if (p.details) {
         document.getElementById("port-lat").innerText = p.details.lat?.toFixed(4) || "--";
@@ -235,14 +291,41 @@ function updateChart() {
         return;
     }
     const p = ports[selectedPort];
-    chart.data.datasets = [{
-        data: p.history,
-        borderColor: p.color,
-        backgroundColor: p.color + "33",
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0
-    }];
+    
+    chart.data.datasets = [
+        {
+            label: 'Total',
+            data: p.history_total,
+            borderColor: '#22d3ee', // Cyan
+            backgroundColor: '#22d3ee11',
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius: 0,
+            fill: false
+        },
+        {
+            label: 'Real',
+            data: p.history_real,
+            borderColor: '#3b82f6', // Blue
+            backgroundColor: '#3b82f611',
+            borderWidth: 2,
+            borderDash: [5, 5], // Dashed for style distinction
+            tension: 0.35,
+            pointRadius: 0,
+            fill: false
+        },
+        {
+            label: 'Simulation',
+            data: p.history_sim,
+            borderColor: '#a855f7', // Purple
+            backgroundColor: '#a855f711',
+            borderWidth: 2,
+            borderDash: [2, 2], // Dotted for style distinction
+            tension: 0.35,
+            pointRadius: 0,
+            fill: false
+        }
+    ];
     chart.update("none");
 }
 
@@ -253,46 +336,88 @@ function updateIncomingRanking() {
 
     const list = ports[selectedPort].incoming_list || [];
     if (!list.length) {
-        box.innerHTML = `<div class="text-slate-500">No vessels</div>`;
+        box.innerHTML = `<div class="text-slate-500 text-center py-4">No incoming vessels</div>`;
         return;
     }
 
     const now = Date.now() / 1000;
+    
     list.forEach((item, i) => {
         const el = document.createElement("div");
         const eta = item.eta;
         const delta = Math.round((eta - now) / 60);
-        el.className = "p-2 rounded bg-slate-800 border border-slate-700";
+        
+        // Determine source styles
+        const source = (item.source || 'real').toLowerCase();
+        const isSim = source === 'simulation';
+        
+        const badgeClass = isSim 
+            ? "bg-purple-900 text-purple-200 border-purple-700" 
+            : "bg-blue-900 text-blue-200 border-blue-700";
+            
+        const badgeLabel = isSim ? "SIM" : "REAL";
+
+        el.className = "p-2 rounded bg-slate-800/80 border border-slate-700 flex items-center justify-between hover:bg-slate-700 transition-colors";
+        
         el.innerHTML = `
-            <div class="font-mono text-xs">#${i+1} MMSI ${item.mmsi}</div>
-            <div class="text-cyan-300 text-xs">ETA ${new Date(eta*1000).toLocaleTimeString()} (${delta} min)</div>
+            <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${badgeClass}">${badgeLabel}</span>
+                <div class="font-mono text-xs text-slate-300 truncate">MMSI ${item.mmsi}</div>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <div class="text-cyan-300 text-xs font-bold">${new Date(eta*1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                <div class="text-[10px] text-slate-500">${delta} min</div>
+            </div>
         `;
         box.appendChild(el);
     });
 }
 
+/* =====================================================
+   SOCKET HANDLER
+===================================================== */
 socket.on("analytics_update", msg => {
-    if (msg.type !== "berth_incoming") return;
+    if (!msg || msg.type !== "berth_incoming") return;
     const port = String(msg.destination).toUpperCase();
 
+    // Init port if not exists
     if (!ports[port]) {
         ports[port] = {
-            history: Array(maxPoints).fill(0),
-            last: 0,
+            history_total: Array(maxPoints).fill(0),
+            history_real: Array(maxPoints).fill(0),
+            history_sim: Array(maxPoints).fill(0),
+            
+            last_total: 0,
+            last_real: 0,
+            last_sim: 0,
             window: msg.window_future_min,
             color: generateColor(port),
             details: null,
             incoming_list: []
         };
+        // Auto-select if first port
         if (!selectedPort) selectedPort = port;
     }
 
-    ports[port].history.shift();
-    ports[port].history.push(msg.incoming_vessels);
-    ports[port].last = msg.incoming_vessels;
+    // Update History Data (Shift & Push)
+    ports[port].history_total.shift();
+    ports[port].history_total.push(msg.incoming_vessels);
+    
+    ports[port].history_real.shift();
+    ports[port].history_real.push(msg.incoming_vessels_real || 0);
+    
+    ports[port].history_sim.shift();
+    ports[port].history_sim.push(msg.incoming_vessels_sim || 0);
+
+    // Update Current State
+    ports[port].last_total = msg.incoming_vessels;
+    ports[port].last_real  = msg.incoming_vessels_real || 0;
+    ports[port].last_sim   = msg.incoming_vessels_sim || 0;
+    
     ports[port].window = msg.window_future_min;
     ports[port].incoming_list = msg.incoming || [];
 
+    // Refresh UI
     renderList();
     if (selectedPort === port) {
         updateInfo();
@@ -301,6 +426,9 @@ socket.on("analytics_update", msg => {
     }
 });
 
+/* =====================================================
+   INTERACTION
+===================================================== */
 function selectPort(port) {
     selectedPort = port;
     renderList();

@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>AIS Delta Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; }
-        html, body { font-family: 'Segoe UI'; } 
+        html, body { font-family: 'Segoe UI', sans-serif; } 
         .card{
             background:#1e293b;
             border:1px solid #334155;
@@ -17,32 +18,24 @@
         }
         
         /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-        
-        /* Firefox scrollbar */
-        * {
-            scrollbar-color: #475569 #0f172a;
-            scrollbar-width: thin;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
+
         /* Toggle icon */
         #toggle-btn { display:flex; align-items:center; justify-content:center; width:36px; height:28px; }
         .toggle-icon { display:block; transition: transform 0.25s ease; transform-origin: center; }
         #toggle-btn.rotated .toggle-icon { transform: rotate(180deg); }
+
+        /* Custom badge styles */
+        .badge-real { background-color: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .badge-sim { background-color: #581c87; color: #e9d5ff; border: 1px solid #a855f7; }
+        
+        /* List Item styles */
+        .ship-item { transition: all 0.2s; }
+        .ship-item:hover { transform: translateX(2px); }
     </style>
 </head>
 
@@ -50,111 +43,134 @@
 
 <div class="flex flex-col gap-6 w-full h-full">
 
-<div class="text-xl font-bold tracking-tight flex items-center gap-2">
-    <span class="text-blue-400">AIS Delta Monitor</span>
-</div>
-
-<div class="flex flex-1 gap-6 overflow-hidden">
-
-    <!-- SIDEBAR -->
-    <div class="w-64 card p-4 flex flex-col overflow-y-auto">
-        <div class="text-xs text-slate-400 uppercase mb-2">Vessels</div>
-        <div id="ship-list" class="space-y-2"></div>
+    <!-- HEADER -->
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
+        <span class="text-blue-400">AIS Delta Monitor</span>
     </div>
 
-    <!-- MAIN -->
-    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0 " style="padding-left: 20px;">
+    <div class="flex flex-1 gap-6 overflow-hidden">
 
-        <!-- TOP PANEL COLLAPSABLE -->
-        <div class="card overflow-hidden transition-all duration-300 flex-shrink-0">
-
-            <!-- HEADER -->
-            <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
-                <div class="text-xs text-slate-400 uppercase">Vessel Details</div>
-                <button id="toggle-btn"
-                        class="text-slate-300 hover:text-white text-sm font-bold select-none"
-                        aria-expanded="true">
-                    <svg class="toggle-icon" width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <path d="M1.25 1.25L7.25 7.25L13.25 1.25" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
+        <!-- SIDEBAR (Split View) -->
+        <div class="w-72 flex flex-col gap-4 shrink-0">
+            
+            <!-- REAL VESSELS LIST -->
+            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+                    <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-blue-500"></div> REAL SOURCE
+                    </div>
+                    <span id="count-real" class="text-xs text-slate-500">0</span>
+                </div>
+                <div id="list-real" class="space-y-2 overflow-y-auto pr-1">
+                    <!-- Items injected here -->
+                </div>
             </div>
 
-            <!-- CONTENT -->
-            <div id="top-panel-content"
-                class="p-4 grid grid-cols-[1fr_1fr_auto] gap-6 items-start">
-
-				<!-- COLONNA SINISTRA -->
-                <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
-					<div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
-					<div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Vessel Name</div>
-					<div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
-					<div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Departure (sched.)</div>
-					<div id="route-departure" class="text-lg font-bold text-green-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Fuel Consumption</div>
-					<div id="route-consumption" class="text-lg font-bold text-red-300">--</div>
-				</div>
-
-				<!-- COLONNA DESTRA -->
-                <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
-					<div class="text-xs text-slate-400 uppercase">Destination</div>
-					<div id="destination" class="text-lg font-bold text-yellow-400">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">ETA</div>
-					<div id="eta" class="text-lg font-bold text-green-400">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
-					<div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
-					<div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Route ID</div>
-					<div id="route-id" class="text-lg font-bold text-cyan-300">--</div>
-
-					<div class="text-xs text-slate-400 uppercase">Travel Time (min)</div>
-					<div id="route-time" class="text-lg font-bold text-purple-300">--</div>
-				</div>
-
-				<!-- IMMAGINE -->
-				<div class="flex items-start justify-center">
-					<img id="vessel-image"
-						 src=""
-						 alt="Vessel image"
-						 class="w-48 h-32 object-cover rounded border border-slate-500 shadow-sm hidden" />
-				</div>
-
-				<!-- DELTA -->
-				<div class="col-span-3 text-xs text-slate-400 uppercase mt-4 text-center">
-					Current Delta (minutes)
-				</div>
-				<div id="delta-val"
-					 class="col-span-3 text-3xl font-black text-cyan-400 text-center">
-					--
-				</div>
-
+            <!-- SIMULATION VESSELS LIST -->
+            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+                    <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-purple-500"></div> SIMULATION
+                    </div>
+                    <span id="count-sim" class="text-xs text-slate-500">0</span>
+                </div>
+                <div id="list-sim" class="space-y-2 overflow-y-auto pr-1">
+                    <!-- Items injected here -->
+                </div>
             </div>
+
         </div>
 
-        <!-- GRAPH -->
-        <div class="card p-4 flex-1 flex flex-col min-h-0">
-            <div class="text-xs text-slate-400 uppercase mb-2">Delta History</div>
-            <div class="flex-1 min-h-0">
-                <canvas id="deltaChart" class="w-full h-full"></canvas>
-            </div>
-        </div>
+        <!-- MAIN CONTENT -->
+        <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0">
 
+            <!-- TOP PANEL COLLAPSABLE -->
+            <div class="card overflow-hidden transition-all duration-300 flex-shrink-0">
+
+                <!-- HEADER -->
+                <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <div class="text-xs text-slate-400 uppercase">Vessel Details</div>
+                        <!-- Source Badge in Header -->
+                        <span id="source-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                            --
+                        </span>
+                    </div>
+                    <button id="toggle-btn" class="text-slate-300 hover:text-white" aria-expanded="true">
+                        <svg class="toggle-icon" width="15" height="9" viewBox="0 0 15 9" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1.25 1.25L7.25 7.25L13.25 1.25" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- CONTENT -->
+                <div id="top-panel-content" class="p-4 grid grid-cols-[1fr_1fr_auto] gap-6 items-start">
+
+                    <!-- LEFT DATA COL -->
+                    <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
+                        <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
+                        <div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Vessel Name</div>
+                        <div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
+                        <div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Departure (sched.)</div>
+                        <div id="route-departure" class="text-lg font-bold text-green-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Fuel Consumption</div>
+                        <div id="route-consumption" class="text-lg font-bold text-red-300">--</div>
+                    </div>
+
+                    <!-- RIGHT DATA COL -->
+                    <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
+                        <div class="text-xs text-slate-400 uppercase">Destination</div>
+                        <div id="destination" class="text-lg font-bold text-yellow-400">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">ETA</div>
+                        <div id="eta" class="text-lg font-bold text-green-400">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
+                        <div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
+                        <div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Route ID</div>
+                        <div id="route-id" class="text-lg font-bold text-cyan-300">--</div>
+
+                        <div class="text-xs text-slate-400 uppercase">Travel Time (min)</div>
+                        <div id="route-time" class="text-lg font-bold text-purple-300">--</div>
+                    </div>
+
+                    <!-- IMAGE -->
+                    <div class="flex flex-col items-center justify-start gap-2">
+                        <img id="vessel-image" src="" alt="Vessel" class="w-48 h-32 object-cover rounded border border-slate-500 shadow-sm hidden bg-slate-800" />
+                        
+                        <div class="w-full mt-2">
+                            <div class="text-xs text-slate-400 uppercase text-center mb-1">Current Delta</div>
+                            <div id="delta-val" class="text-3xl font-black text-cyan-400 text-center">--</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- GRAPH -->
+            <div class="card p-4 flex-1 flex flex-col min-h-0">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-xs text-slate-400 uppercase">Delta History (Minutes)</div>
+                    <div id="chart-source-indicator" class="text-xs font-mono text-slate-500">Waiting for selection...</div>
+                </div>
+                <div class="flex-1 min-h-0 relative">
+                    <canvas id="deltaChart"></canvas>
+                </div>
+            </div>
+
+        </div>
     </div>
-
-</div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -167,35 +183,42 @@ const API_BASE_URL = "http://87.26.178.190:15080";
 const SOCKET_URL   = "http://localhost:5000";
 
 /* =====================================================
-   URL SELECTION (MMSI)
+   STATE MANAGEMENT
+   Separati per source ('real' vs 'simulation')
 ===================================================== */
-const urlParams = new URLSearchParams(window.location.search);
-let selectedMMSIFromURL = null;
+// Registry contiene le info statiche (Nome, Foto, Dettagli vascello) scaricate all'avvio
+const vesselRegistry = {}; 
 
-if (urlParams.has("mmsi")) {
-    const mmsiParam = urlParams.get("mmsi").trim();
-    if (mmsiParam) selectedMMSIFromURL = mmsiParam;
-}
+// Data store contiene i dati dinamici (Delta, Storia, ETA) separati per source
+const ships = {
+    real: {},
+    simulation: {}
+};
+
+// Stato selezione corrente
+let currentSelection = {
+    mmsi: null,
+    source: null // 'real' | 'simulation'
+};
+
+const maxPoints = 60;
+const detailsLoading = new Set(); // Per evitare fetch duplicati
 
 /* =====================================================
-   SOCKET
+   SOCKET INIT
 ===================================================== */
 const socket = io(SOCKET_URL);
 
 /* =====================================================
-   STATE
-===================================================== */
-let ships = {};
-let selectedMMSI = null;
-let loadedImageMMSI = null;
-const maxPoints = 60;
-const detailsLoading = new Set();
-
-/* =====================================================
    HELPERS
 ===================================================== */
-function generateColor(mmsi) {
-    return `hsl(${parseInt(mmsi) % 360}, 80%, 60%)`;
+function generateColor(mmsi, source) {
+    // Tinta diversa per real vs sim
+    const hue = parseInt(mmsi) % 360;
+    if (source === 'simulation') {
+        return `hsl(${hue}, 90%, 75%)`; // Più luminoso/pastello per Sim
+    }
+    return `hsl(${hue}, 70%, 50%)`; // Più scuro/solido per Real
 }
 
 function safeNumber(v) {
@@ -204,7 +227,9 @@ function safeNumber(v) {
 
 function formatETA(ts) {
     if (!ts) return "--";
-    const d = new Date(ts * 1000);
+    // Gestione timestamp in secondi o millisecondi
+    const time = ts > 10000000000 ? ts : ts * 1000;
+    const d = new Date(time);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -213,157 +238,163 @@ function formatISO(ts) {
     return new Date(ts).toLocaleString();
 }
 
+/* =====================================================
+   API CALLS
+===================================================== */
 async function fetchVesselList() {
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/lista`);
-        if (!res.ok) return [];
-        return await res.json();
-    } catch {
-        return [];
-    }
+        return res.ok ? await res.json() : [];
+    } catch { return []; }
 }
 
 async function loadVesselInfo(mmsi) {
+    // Check cache in registry first
+    if(vesselRegistry[mmsi]?.vessel) return vesselRegistry[mmsi].vessel;
+    
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/by_mmsi/${mmsi}`);
-        if (!res.ok) return null;
-        return await res.json();
-    } catch {
-        return null;
-    }
+        return res.ok ? await res.json() : null;
+    } catch { return null; }
 }
 
 async function loadRouteInfo(mmsi) {
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/percorso_attivo`);
-        if (!res.ok) return null;
-        return await res.json();
-    } catch {
-        return null;
-    }
+        return res.ok ? await res.json() : null;
+    } catch { return null; }
 }
 
 async function loadVesselImage(mmsi) {
     const img = document.getElementById("vessel-image");
-    // Salva l'MMSI per cui è stato richiesto il caricamento
-    const requestedMMSI = mmsi;
-    loadedImageMMSI = mmsi;
+    
+    // Se abbiamo già l'URL blob in cache, usalo
+    if (vesselRegistry[mmsi]?.imageUrl) {
+        img.src = vesselRegistry[mmsi].imageUrl;
+        img.classList.remove("hidden");
+        return;
+    }
+
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/image`);
         if (!res.ok) throw new Error();
         const blob = await res.blob();
-        // Mostra l'immagine solo se l'MMSI selezionato non è cambiato nel frattempo
-        if (selectedMMSI === requestedMMSI) {
-            img.src = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        
+        // Salva in cache
+        if (!vesselRegistry[mmsi]) vesselRegistry[mmsi] = {};
+        vesselRegistry[mmsi].imageUrl = url;
+
+        // Se è ancora selezionato questo MMSI, aggiorna l'UI
+        if (currentSelection.mmsi === mmsi) {
+            img.src = url;
             img.classList.remove("hidden");
-            loadedImageMMSI = mmsi;
         }
     } catch {
-        // Nascondi l'immagine solo se l'MMSI selezionato non è cambiato nel frattempo
-        if (selectedMMSI === requestedMMSI) {
+        if (currentSelection.mmsi === mmsi) {
             img.src = "";
             img.classList.add("hidden");
-            loadedImageMMSI = null;
         }
     }
 }
 
-function resetAllFields() {
-    [
-        "mmsi","destination","eta","delta-val",
-        "vessel-name","vessel-capacity","vessel-cost","vessel-speed",
-        "route-id","route-departure","route-time","route-consumption"
-    ].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = "--";
-    });
+/* =====================================================
+   DATA LOGIC
+===================================================== */
 
-    const img = document.getElementById("vessel-image");
-    if (img) {
-        img.src = "";
-        img.classList.add("hidden");
+// Inizializza un record nave se non esiste per quella source
+function ensureShipRecord(mmsi, source) {
+    if (!ships[source][mmsi]) {
+        ships[source][mmsi] = {
+            history: Array(maxPoints).fill(0),
+            last_delta: null,
+            color: generateColor(mmsi, source),
+            destination: vesselRegistry[mmsi]?.initialDest || "--",
+            eta: null,
+            detailsLoaded: false
+        };
+        // Trigger list re-render per mostrare la nuova entry
+        renderList(source);
     }
+    return ships[source][mmsi];
 }
 
-async function ensureVesselDetails(mmsi) {
-    if (!ships[mmsi]) return;
-    if (ships[mmsi].detailsLoaded) return;
+// Carica dettagli (Vascello, Rotta) e li salva nel Registry (condiviso tra real e sim)
+async function ensureDetailsLoaded(mmsi) {
+    // Se già in caricamento o caricato nel registry, skip
     if (detailsLoading.has(mmsi)) return;
+    if (vesselRegistry[mmsi]?.detailsLoaded) return;
 
     detailsLoading.add(mmsi);
+    
+    // Inizializza registry se vuoto
+    if (!vesselRegistry[mmsi]) vesselRegistry[mmsi] = {};
+
     const [vessel, route] = await Promise.all([
         loadVesselInfo(mmsi),
         loadRouteInfo(mmsi)
     ]);
 
-    ships[mmsi].vessel = vessel;
-    ships[mmsi].route = route;
-    ships[mmsi].detailsLoaded = true;
+    vesselRegistry[mmsi].vessel = vessel;
+    vesselRegistry[mmsi].route = route;
+    vesselRegistry[mmsi].detailsLoaded = true;
+    
     detailsLoading.delete(mmsi);
 
-    if (selectedMMSI === mmsi) updateInfo();
+    // Se è la nave correntemente selezionata, aggiorna la UI
+    if (currentSelection.mmsi === mmsi) updateInfoUI();
+    
+    // Aggiorna le liste perché ora abbiamo sicuramente il nome (vessel detail loaded)
+    renderList('real');
+    renderList('simulation');
 }
 
 /* =====================================================
-   PRELOAD VASCELLI
-   Carica sempre TUTTI i vascelli disponibili dall'API
-   Se è passato ?mmsi=X via URL, lo seleziona automaticamente
+   INITIALIZATION
 ===================================================== */
-async function preloadVessels() {
+async function preloadRegistry() {
     const list = await fetchVesselList();
-
-    // Precarica dettagli e immagini di tutti i vascelli
-    await Promise.all(list.map(async item => {
+    
+    // Popola il registry con i dati di base noti E POPOLA LA LISTA REAL
+    list.forEach(item => {
         const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
-        if (!mmsi) return;
+        if(!mmsi) return;
 
-        // Precarica dettagli
-        const vessel = await loadVesselInfo(mmsi);
-        const route = await loadRouteInfo(mmsi);
+        vesselRegistry[mmsi] = {
+            initialDest: item.destination || item.destinazione || "--",
+            initialName: item.nome || item.name || null, // CATTURA NOME DALLA LISTA
+            vessel: null, 
+            route: null,
+            detailsLoaded: false
+        };
 
-        // Precarica immagine
-        let imageUrl = null;
-        try {
-            const res = await fetch(`${API_BASE_URL}/vascello/${mmsi}/image`);
-            if (res.ok) {
-                const blob = await res.blob();
-                imageUrl = URL.createObjectURL(blob);
-            }
-        } catch {}
-
-        ships[mmsi] = ships[mmsi] || {
+        // POPOLAMENTO FORZATO NAVI REALI (Anche senza dati socket)
+        ships.real[mmsi] = {
             history: Array(maxPoints).fill(0),
             last_delta: null,
-            color: generateColor(mmsi)
+            color: generateColor(mmsi, 'real'),
+            destination: vesselRegistry[mmsi].initialDest,
+            eta: null,
+            detailsLoaded: false
         };
-        ships[mmsi].destination = item.destination || item.destinazione || "--";
-        ships[mmsi].eta = item.eta || null;
-        ships[mmsi].vessel = vessel;
-        ships[mmsi].route = route;
-        ships[mmsi].detailsLoaded = true;
-        ships[mmsi].imageUrl = imageUrl;
-    }));
+    });
 
-    renderList();
+    console.log("Registry loaded with", Object.keys(vesselRegistry).length, "vessels");
+    
+    // Renderizza subito la lista REAL
+    renderList('real');
 
-    // Se c'è un parametro ?mmsi=X, selezionalo
-    if (selectedMMSIFromURL && ships[selectedMMSIFromURL]) {
-        selectShip(selectedMMSIFromURL);
-    } else {
-        // Altrimenti, seleziona il primo vascello disponibile
-        const first = Object.keys(ships)[0];
-        if (first) {
-            selectShip(first);
-        } else {
-            resetAllFields();
-        }
+    // Seleziona la prima nave reale se disponibile, per non lasciare la UI vuota
+    const realMMSIs = Object.keys(ships.real).sort();
+    if (realMMSIs.length > 0 && !currentSelection.mmsi) {
+        selectShip(realMMSIs[0], 'real');
     }
 }
 
-preloadVessels();
+preloadRegistry();
 
 /* =====================================================
-   CHART
+   CHART SETUP
 ===================================================== */
 const ctx = document.getElementById("deltaChart").getContext("2d");
 const chart = new Chart(ctx, {
@@ -373,12 +404,13 @@ const chart = new Chart(ctx, {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: 'index', intersect: false },
         scales: {
             y: {
-                min: -30,
-                max: 30,
+                // Rimosso min/max fisso per auto-scaling se i valori simulati sono estremi
+                // min: -30, max: 30, 
                 ticks: { color: "#94a3b8" },
-                grid: { color: "rgba(148,163,184,0.2)" }
+                grid: { color: "rgba(148,163,184,0.1)" }
             },
             x: { display: false }
         },
@@ -387,174 +419,217 @@ const chart = new Chart(ctx, {
 });
 
 /* =====================================================
-   RENDER SIDEBAR
+   UI RENDERING
 ===================================================== */
-function renderList() {
-    const list = document.getElementById("ship-list");
-    list.innerHTML = "";
+// Aggiorna solo una lista specifica ('real' o 'simulation')
+function renderList(source) {
+    const containerId = source === 'real' ? 'list-real' : 'list-sim';
+    const countId = source === 'real' ? 'count-real' : 'count-sim';
+    const listEl = document.getElementById(containerId);
+    
+    const sourceData = ships[source];
+    const keys = Object.keys(sourceData).sort();
+    
+    document.getElementById(countId).innerText = keys.length;
+    listEl.innerHTML = "";
 
-    Object.keys(ships).sort().forEach(mmsi => {
-        const s = ships[mmsi];
-        const isSelected = mmsi === selectedMMSI;
-
-        const deltaText = (s.last_delta !== null)
-            ? s.last_delta.toFixed(1)
-            : "--";
-
-        // Get vessel name if available, otherwise show MMSI
-        const vesselName = s.vessel?.nome || "Unknown";
-        const displayName = `${vesselName} <span class="text-slate-400">(${mmsi})</span>`;
-
+    keys.forEach(mmsi => {
+        const s = sourceData[mmsi];
+        const isSelected = (mmsi === currentSelection.mmsi && source === currentSelection.source);
+        
+        // LOGICA NOME VASELLO:
+        // 1. Cerca nei dettagli caricati (vessel.nome)
+        // 2. Cerca nella lista iniziale (initialName)
+        // 3. Fallback a MMSI se non c'è nome
+        const reg = vesselRegistry[mmsi] || {};
+        const nameFound = reg.vessel?.nome || reg.initialName;
+        
+        // Se abbiamo un nome, mostriamo "NOME (MMSI)"
+        // Se non abbiamo un nome, mostriamo solo "MMSI"
+        const mainText = nameFound ? nameFound : mmsi;
+        const subText = nameFound ? `(${mmsi})` : "";
+        
+        const deltaText = (s.last_delta !== null) ? s.last_delta.toFixed(1) : "--";
+        
         const el = document.createElement("div");
-        el.className =
-            `p-2 rounded cursor-pointer border ${
-                isSelected
-                    ? "bg-blue-900 border-blue-400"
-                    : "bg-slate-800 border-slate-600 hover:bg-slate-700"
-            }`;
+        // Stili diversi per selezione Real vs Sim
+        let activeClass = "";
+        if (isSelected) {
+            activeClass = source === 'real' 
+                ? "bg-blue-900/50 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.2)]" 
+                : "bg-purple-900/50 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.2)]";
+        } else {
+            activeClass = "bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-600";
+        }
 
+        el.className = `ship-item p-2 rounded cursor-pointer border mb-1 flex justify-between items-center ${activeClass}`;
+        
         el.innerHTML = `
-            <div class="font-mono">${displayName}</div>
-            <div class="text-xs text-yellow-300 truncate">${s.destination}</div>
-            <div class="text-sm font-bold" style="color:${s.color}">
-                ${deltaText}
+            <div class="overflow-hidden min-w-0 pr-2">
+                <div class="truncate flex items-baseline gap-1.5">
+                    <span class="font-bold text-sm text-slate-200 truncate">${mainText}</span>
+                    <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">${subText}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 truncate">${s.destination}</div>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <div class="font-mono font-bold text-sm" style="color:${s.color}">${deltaText}</div>
+                <div class="text-[10px] text-slate-500">min</div>
             </div>
         `;
 
-        el.onclick = () => selectShip(mmsi);
-        list.appendChild(el);
+        el.onclick = () => selectShip(mmsi, source);
+        listEl.appendChild(el);
     });
 }
 
-/* =====================================================
-   UPDATE TOP PANEL
-===================================================== */
-function updateInfo() {
-    if (!selectedMMSI || !ships[selectedMMSI]) {
-        resetAllFields();
-        return;
+// Aggiorna tutti i campi del pannello dettagli
+function updateInfoUI() {
+    const { mmsi, source } = currentSelection;
+
+    // Reset se nulla selezionato
+    if (!mmsi || !source || !ships[source][mmsi]) {
+        // Opzionale: pulire UI
+        return; 
     }
 
-    const s = ships[selectedMMSI];
+    const s = ships[source][mmsi]; // Dati dinamici (delta, eta)
+    const r = vesselRegistry[mmsi] || {}; // Dati statici (info vascello, rotta)
 
-    document.getElementById("mmsi").innerText = selectedMMSI;
-    document.getElementById("destination").innerText = s.destination ?? "--";
+    // Badge Source
+    const badge = document.getElementById("source-badge");
+    badge.innerText = source === 'real' ? "REAL TIME" : "SIMULATION";
+    badge.className = `text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${source === 'real' ? 'badge-real' : 'badge-sim'}`;
+    badge.classList.remove("hidden");
+
+    // Dynamic Data
+    document.getElementById("mmsi").innerText = mmsi;
+    document.getElementById("destination").innerText = s.destination || "--";
     document.getElementById("eta").innerText = formatETA(s.eta);
-    document.getElementById("delta-val").innerText =
-        (s.last_delta !== null) ? s.last_delta.toFixed(1) : "--";
+    document.getElementById("delta-val").innerText = (s.last_delta !== null) ? s.last_delta.toFixed(2) : "--";
+    document.getElementById("delta-val").style.color = s.color;
 
-    if (s.vessel) {
-        document.getElementById("vessel-name").innerText = s.vessel.nome ?? "--";
-        document.getElementById("vessel-capacity").innerText =
-            s.vessel.capacita_passeggeri ?? "--";
-        document.getElementById("vessel-cost").innerText =
-            s.vessel.costo_orario_esercizio ?? "--";
-        document.getElementById("vessel-speed").innerText =
-            s.vessel.velocita_max_nodi ?? "--";
+    // Static Data (Registry)
+    // Tenta di usare il nome dai dettagli o quello iniziale
+    const finalName = r.vessel?.nome || r.initialName || "--";
+    document.getElementById("vessel-name").innerText = finalName;
+
+    if (r.vessel) {
+        document.getElementById("vessel-capacity").innerText = r.vessel.capacita_passeggeri ?? "--";
+        document.getElementById("vessel-cost").innerText = r.vessel.costo_orario_esercizio ?? "--";
+        document.getElementById("vessel-speed").innerText = r.vessel.velocita_max_nodi ?? "--";
+    } else {
+        // Reset static fields except name (handled above)
+        ["vessel-capacity","vessel-cost","vessel-speed"].forEach(id => document.getElementById(id).innerText = "--");
     }
 
-    if (s.route && s.route.percorso) {
-        document.getElementById("route-id").innerText =
-            s.route.percorso.tratta_nome || s.route.percorso.tratta_id || "--";
-        document.getElementById("route-departure").innerText =
-            formatISO(s.route.percorso.orario_partenza_schedulato);
-        document.getElementById("route-time").innerText =
-            s.route.percorso.tempo_percorrenza?.toFixed(1) ?? "--";
-        document.getElementById("route-consumption").innerText =
-            s.route.percorso.consumo?.toFixed(1) ?? "--";
+    if (r.route && r.route.percorso) {
+        document.getElementById("route-id").innerText = r.route.percorso.tratta_nome || r.route.percorso.tratta_id || "--";
+        document.getElementById("route-departure").innerText = formatISO(r.route.percorso.orario_partenza_schedulato);
+        document.getElementById("route-time").innerText = r.route.percorso.tempo_percorrenza?.toFixed(1) ?? "--";
+        document.getElementById("route-consumption").innerText = r.route.percorso.consumo?.toFixed(1) ?? "--";
+    } else {
+        ["route-id","route-departure","route-time","route-consumption"].forEach(id => document.getElementById(id).innerText = "--");
     }
 }
 
-/* =====================================================
-   UPDATE CHART
-===================================================== */
 function updateChart() {
-    if (!selectedMMSI || !ships[selectedMMSI]) return;
+    const { mmsi, source } = currentSelection;
+    if (!mmsi || !ships[source][mmsi]) return;
 
-    const s = ships[selectedMMSI];
+    const s = ships[source][mmsi];
+    const sourceLabel = document.getElementById("chart-source-indicator");
+    sourceLabel.innerText = `${source.toUpperCase()} Stream: ${mmsi}`;
+    sourceLabel.style.color = source === 'real' ? '#60a5fa' : '#c084fc';
+
     chart.data.datasets = [{
+        label: 'Delta (min)',
         data: s.history,
         borderColor: s.color,
-        backgroundColor: s.color + "33",
+        backgroundColor: s.color + "20", // hex + alpha
         borderWidth: 2,
-        tension: 0.35,
+        tension: 0.4,
         pointRadius: 0,
+        pointHitRadius: 10,
         fill: true
     }];
     chart.update("none");
 }
 
 /* =====================================================
-   SOCKET HANDLER
+   INTERACTION
 ===================================================== */
-socket.on("analytics_update", msg => {
-    const mmsi = String(msg.mmsi);
-    if (!msg || msg.type !== "delta_eta") return;
-
-    const delta = safeNumber(msg.delta_min);
-
-    if (!ships[mmsi]) {
-        ships[mmsi] = {
-            history: Array(maxPoints).fill(0),
-            last_delta: delta,
-            destination: msg.destination || "UNKNOWN",
-            eta: msg.eta || null,
-            color: generateColor(mmsi),
-            vessel: null,
-            route: null,
-            detailsLoaded: false
-        };
-    }
-
-    if (delta !== null) {
-        ships[mmsi].history.shift();
-        ships[mmsi].history.push(delta);
-        ships[mmsi].last_delta = delta;
-    }
-
-    ships[mmsi].destination = msg.destination || ships[mmsi].destination;
-    ships[mmsi].eta = msg.eta || ships[mmsi].eta;
-
-    if (!selectedMMSI) {
-        selectedMMSI = mmsi;
-        loadVesselImage(mmsi);
-        ensureVesselDetails(mmsi);
-    }
-
-    renderList();
-    if (selectedMMSI === mmsi) updateInfo();
-    updateChart();
-});
-
-/* =====================================================
-   SELECTION
-===================================================== */
-function selectShip(mmsi) {
-    selectedMMSI = mmsi;
-    resetAllFields();
+function selectShip(mmsi, source) {
+    // Aggiorna selezione
+    currentSelection = { mmsi, source };
+    
+    // Carica immagine
     loadVesselImage(mmsi);
-    ensureVesselDetails(mmsi);
-    renderList();
-    updateInfo();
+    
+    // Assicura che i dettagli siano caricati (API call)
+    ensureDetailsLoaded(mmsi);
+
+    // Aggiorna UI
+    renderList('real');      // Rerender per aggiornare stato attivo
+    renderList('simulation');
+    updateInfoUI();
     updateChart();
 }
 
 /* =====================================================
-   COLLAPSE LOGIC
+   SOCKET HANDLER
+===================================================== */
+socket.on("analytics_update", msg => {
+    // 1. Validazione
+    if (!msg || msg.type !== "delta_eta") return;
+    
+    const mmsi = String(msg.mmsi);
+    const delta = safeNumber(msg.delta_min);
+    
+    // 2. Determina Source (Default a 'real' se manca, come fallback)
+    const source = (msg.source && msg.source.toLowerCase() === 'simulation') ? 'simulation' : 'real';
+
+    // 3. Assicura esistenza record nello store specifico
+    const shipRecord = ensureShipRecord(mmsi, source);
+
+    // 4. Aggiorna dati dinamici
+    if (delta !== null) {
+        shipRecord.history.shift();
+        shipRecord.history.push(delta);
+        shipRecord.last_delta = delta;
+    }
+    shipRecord.destination = msg.destination || shipRecord.destination;
+    shipRecord.eta = msg.eta || shipRecord.eta;
+
+    // 5. Aggiorna Lista (debounce o update diretto)
+    // Nota: per performance, si potrebbe fare throttle, ma qui facciamo diretto
+    renderList(source);
+
+    // 6. Se è la nave selezionata, aggiorna i dettagli e grafico
+    if (currentSelection.mmsi === mmsi && currentSelection.source === source) {
+        updateInfoUI();
+        updateChart();
+    } 
+    // 7. Auto-selezione al primo evento se nulla è selezionato (Fallback)
+    else if (currentSelection.mmsi === null) {
+        selectShip(mmsi, source);
+    }
+});
+
+/* =====================================================
+   COLLAPSE PANEL LOGIC
 ===================================================== */
 const toggleBtn = document.getElementById("toggle-btn");
 const panelContent = document.getElementById("top-panel-content");
-
 let collapsed = false;
 
 toggleBtn.onclick = () => {
     collapsed = !collapsed;
     panelContent.style.display = collapsed ? "none" : "grid";
     toggleBtn.classList.toggle('rotated', collapsed);
-    try{ toggleBtn.setAttribute('aria-expanded', String(!collapsed)); }catch(e){}
     setTimeout(() => chart.resize(), 300);
 };
-</script>
 
+</script>
 </body>
 </html>

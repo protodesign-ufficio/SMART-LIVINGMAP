@@ -3,41 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <title>Component Usage Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; }
-        html, body { font-family: 'Segoe UI'; } 
+        html, body { font-family: 'Segoe UI', sans-serif; } 
         .card{
-        background:#1e293b;
-        border:1px solid #334155;
-        border-radius:0.75rem;
-        box-shadow: 0 6px 18px rgba(0,0,0,.25);
+            background:#1e293b;
+            border:1px solid #334155;
+            border-radius:0.75rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,.25);
         }
         
         /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #0f172a;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 4px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-        }
-        
-        /* Firefox scrollbar */
-        * {
-            scrollbar-color: #475569 #0f172a;
-            scrollbar-width: thin;
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
+
+        /* Badges */
+        .badge-real { background-color: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .badge-sim { background-color: #581c87; color: #e9d5ff; border: 1px solid #a855f7; }
+
+        /* List Item styles */
+        .ship-item { transition: all 0.2s; }
+        .ship-item:hover { transform: translateX(2px); }
     </style>
 </head>
 
@@ -45,68 +37,105 @@
 
 <div class="flex flex-col gap-6 w-full h-full">
 
-<!-- HEADER -->
-<div class="text-xl font-bold tracking-tight flex items-center gap-2">
-    <span class="text-blue-400">Component Usage Monitor</span>
-</div>
-
-<div class="flex flex-1 gap-6 overflow-hidden">
-
-    <!-- SIDEBAR -->
-    <div class="w-64 card p-4 flex flex-col overflow-y-auto">
-        <div class="text-xs text-slate-400 uppercase mb-2">Vessels</div>
-        <div id="ship-list" class="space-y-2"></div>
+    <!-- HEADER -->
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
+        <span class="text-blue-400">Component Usage Monitor</span>
     </div>
 
-    <!-- MAIN PANEL -->
-    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0 " style="padding-left: 20px;">
+    <div class="flex flex-1 gap-6 overflow-hidden">
 
-        <!-- CURRENT DATA -->
-        <div class="card p-6 flex-shrink-0">
-            <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
-            <div id="mmsi" class="text-2xl font-bold text-blue-300">--</div>
+        <!-- SIDEBAR (Split View) -->
+        <div class="w-72 flex flex-col gap-4 shrink-0">
+            
+            <!-- REAL VESSELS LIST -->
+            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+                    <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-blue-500"></div> REAL SOURCE
+                    </div>
+                    <span id="count-real" class="text-xs text-slate-500">0</span>
+                </div>
+                <div id="list-real" class="space-y-2 overflow-y-auto pr-1">
+                    <!-- Items injected here -->
+                </div>
+            </div>
+
+            <!-- SIMULATION VESSELS LIST -->
+            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
+                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+                    <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-purple-500"></div> SIMULATION
+                    </div>
+                    <span id="count-sim" class="text-xs text-slate-500">0</span>
+                </div>
+                <div id="list-sim" class="space-y-2 overflow-y-auto pr-1">
+                    <!-- Items injected here -->
+                </div>
+            </div>
+
         </div>
 
-        <!-- COMPONENTS TABLE -->
-        <div class="card p-6 flex-1 overflow-y-auto">
-            <div class="text-xs text-slate-400 uppercase mb-4">Components</div>
+        <!-- MAIN PANEL -->
+        <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0 " style="padding-left: 20px;">
 
-            <table class="w-full text-sm">
-                <thead class="text-slate-400 border-b border-slate-600">
-                    <tr>
-                        <th class="text-left py-2">Component</th>
-                        <th class="text-left py-2">Usage (h)</th>
-                        <th class="text-left py-2">Usage (min)</th>
-                        <th class="text-left py-2">Status</th>
-                    </tr>
-                </thead>
-                <tbody id="component-table"></tbody>
-            </table>
+            <!-- CURRENT DATA HEADER -->
+            <div class="card p-6 flex-shrink-0 flex items-center justify-between">
+                <div>
+                    <div class="text-xs text-slate-400 uppercase">Selected Vessel</div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="vessel-name-display" class="text-2xl font-bold text-white">--</span>
+                        <span id="mmsi-display" class="text-lg text-slate-500 font-mono">(--)</span>
+                    </div>
+                </div>
+                
+                <!-- Source Badge -->
+                <span id="source-badge" class="hidden text-sm font-bold px-3 py-1 rounded uppercase tracking-wider">
+                    --
+                </span>
+            </div>
+
+            <!-- COMPONENTS TABLE -->
+            <div class="card p-6 flex-1 overflow-y-auto flex flex-col min-h-0">
+                <div class="text-xs text-slate-400 uppercase mb-4 sticky top-0 bg-[#1e293b] py-2 z-10">Components Status</div>
+
+                <div class="flex-1 overflow-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-slate-400 border-b border-slate-600 sticky top-0 bg-[#1e293b]">
+                            <tr>
+                                <th class="text-left py-2 font-semibold">Component</th>
+                                <th class="text-left py-2 font-semibold">Usage (h)</th>
+                                <th class="text-left py-2 font-semibold">Usage (min)</th>
+                                <th class="text-left py-2 font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="component-table" class="divide-y divide-slate-800">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                    <div id="empty-state" class="text-center text-slate-500 mt-10 italic hidden">Select a vessel to view components</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- SOCKET.IO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
 <script>
 /* =====================================================
-   URL FILTER (MMSI)
-   Supporta:
-   - ?mmsi=1111022
-   - ?mmsi=1111022,1111023
-   - ?mmsi=1111022&mmsi=1111023
+   CONFIG & HELPERS
 ===================================================== */
+const API_BASE_URL = "http://87.26.178.190:15080";
+const SOCKET_URL   = "http://localhost:5000";
 
-async function loadVesselInfo(mmsi) {
-    try {
-        const res = await fetch(`http://87.26.178.190:15080/vascello/by_mmsi/${mmsi}`);
-        if (!res.ok) return null;
-        return await res.json();
-    } catch {
-        return null;
-    }
+function safeNumber(v) {
+    return (typeof v === "number" && isFinite(v)) ? v : null;
 }
 
+/* =====================================================
+   URL FILTER (MMSI)
+===================================================== */
 const urlParams = new URLSearchParams(window.location.search);
 const allowedMMSI = new Set();
 
@@ -118,72 +147,170 @@ if (urlParams.has("mmsi")) {
         });
     });
 }
-
 const filterEnabled = allowedMMSI.size > 0;
 
 /* =====================================================
-   SOCKET + STATE
+   STATE MANAGEMENT
 ===================================================== */
-const socket = io("http://localhost:5000");
+// Registry: Info statiche (Nome)
+const vesselRegistry = {}; 
 
-let vessels = {};      // mmsi -> { components: {component: {usage_s, active}}, last_ts }
-let selectedMMSI = null;
+// Ships: Dati dinamici (Componenti) divisi per source
+const ships = {
+    real: {},
+    simulation: {}
+};
 
-function safeNumber(v) {
-    return (typeof v === "number" && isFinite(v)) ? v : null;
+let currentSelection = {
+    mmsi: null,
+    source: null
+};
+
+/* =====================================================
+   API CALLS
+===================================================== */
+async function fetchVesselList() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/vascello/lista`);
+        return res.ok ? await res.json() : [];
+    } catch { return []; }
 }
 
 /* =====================================================
-   SIDEBAR
+   INITIALIZATION & PRELOAD
 ===================================================== */
-function renderShips() {
-    const list = document.getElementById("ship-list");
-    list.innerHTML = "";
+async function preloadRegistry() {
+    const list = await fetchVesselList();
+    
+    list.forEach(item => {
+        const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
+        if(!mmsi) return;
 
-    Object.keys(vessels).sort().forEach(mmsi => {
-        const isSelected = mmsi === selectedMMSI;
+        // Se c'è un filtro attivo, ignora chi non è nella whitelist
+        if (filterEnabled && !allowedMMSI.has(mmsi)) return;
+
+        // Salva nome nel registry
+        vesselRegistry[mmsi] = {
+            name: item.nome || item.name || null
+        };
+
+        // Popola la lista REAL immediatamente
+        ships.real[mmsi] = ships.real[mmsi] || { components: {} };
+    });
+    
+    renderList('real');
+
+    // Seleziona la prima nave reale disponibile se nessuna selezione attiva
+    const realMMSIs = Object.keys(ships.real).sort();
+    if (realMMSIs.length > 0) {
+        selectShip(realMMSIs[0], 'real');
+    } else {
+        document.getElementById("empty-state").classList.remove("hidden");
+    }
+}
+
+preloadRegistry();
+
+/* =====================================================
+   RENDER LOGIC
+===================================================== */
+function renderList(source) {
+    const containerId = source === 'real' ? 'list-real' : 'list-sim';
+    const countId = source === 'real' ? 'count-real' : 'count-sim';
+    const listEl = document.getElementById(containerId);
+    
+    const sourceData = ships[source];
+    const keys = Object.keys(sourceData).sort();
+    
+    document.getElementById(countId).innerText = keys.length;
+    listEl.innerHTML = "";
+
+    keys.forEach(mmsi => {
+        const s = sourceData[mmsi];
+        const isSelected = (mmsi === currentSelection.mmsi && source === currentSelection.source);
+        
+        // Calcolo sommario ore totali
+        let totalSeconds = 0;
+        if (s.components) {
+            Object.values(s.components).forEach(c => {
+                const val = safeNumber(c.usage_s);
+                if (val !== null) totalSeconds += val;
+            });
+        }
+        const totalHours = (totalSeconds / 3600).toFixed(1);
+
+        // Risoluzione Nome
+        const regName = vesselRegistry[mmsi]?.name;
+        // Se c'è un nome, format: "NOME (MMSI)"
+        // Se non c'è, format: "MMSI"
+        const mainText = regName ? regName : mmsi;
+        const subText = regName ? `(${mmsi})` : "";
 
         const el = document.createElement("div");
-        el.className = `p-2 rounded cursor-pointer border ${
-            isSelected
-                ? "bg-blue-900 border-blue-400"
-                : "bg-slate-800 border-slate-600 hover:bg-slate-700"
-        }`;
+        
+        // Styling Selezione
+        let activeClass = "";
+        if (isSelected) {
+            activeClass = source === 'real' 
+                ? "bg-blue-900/50 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.2)]" 
+                : "bg-purple-900/50 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.2)]";
+        } else {
+            activeClass = "bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-600";
+        }
 
-        // Piccola sintesi: somma ore di tutte le componenti (solo indicativa)
-        const comps = vessels[mmsi].components || {};
-        let sumS = 0;
-        Object.values(comps).forEach(c => {
-            const us = safeNumber(c.usage_s);
-            if (us !== null) sumS += us;
-        });
-        const sumH = (sumS / 3600).toFixed(1);
-
-        // Mostra il nome della nave se disponibile, altrimenti solo MMSI
-        const vesselName = vessels[mmsi].vessel_name || "Unknown";
-        const displayName = `${vesselName} <span class="text-slate-400">(${mmsi})</span>`;
-
+        el.className = `ship-item p-2 rounded cursor-pointer border mb-1 flex justify-between items-center ${activeClass}`;
+        
         el.innerHTML = `
-            <div class="font-mono">${displayName}</div>
-            <div class="text-xs text-slate-400">Total (sum): ${sumH} h</div>
+            <div class="overflow-hidden min-w-0 pr-2">
+                <div class="truncate flex items-baseline gap-1.5">
+                    <span class="font-bold text-sm text-slate-200 truncate">${mainText}</span>
+                    <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">${subText}</span>
+                </div>
+                <div class="text-[10px] text-slate-400">Total Usage: ${totalHours} h</div>
+            </div>
         `;
 
-        el.onclick = () => selectShip(mmsi);
-        list.appendChild(el);
+        el.onclick = () => selectShip(mmsi, source);
+        listEl.appendChild(el);
     });
 }
 
-/* =====================================================
-   COMPONENT TABLE
-===================================================== */
-function renderComponents() {
+function updateComponentTable() {
+    const { mmsi, source } = currentSelection;
     const tbody = document.getElementById("component-table");
+    const emptyState = document.getElementById("empty-state");
+
     tbody.innerHTML = "";
+    
+    if (!mmsi || !ships[source] || !ships[source][mmsi]) {
+        document.getElementById("vessel-name-display").innerText = "--";
+        document.getElementById("mmsi-display").innerText = "(--)";
+        document.getElementById("source-badge").classList.add("hidden");
+        emptyState.classList.remove("hidden");
+        return;
+    }
 
-    if (!selectedMMSI || !vessels[selectedMMSI]) return;
+    emptyState.classList.add("hidden");
 
-    const comps = vessels[selectedMMSI].components || {};
+    // Aggiorna Header
+    const regName = vesselRegistry[mmsi]?.name;
+    document.getElementById("vessel-name-display").innerText = regName || mmsi;
+    document.getElementById("mmsi-display").innerText = regName ? `(${mmsi})` : "";
+    
+    // Aggiorna Badge
+    const badge = document.getElementById("source-badge");
+    badge.innerText = source === 'real' ? "REAL TIME" : "SIMULATION";
+    badge.className = `text-sm font-bold px-3 py-1 rounded uppercase tracking-wider ${source === 'real' ? 'badge-real' : 'badge-sim'}`;
+    badge.classList.remove("hidden");
+
+    // Aggiorna Tabella
+    const comps = ships[source][mmsi].components || {};
     const componentNames = Object.keys(comps).sort();
+
+    if (componentNames.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">No component data received yet.</td></tr>`;
+        return;
+    }
 
     componentNames.forEach(name => {
         const c = comps[name];
@@ -192,84 +319,85 @@ function renderComponents() {
 
         const usageH = usageS !== null ? (usageS / 3600).toFixed(2) : "--";
         const usageM = usageS !== null ? Math.floor(usageS / 60).toString() : "--";
-        const status = active ? "ON" : "OFF";
+        
+        // Status indicator
+        const statusHtml = active 
+            ? `<span class="inline-flex items-center gap-1.5 text-green-400 font-bold"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>ON</span>`
+            : `<span class="text-slate-500 font-bold">OFF</span>`;
 
         const tr = document.createElement("tr");
-        tr.className = "border-b border-slate-800";
+        tr.className = "hover:bg-slate-800/50 transition-colors";
 
         tr.innerHTML = `
-            <td class="py-2">${name}</td>
-            <td>${usageH}</td>
-            <td>${usageM}</td>
-            <td class="${active ? "text-green-400" : "text-slate-500"} font-bold">
-                ${status}
-            </td>
+            <td class="py-3 font-mono text-slate-300">${name}</td>
+            <td class="py-3 text-slate-200">${usageH}</td>
+            <td class="py-3 text-slate-400">${usageM}</td>
+            <td class="py-3">${statusHtml}</td>
         `;
 
         tbody.appendChild(tr);
     });
 }
 
-/* =====================================================
-   SELECT SHIP
-===================================================== */
-function selectShip(mmsi) {
-    if (!vessels[mmsi]) return;
-    selectedMMSI = mmsi;
-    document.getElementById("mmsi").innerText = mmsi;
-
-    renderShips();
-    renderComponents();
+function selectShip(mmsi, source) {
+    currentSelection = { mmsi, source };
+    renderList('real');
+    renderList('simulation');
+    updateComponentTable();
 }
 
 /* =====================================================
    SOCKET HANDLER
 ===================================================== */
+const socket = io(SOCKET_URL);
+
 socket.on("analytics_update", msg => {
-    // Filtra SOLO component_usage
+    // 1. Validazione & Filtro Tipo
     if (!msg || msg.type !== "component_usage") return;
 
     const mmsi = String(msg.mmsi || "");
     const component = String(msg.component || "");
     if (!mmsi || !component) return;
 
-    // Filtro MMSI da URL (se attivo)
+    // 2. Filtro URL (Whitelist)
     if (filterEnabled && !allowedMMSI.has(mmsi)) return;
 
-    const usageTotal = safeNumber(msg.usage_seconds_total);
-    if (usageTotal === null) return;
+    // 3. Determina Source
+    const source = (msg.source && msg.source.toLowerCase() === 'simulation') ? 'simulation' : 'real';
 
+    // 4. Aggiorna dati
+    const usageTotal = safeNumber(msg.usage_seconds_total);
     const active = !!msg.active;
 
-    vessels[mmsi] = vessels[mmsi] || { components: {}, last_ts: null, vessel_name: null };
-    vessels[mmsi].components[component] = {
+    // Assicura esistenza record
+    if (!ships[source][mmsi]) {
+        ships[source][mmsi] = { components: {} };
+    }
+
+    // Se il nome arriva dal socket e non l'abbiamo nel registry, salviamolo
+    if (msg.vessel_name && (!vesselRegistry[mmsi] || !vesselRegistry[mmsi].name)) {
+        vesselRegistry[mmsi] = { name: msg.vessel_name };
+    }
+
+    // Salva componente
+    ships[source][mmsi].components[component] = {
         usage_s: usageTotal,
         active: active
     };
-    vessels[mmsi].last_ts = safeNumber(msg.timestamp) ?? vessels[mmsi].last_ts;
-    if (msg.vessel_name) {
-        vessels[mmsi].vessel_name = msg.vessel_name;
+
+    // 5. Render
+    renderList(source);
+
+    // Aggiorna tabella se selezionato
+    if (currentSelection.mmsi === mmsi && currentSelection.source === source) {
+        updateComponentTable();
     }
-
-    if (!vessels[mmsi].vessel_name) {
-    loadVesselInfo(mmsi).then(v => {
-        if (v && v.nome) {
-            vessels[mmsi].vessel_name = v.nome;
-            renderShips();
-        }
-    });
-}
-
-    // Se selezionata non è valida (es. filtro cambiato), forza selezione
-    if (!selectedMMSI || !vessels[selectedMMSI]) {
-        selectedMMSI = mmsi;
-        document.getElementById("mmsi").innerText = mmsi;
+    // Auto-selezione (Fallback se nulla selezionato)
+    else if (!currentSelection.mmsi) {
+        selectShip(mmsi, source);
     }
-
-    // Aggiorna UI
-    renderShips();
-    renderComponents();
 });
+
 </script>
 
 </body>
