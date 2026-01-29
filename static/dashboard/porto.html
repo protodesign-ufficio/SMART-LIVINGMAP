@@ -293,23 +293,14 @@ function updateChart() {
     const p = ports[selectedPort];
     
     chart.data.datasets = [
-        {
-            label: 'Total',
-            data: p.history_total,
-            borderColor: '#22d3ee', // Cyan
-            backgroundColor: '#22d3ee11',
-            borderWidth: 2,
-            tension: 0.35,
-            pointRadius: 0,
-            fill: false
-        },
+        // NOTA: Ho rimosso l'oggetto { label: 'Total', ... }
         {
             label: 'Real',
             data: p.history_real,
             borderColor: '#3b82f6', // Blue
             backgroundColor: '#3b82f611',
             borderWidth: 2,
-            borderDash: [5, 5], // Dashed for style distinction
+            // Ho rimosso 'borderDash' qui per rendere la linea REALE solida e ben visibile
             tension: 0.35,
             pointRadius: 0,
             fill: false
@@ -320,7 +311,7 @@ function updateChart() {
             borderColor: '#a855f7', // Purple
             backgroundColor: '#a855f711',
             borderWidth: 2,
-            borderDash: [2, 2], // Dotted for style distinction
+            borderDash: [5, 5], // Mantengo il tratteggio per indicare che è una SIMULAZIONE
             tension: 0.35,
             pointRadius: 0,
             fill: false
@@ -347,9 +338,9 @@ function updateIncomingRanking() {
         const eta = item.eta;
         const delta = Math.round((eta - now) / 60);
         
-        // Determine source styles
-        const source = (item.source || 'real').toLowerCase();
-        const isSim = source === 'simulation';
+        // Determine !source! styles
+        const source = (item.source || 'ais.raw').toLowerCase();
+        const isSim = source === 'ais_simulation.raw';
         
         const badgeClass = isSim 
             ? "bg-purple-900 text-purple-200 border-purple-700" 
