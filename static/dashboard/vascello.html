@@ -186,23 +186,20 @@ const SOCKET_URL   = "http://localhost:5000";
    STATE MANAGEMENT
    Separati per source ('real' vs 'simulation')
 ===================================================== */
-// Registry contiene le info statiche (Nome, Foto, Dettagli vascello) scaricate all'avvio
 const vesselRegistry = {}; 
 
-// Data store contiene i dati dinamici (Delta, Storia, ETA) separati per source
 const ships = {
     real: {},
     simulation: {}
 };
 
-// Stato selezione corrente
 let currentSelection = {
     mmsi: null,
     source: null // 'real' | 'simulation'
 };
 
 const maxPoints = 60;
-const detailsLoading = new Set(); // Per evitare fetch duplicati
+const detailsLoading = new Set(); 
 
 /* =====================================================
    SOCKET INIT
@@ -213,12 +210,11 @@ const socket = io(SOCKET_URL);
    HELPERS
 ===================================================== */
 function generateColor(mmsi, source) {
-    // Tinta diversa per real vs sim
     const hue = parseInt(mmsi) % 360;
     if (source === 'simulation') {
-        return `hsl(${hue}, 90%, 75%)`; // Più luminoso/pastello per Sim
+        return `hsl(${hue}, 90%, 75%)`; 
     }
-    return `hsl(${hue}, 70%, 50%)`; // Più scuro/solido per Real
+    return `hsl(${hue}, 70%, 50%)`; 
 }
 
 function safeNumber(v) {
@@ -227,7 +223,6 @@ function safeNumber(v) {
 
 function formatETA(ts) {
     if (!ts) return "--";
-    // Gestione timestamp in secondi o millisecondi
     const time = ts > 10000000000 ? ts : ts * 1000;
     const d = new Date(time);
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -249,9 +244,7 @@ async function fetchVesselList() {
 }
 
 async function loadVesselInfo(mmsi) {
-    // Check cache in registry first
     if(vesselRegistry[mmsi]?.vessel) return vesselRegistry[mmsi].vessel;
-    
     try {
         const res = await fetch(`${API_BASE_URL}/vascello/by_mmsi/${mmsi}`);
         return res.ok ? await res.json() : null;
@@ -268,7 +261,6 @@ async function loadRouteInfo(mmsi) {
 async function loadVesselImage(mmsi) {
     const img = document.getElementById("vessel-image");
     
-    // Se abbiamo già l'URL blob in cache, usalo
     if (vesselRegistry[mmsi]?.imageUrl) {
         img.src = vesselRegistry[mmsi].imageUrl;
         img.classList.remove("hidden");
@@ -281,11 +273,9 @@ async function loadVesselImage(mmsi) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         
-        // Salva in cache
         if (!vesselRegistry[mmsi]) vesselRegistry[mmsi] = {};
         vesselRegistry[mmsi].imageUrl = url;
 
-        // Se è ancora selezionato questo MMSI, aggiorna l'UI
         if (currentSelection.mmsi === mmsi) {
             img.src = url;
             img.classList.remove("hidden");
@@ -301,8 +291,6 @@ async function loadVesselImage(mmsi) {
 /* =====================================================
    DATA LOGIC
 ===================================================== */
-
-// Inizializza un record nave se non esiste per quella source
 function ensureShipRecord(mmsi, source) {
     if (!ships[source][mmsi]) {
         ships[source][mmsi] = {
@@ -313,21 +301,17 @@ function ensureShipRecord(mmsi, source) {
             eta: null,
             detailsLoaded: false
         };
-        // Trigger list re-render per mostrare la nuova entry
         renderList(source);
     }
     return ships[source][mmsi];
 }
 
-// Carica dettagli (Vascello, Rotta) e li salva nel Registry (condiviso tra real e sim)
 async function ensureDetailsLoaded(mmsi) {
-    // Se già in caricamento o caricato nel registry, skip
     if (detailsLoading.has(mmsi)) return;
     if (vesselRegistry[mmsi]?.detailsLoaded) return;
 
     detailsLoading.add(mmsi);
     
-    // Inizializza registry se vuoto
     if (!vesselRegistry[mmsi]) vesselRegistry[mmsi] = {};
 
     const [vessel, route] = await Promise.all([
@@ -341,34 +325,30 @@ async function ensureDetailsLoaded(mmsi) {
     
     detailsLoading.delete(mmsi);
 
-    // Se è la nave correntemente selezionata, aggiorna la UI
     if (currentSelection.mmsi === mmsi) updateInfoUI();
     
-    // Aggiorna le liste perché ora abbiamo sicuramente il nome (vessel detail loaded)
     renderList('real');
     renderList('simulation');
 }
 
 /* =====================================================
-   INITIALIZATION
+   INITIALIZATION & URL PARSING
 ===================================================== */
 async function preloadRegistry() {
     const list = await fetchVesselList();
     
-    // Popola il registry con i dati di base noti E POPOLA LA LISTA REAL
     list.forEach(item => {
         const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
         if(!mmsi) return;
 
         vesselRegistry[mmsi] = {
             initialDest: item.destination || item.destinazione || "--",
-            initialName: item.nome || item.name || null, // CATTURA NOME DALLA LISTA
+            initialName: item.nome || item.name || null, 
             vessel: null, 
             route: null,
             detailsLoaded: false
         };
 
-        // POPOLAMENTO FORZATO NAVI REALI (Anche senza dati socket)
         ships.real[mmsi] = {
             history: Array(maxPoints).fill(0),
             last_delta: null,
@@ -380,14 +360,28 @@ async function preloadRegistry() {
     });
 
     console.log("Registry loaded with", Object.keys(vesselRegistry).length, "vessels");
-    
-    // Renderizza subito la lista REAL
     renderList('real');
 
-    // Seleziona la prima nave reale se disponibile, per non lasciare la UI vuota
-    const realMMSIs = Object.keys(ships.real).sort();
-    if (realMMSIs.length > 0 && !currentSelection.mmsi) {
-        selectShip(realMMSIs[0], 'real');
+    /* --- URL PARAMETER LOGIC --- */
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramId = urlParams.get('id') || urlParams.get('mmsi');
+    
+    // Default source to 'real' unless 'simulation' is specified in URL
+    const paramSource = (urlParams.get('source') === 'simulation') ? 'simulation' : 'real';
+
+    if (paramId) {
+        // Se c'è un ID nell'URL, lo selezioniamo forzatamente.
+        // Assicuriamo che esista nel "Source Store" locale prima di selezionarlo
+        // (specialmente se è un id che non era nella lista iniziale 'real')
+        ensureShipRecord(paramId, paramSource);
+        selectShip(paramId, paramSource);
+        console.log(`Auto-selecting from URL: ${paramId} (${paramSource})`);
+    } else {
+        // Fallback: Seleziona il primo disponibile della lista Real
+        const realMMSIs = Object.keys(ships.real).sort();
+        if (realMMSIs.length > 0 && !currentSelection.mmsi) {
+            selectShip(realMMSIs[0], 'real');
+        }
     }
 }
 
@@ -407,8 +401,6 @@ const chart = new Chart(ctx, {
         interaction: { mode: 'index', intersect: false },
         scales: {
             y: {
-                // Rimosso min/max fisso per auto-scaling se i valori simulati sono estremi
-                // min: -30, max: 30, 
                 ticks: { color: "#94a3b8" },
                 grid: { color: "rgba(148,163,184,0.1)" }
             },
@@ -421,7 +413,6 @@ const chart = new Chart(ctx, {
 /* =====================================================
    UI RENDERING
 ===================================================== */
-// Aggiorna solo una lista specifica ('real' o 'simulation')
 function renderList(source) {
     const containerId = source === 'real' ? 'list-real' : 'list-sim';
     const countId = source === 'real' ? 'count-real' : 'count-sim';
@@ -437,22 +428,15 @@ function renderList(source) {
         const s = sourceData[mmsi];
         const isSelected = (mmsi === currentSelection.mmsi && source === currentSelection.source);
         
-        // LOGICA NOME VASELLO:
-        // 1. Cerca nei dettagli caricati (vessel.nome)
-        // 2. Cerca nella lista iniziale (initialName)
-        // 3. Fallback a MMSI se non c'è nome
         const reg = vesselRegistry[mmsi] || {};
         const nameFound = reg.vessel?.nome || reg.initialName;
         
-        // Se abbiamo un nome, mostriamo "NOME (MMSI)"
-        // Se non abbiamo un nome, mostriamo solo "MMSI"
         const mainText = nameFound ? nameFound : mmsi;
         const subText = nameFound ? `(${mmsi})` : "";
         
         const deltaText = (s.last_delta !== null) ? s.last_delta.toFixed(1) : "--";
         
         const el = document.createElement("div");
-        // Stili diversi per selezione Real vs Sim
         let activeClass = "";
         if (isSelected) {
             activeClass = source === 'real' 
@@ -483,34 +467,25 @@ function renderList(source) {
     });
 }
 
-// Aggiorna tutti i campi del pannello dettagli
 function updateInfoUI() {
     const { mmsi, source } = currentSelection;
 
-    // Reset se nulla selezionato
-    if (!mmsi || !source || !ships[source][mmsi]) {
-        // Opzionale: pulire UI
-        return; 
-    }
+    if (!mmsi || !source || !ships[source][mmsi]) return; 
 
-    const s = ships[source][mmsi]; // Dati dinamici (delta, eta)
-    const r = vesselRegistry[mmsi] || {}; // Dati statici (info vascello, rotta)
+    const s = ships[source][mmsi]; 
+    const r = vesselRegistry[mmsi] || {};
 
-    // Badge Source
     const badge = document.getElementById("source-badge");
     badge.innerText = source === 'real' ? "REAL TIME" : "SIMULATION";
     badge.className = `text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${source === 'real' ? 'badge-real' : 'badge-sim'}`;
     badge.classList.remove("hidden");
 
-    // Dynamic Data
     document.getElementById("mmsi").innerText = mmsi;
     document.getElementById("destination").innerText = s.destination || "--";
     document.getElementById("eta").innerText = formatETA(s.eta);
     document.getElementById("delta-val").innerText = (s.last_delta !== null) ? s.last_delta.toFixed(2) : "--";
     document.getElementById("delta-val").style.color = s.color;
 
-    // Static Data (Registry)
-    // Tenta di usare il nome dai dettagli o quello iniziale
     const finalName = r.vessel?.nome || r.initialName || "--";
     document.getElementById("vessel-name").innerText = finalName;
 
@@ -519,7 +494,6 @@ function updateInfoUI() {
         document.getElementById("vessel-cost").innerText = r.vessel.costo_orario_esercizio ?? "--";
         document.getElementById("vessel-speed").innerText = r.vessel.velocita_max_nodi ?? "--";
     } else {
-        // Reset static fields except name (handled above)
         ["vessel-capacity","vessel-cost","vessel-speed"].forEach(id => document.getElementById(id).innerText = "--");
     }
 
@@ -546,7 +520,7 @@ function updateChart() {
         label: 'Delta (min)',
         data: s.history,
         borderColor: s.color,
-        backgroundColor: s.color + "20", // hex + alpha
+        backgroundColor: s.color + "20",
         borderWidth: 2,
         tension: 0.4,
         pointRadius: 0,
@@ -560,17 +534,12 @@ function updateChart() {
    INTERACTION
 ===================================================== */
 function selectShip(mmsi, source) {
-    // Aggiorna selezione
     currentSelection = { mmsi, source };
     
-    // Carica immagine
     loadVesselImage(mmsi);
-    
-    // Assicura che i dettagli siano caricati (API call)
     ensureDetailsLoaded(mmsi);
 
-    // Aggiorna UI
-    renderList('real');      // Rerender per aggiornare stato attivo
+    renderList('real');      
     renderList('simulation');
     updateInfoUI();
     updateChart();
@@ -580,19 +549,15 @@ function selectShip(mmsi, source) {
    SOCKET HANDLER
 ===================================================== */
 socket.on("analytics_update", msg => {
-    // 1. Validazione
     if (!msg || msg.type !== "delta_eta") return;
     
     const mmsi = String(msg.mmsi);
     const delta = safeNumber(msg.delta_min);
     
-    // 2. Determina Source (Default a 'real' se manca, come fallback)
     const source = (msg.source && msg.source.toLowerCase() === 'simulation') ? 'simulation' : 'real';
 
-    // 3. Assicura esistenza record nello store specifico
     const shipRecord = ensureShipRecord(mmsi, source);
 
-    // 4. Aggiorna dati dinamici
     if (delta !== null) {
         shipRecord.history.shift();
         shipRecord.history.push(delta);
@@ -601,16 +566,12 @@ socket.on("analytics_update", msg => {
     shipRecord.destination = msg.destination || shipRecord.destination;
     shipRecord.eta = msg.eta || shipRecord.eta;
 
-    // 5. Aggiorna Lista (debounce o update diretto)
-    // Nota: per performance, si potrebbe fare throttle, ma qui facciamo diretto
     renderList(source);
 
-    // 6. Se è la nave selezionata, aggiorna i dettagli e grafico
     if (currentSelection.mmsi === mmsi && currentSelection.source === source) {
         updateInfoUI();
         updateChart();
     } 
-    // 7. Auto-selezione al primo evento se nulla è selezionato (Fallback)
     else if (currentSelection.mmsi === null) {
         selectShip(mmsi, source);
     }

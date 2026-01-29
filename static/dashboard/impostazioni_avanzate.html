@@ -45,30 +45,10 @@
             scrollbar-color: #475569 #0f172a;
             scrollbar-width: thin;
         }
-        /* Stile base per i toggle Kafka */
-        .kafka-toggle {
-            background: transparent;
-            color: #e2e8f0;
-            border: 1px solid #475569;
-            transition: all 0.2s ease-in-out;
-            outline: none !important;
-        }
-
-        /* Classe 'active' forzata per PyQt */
-        .kafka-toggle.active {
-            background-color: #2563eb !important; /* Blue-600 */
-            border-color: #3b82f6 !important;     /* Blue-500 */
-            color: #ffffff !important;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-        /* Aggiungi questo nel tuo <style> */
-        #kafka-mode-real {
-            margin-right: 1.5rem; /* Circa 24px di distanza */
-        }
     </style>
 </head>
 
-<body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
+<body class="h-screen w-screen p-6 flex flex-col overflow-hidden relative">
 
     <div class="space-y-6 flex-col gap-6 w-full h-full overflow-y-auto">
 
@@ -152,29 +132,8 @@
                     <span class="text-slate-400 text-sm self-center pl-2">min</span>
                 </div>
             </div>
-            <!-- KAFKA MODE -->
-            <div class="card p-6">
-                <div class="text-xs text-slate-400 uppercase font-bold mb-2">
-                    5. MODALITÀ KAFKA
-                </div>
-                <div class="description">
-                    Seleziona la modalità di lettura dei messaggi Kafka da parte dei servizi Consumer.
-                    <br><br>
-                    <strong>Uso:</strong> Controllo ambiente dati AIS.
-                    <br>
-                    <strong>Default:</strong> Reale
-                </div>
-
-                <div class="mt-4 flex gap-4">
-                    <button id="kafka-mode-real" class="kafka-toggle px-4 py-2 rounded">
-                        Reale
-                    </button>
-
-                    <button id="kafka-mode-sim" class="kafka-toggle px-4 py-2 rounded">
-                        Simulata
-                    </button>
-                </div>
-            </div>
+            
+            <!-- Card 5 Removed as requested -->
 
         </div>
 
@@ -193,6 +152,37 @@
 
     </div>
 
+    <!-- CUSTOM CONFIRM MODAL -->
+    <!-- Added w-full h-full and m-auto to force centering in various renderers -->
+    <div id="confirm-modal" class="hidden fixed inset-0 w-full h-full bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="card p-6 max-w-md w-full shadow-2xl border-slate-600 animate-[fadeIn_0.2s_ease-out] m-auto">
+            <div class="flex items-start gap-4">
+                <div class="bg-red-900/50 p-3 rounded-full shrink-0 border border-red-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-white mb-1">Conferma Ripristino</h3>
+                    <p class="text-slate-300 text-sm leading-relaxed">
+                        Sei sicuro di voler ripristinare i valori di default? <br>
+                        Le modifiche non salvate andranno perse.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <!-- Stile Annulla modificato: Trasparente Blu con Bordo -->
+                <button id="btn-modal-cancel" class="px-4 py-2 rounded bg-transparent border border-blue-600 text-blue-400 hover:bg-blue-600/20 hover:text-blue-300 transition-colors font-bold text-sm">
+                    Annulla
+                </button>
+                <button id="btn-modal-confirm" class="px-4 py-2 rounded bg-red-600 hover:bg-red-500 text-white font-bold shadow-lg shadow-red-900/20 transition-all text-sm">
+                    Sì, Ripristina
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 <script>
 // =====================================================
@@ -205,9 +195,9 @@ const DEFAULT_VALUES = {
     publish_interval_sec: "30",
     cache_delta_minutes: "120"
 };
-let kafkaTopic = "ais.raw"; // Default topic
 
 const API_ENDPOINT = "http://87.26.178.190:15080";
+
 // =====================================================
 // UTILITY FUNCTIONS
 // =====================================================
@@ -222,15 +212,15 @@ function showStatus(message, type = "info") {
     if (type === "success") {
         statusDiv.classList.remove("bg-blue-900", "border-blue-700", "status-error");
         statusDiv.classList.add("bg-green-900", "border-green-700");
-        statusIcon.textContent = "";
+        statusIcon.textContent = "✓";
     } else if (type === "error") {
         statusDiv.classList.remove("bg-blue-900", "border-blue-700", "bg-green-900", "border-green-700");
         statusDiv.classList.add("bg-red-900", "border-red-700");
-        statusIcon.textContent = "";
+        statusIcon.textContent = "⚠️";
     } else {
         statusDiv.classList.remove("bg-green-900", "border-green-700", "bg-red-900", "border-red-700");
         statusDiv.classList.add("bg-blue-900", "border-blue-700");
-        statusIcon.textContent = "️";
+        statusIcon.textContent = "ℹ️";
     }
 
     // Auto-hide after 5 seconds for success messages
@@ -287,14 +277,10 @@ async function loadCurrentValues() {
         document.getElementById("publish_interval").value = data.publish_interval || DEFAULT_VALUES.publish_interval;
         document.getElementById("publish_interval_sec").value = data.publish_interval_sec || DEFAULT_VALUES.publish_interval_sec;
 
-        if (data.kafka_topic) {
-            setKafkaMode(data.kafka_topic);
-        } else {
-            setKafkaMode("ais.raw");
-        }
+        // Nota: Le impostazioni del topic Kafka sono state rimosse come richiesto
 
         updateLastSync();
-        showStatus("✓ Valori caricati con successo", "success");
+        showStatus("Valori caricati con successo", "success");
 
     } catch (error) {
     console.error("Errore nel caricamento:", error);
@@ -305,29 +291,13 @@ async function loadCurrentValues() {
 // =====================================================
 // LOAD DEFAULT VALUES
 // =====================================================
-function setKafkaMode(topic) {
-    kafkaTopic = topic;
-
-    const realBtn = document.getElementById("kafka-mode-real");
-    const simBtn = document.getElementById("kafka-mode-sim");
-
-    if (topic === "ais_simulation.raw") {
-        simBtn.classList.add("active");
-        realBtn.classList.remove("active");
-    } else {
-        realBtn.classList.add("active");
-        simBtn.classList.remove("active");
-    }
-}
 
 function loadDefaultValues() {
     document.getElementById("window_future").value = DEFAULT_VALUES.window_future;
     document.getElementById("publish_interval").value = DEFAULT_VALUES.publish_interval;
     document.getElementById("publish_interval_sec").value = DEFAULT_VALUES.publish_interval_sec;
     document.getElementById("cache_delta_minutes").value = DEFAULT_VALUES.cache_delta_minutes;
-    setKafkaMode("ais.raw");
-    showStatus("✓ Valori default caricati", "success");
-    //updateLastSync();
+    showStatus("Valori default caricati", "success");
 }
 
 // =====================================================
@@ -395,7 +365,7 @@ async function saveKafkaConfig() {
         window_future: String(window_future),
         publish_interval: String(publish_interval),
         publish_interval_sec: String(publish_interval_sec),
-        kafka_topic: kafkaTopic
+        // kafka_topic: rimosso come richiesto
     };
 
     const response = await fetch(`${API_ENDPOINT}/api/config/kafka-settings`, {
@@ -411,29 +381,41 @@ async function saveKafkaConfig() {
 }
 
 // =====================================================
-// RESET TO DEFAULTS
+// RESET TO DEFAULTS (MODAL LOGIC)
 // =====================================================
+const modal = document.getElementById("confirm-modal");
+const btnModalCancel = document.getElementById("btn-modal-cancel");
+const btnModalConfirm = document.getElementById("btn-modal-confirm");
+
 function resetToDefaults() {
-    if (confirm("Sei sicuro di voler ripristinare i valori di default?")) {
-        loadDefaultValues();
-        showStatus("Valori impostati ai default. Clicca 'Salva Configurazione' per applicare.", "info");
-    }
+    // Sostituisce il vecchio window.confirm con il modal
+    modal.classList.remove("hidden");
 }
+
+// Gestione chiusura modal
+btnModalCancel.addEventListener("click", () => {
+    modal.classList.add("hidden");
+});
+
+// Gestione conferma
+btnModalConfirm.addEventListener("click", () => {
+    modal.classList.add("hidden");
+    loadDefaultValues();
+    showStatus("Valori impostati ai default. Clicca 'Salva Configurazione' per applicare.", "info");
+});
+
+// Chiudi se si clicca fuori dalla card
+modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+        modal.classList.add("hidden");
+    }
+});
 
 // =====================================================
 // EVENT LISTENERS
 // =====================================================
 document.getElementById("btn-save").addEventListener("click", saveConfiguration);
 document.getElementById("btn-reset").addEventListener("click", resetToDefaults);
-document.getElementById("kafka-mode-real").addEventListener("click", () => {
-    setKafkaMode("ais.raw");
-});
-
-document.getElementById("kafka-mode-sim").addEventListener("click", () => {
-    setKafkaMode("ais_simulation.raw");
-});
-
-// document.getElementById("btn-load").addEventListener("click", loadCurrentValues);
 
 // =====================================================
 // INITIALIZATION
