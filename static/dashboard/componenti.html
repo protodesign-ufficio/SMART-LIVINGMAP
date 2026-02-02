@@ -363,7 +363,7 @@ socket.on("analytics_update", msg => {
     if (filterEnabled && !allowedMMSI.has(mmsi)) return;
 
     // 3. Determina Source
-    const source = (msg.source && msg.source.toLowerCase() === 'simulation') ? 'simulation' : 'real';
+    const source = (msg.source && msg.source.toLowerCase() === 'ais_simulation.raw') ? 'simulation' : 'real';
 
     // 4. Aggiorna dati
     const usageTotal = safeNumber(msg.usage_seconds_total);
