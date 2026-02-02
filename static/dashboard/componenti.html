@@ -186,24 +186,37 @@ async function preloadRegistry() {
         const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
         if(!mmsi) return;
 
-        // Se c'è un filtro attivo, ignora chi non è nella whitelist
-        if (filterEnabled && !allowedMMSI.has(mmsi)) return;
-
-        // Salva nome nel registry
+        // Salviamo sempre il nome nel registry per tutti i vascelli
         vesselRegistry[mmsi] = {
             name: item.nome || item.name || null
         };
 
-        // Popola la lista REAL immediatamente
+        // Popoliamo SEMPRE la lista REAL per tutti i vascelli della lista
         ships.real[mmsi] = ships.real[mmsi] || { components: {} };
     });
     
     renderList('real');
 
-    // Seleziona la prima nave reale disponibile se nessuna selezione attiva
+    // LOGICA DI SELEZIONE INIZIALE
     const realMMSIs = Object.keys(ships.real).sort();
+    
     if (realMMSIs.length > 0) {
-        selectShip(realMMSIs[0], 'real');
+        let targetMMSI = null;
+
+        if (filterEnabled) {
+            // Cerchiamo se il primo MMSI passato nei parametri esiste nella nostra lista
+            const firstParamMMSI = Array.from(allowedMMSI)[0];
+            if (ships.real[firstParamMMSI]) {
+                targetMMSI = firstParamMMSI;
+            }
+        }
+
+        // Se non c'è filtro o il filtro non ha prodotto risultati validi, prendiamo la prima
+        if (!targetMMSI) {
+            targetMMSI = realMMSIs[0];
+        }
+
+        selectShip(targetMMSI, 'real');
     } else {
         document.getElementById("empty-state").classList.remove("hidden");
     }
@@ -360,7 +373,7 @@ socket.on("analytics_update", msg => {
     if (!mmsi || !component) return;
 
     // 2. Filtro URL (Whitelist)
-    if (filterEnabled && !allowedMMSI.has(mmsi)) return;
+    // if (filterEnabled && !allowedMMSI.has(mmsi)) return;
 
     // 3. Determina Source
     const source = (msg.source && msg.source.toLowerCase() === 'ais_simulation.raw') ? 'simulation' : 'real';
