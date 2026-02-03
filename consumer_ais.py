@@ -15,14 +15,19 @@ from queue import Queue
 
 from kafka import KafkaConsumer
 
+# NOTE: bootstrap servers must be host:port (no http scheme)
+BOOTSTRAP_SERVERS = "87.26.178.190:29092"
+REAL_AIS_TOPIC = "ais_decoded.raw"
+SIMULATION_AIS_TOPIC = "ais_decoded_simulation.raw"
 
 class ConsumerAIS(threading.Thread):
-    def __init__(self, out_queue: Queue, topic: str = "ais_decoded.raw", bootstrap: str = None, group_id: str = None):
+    def __init__(self, out_queue: Queue, topic: str = REAL_AIS_TOPIC, bootstrap: str = None, group_id: str = None, is_simulation: bool = False):
         super().__init__(daemon=True)
         self.topic = topic
         self.out_queue = out_queue
+        self.is_simulation = is_simulation
         self._stop = threading.Event()
-        self.bootstrap = bootstrap or os.getenv("KAFKA_BOOTSTRAP", "87.26.178.190:29092")
+        self.bootstrap = bootstrap or os.getenv("KAFKA_BOOTSTRAP", BOOTSTRAP_SERVERS)
         # self.group_id = group_id or os.getenv("KAFKA_GROUP", "navalviewer_ais")
 
     def stop(self):
@@ -56,6 +61,9 @@ class ConsumerAIS(threading.Thread):
                             if msg is None:
                                 continue
                             value = msg.value
+                            if self.is_simulation:
+                                value['is_simulation'] = True
+                            
                             # push to queue for main thread processing
                             try:
                                 self.out_queue.put_nowait(value)
@@ -75,6 +83,12 @@ class ConsumerAIS(threading.Thread):
                 consumer.close()
             except Exception:
                 pass
+
+
+class ConsumerSimulation(ConsumerAIS):
+    """Consumer specifico per il topic di simulazione AIS."""
+    def __init__(self, out_queue: Queue, bootstrap: str = None, group_id: str = None):
+        super().__init__(out_queue, topic=SIMULATION_AIS_TOPIC, bootstrap=bootstrap, group_id=group_id, is_simulation=True)
 
 
 if __name__ == '__main__':

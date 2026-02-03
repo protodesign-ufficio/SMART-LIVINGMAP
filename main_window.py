@@ -257,7 +257,7 @@ class MainWindow(QMainWindow):
                     except Exception:
                         pass
                 except Exception:
-                    logger.exception("Error while draining AIS queue")
+                    pass
         except Exception:
             pass
 
