@@ -367,7 +367,8 @@ async function preloadRegistry() {
     const paramId = urlParams.get('id') || urlParams.get('mmsi');
     
     // Default source to 'real' unless 'simulation' is specified in URL
-    const paramSource = (urlParams.get('source') === 'simulation') ? 'simulation' : 'real';
+    const valSource = urlParams.get('source');
+    const paramSource = (valSource && valSource.toLowerCase() === 'simulation') ? 'simulation' : 'real';
 
     if (paramId) {
         // Se c'è un ID nell'URL, lo selezioniamo forzatamente.
