@@ -497,11 +497,30 @@ function updateInfoUI() {
         ["vessel-capacity","vessel-cost","vessel-speed"].forEach(id => document.getElementById(id).innerText = "--");
     }
 
-    if (r.route && r.route.percorso) {
-        document.getElementById("route-id").innerText = r.route.percorso.tratta_nome || r.route.percorso.tratta_id || "--";
-        document.getElementById("route-departure").innerText = formatISO(r.route.percorso.orario_partenza_schedulato);
-        document.getElementById("route-time").innerText = r.route.percorso.tempo_percorrenza?.toFixed(1) ?? "--";
-        document.getElementById("route-consumption").innerText = r.route.percorso.consumo?.toFixed(1) ?? "--";
+    let activeRoute = null;
+
+    if (r.route) {
+        // Handle new API response structure with multiple routes
+        if (Array.isArray(r.route.percorsi)) {
+            const isSim = (source === 'simulation');
+            const match = r.route.percorsi.find(item => {
+                // Check virtual flag in assegnazione. Default to false if missing.
+                const isVirtual = (item.assegnazione && item.assegnazione.virtuale === true);
+                return isVirtual === isSim;
+            });
+            if (match && match.percorso) activeRoute = match.percorso;
+        } 
+        // Handle legacy API response
+        else if (r.route.percorso) {
+            activeRoute = r.route.percorso;
+        }
+    }
+
+    if (activeRoute) {
+        document.getElementById("route-id").innerText = activeRoute.tratta_nome || activeRoute.tratta_id || "--";
+        document.getElementById("route-departure").innerText = formatISO(activeRoute.orario_partenza_schedulato);
+        document.getElementById("route-time").innerText = activeRoute.tempo_percorrenza?.toFixed(1) ?? "--";
+        document.getElementById("route-consumption").innerText = activeRoute.consumo?.toFixed(1) ?? "--";
     } else {
         ["route-id","route-departure","route-time","route-consumption"].forEach(id => document.getElementById(id).innerText = "--");
     }
