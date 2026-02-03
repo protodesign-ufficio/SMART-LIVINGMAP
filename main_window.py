@@ -248,7 +248,7 @@ class MainWindow(QMainWindow):
                 try:
                     # log the item for debug
                     try:
-                        js = f"window.updateShip({_json.dumps(item)})"
+                        js = f"if(typeof window.updateShip === 'function'){{window.updateShip({_json.dumps(item)})}}"
                         try:
                             self.view.page().runJavaScript(js)
                         except Exception:

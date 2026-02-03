@@ -241,30 +241,30 @@ class OptimizationDialog(QDialog):
                 if not vlist:
                     QMessageBox.warning(self, 'Errore', 'Nessun vascello disponibile per ottimizzare')
                     return
+
+                items_payload = []
                 for v in vlist:
                     if isinstance(v, dict):
                         vid = str(v.get('id', ''))
-                        name = v.get('nome') or v.get('name') or vid
                     else:
                         vid = str(v)
-                        name = vid
-                    # update progress label with current target
-                    status_label.setText(f"Ottimizzazione percorsi per la corsa {corsa_name} per il vascello {name}")
-                    QApplication.processEvents()
-                    try:
-                        post_json('weather_routing/carico', payload={
-                            'corsa_id': corsa_id,
-                            'vascello_id': vid,
-                            'eps_time': eps_time,
-                            'fake_data': True,
-                        }, timeout=300)
-                    except Exception as e:
-                        errors.append((vid, str(e)))
+
+                    items_payload.append({
+                        'corsa_id': corsa_id,
+                        'vascello_id': vid,
+                        'eps_time': eps_time,
+                        'fake_data': True,
+                        'tolerance': 1,
+                        've_min': 0.1
+                    })
+
+                status_label.setText(f"Invio richiesta ottimizzazione per tutti i vascelli...")
+                QApplication.processEvents()
+                
+                post_json('weather_routing/carico', payload={'items': items_payload}, timeout=300)
+                
                 status_dlg.close()
-                if errors:
-                    QMessageBox.warning(self, 'Errore', f'Ottimizzazione completata con errori: {errors}')
-                else:
-                    QMessageBox.information(self, 'Successo', 'Ottimizzazione completata per tutti i vascelli')
+                QMessageBox.information(self, 'Successo', f'Ottimizzazione massiva avviata per tutti i vascelli.')
                 self.accept()
                 return
 
@@ -274,12 +274,14 @@ class OptimizationDialog(QDialog):
                 return
 
             vname = self.vascello_cb.currentText() or str(vascello_id)
-            payload = {
+            payload = {'items': [{
                 'corsa_id': corsa_id,
                 'vascello_id': vascello_id,
                 'eps_time': eps_time,
                 'fake_data': True,
-            }
+                'tolerance': 1,
+                've_min': 0.1
+            }]}
             status_label.setText(f"Ottimizzazione percorsi per la corsa {corsa_name} per il vascello {vname}")
             QApplication.processEvents()
             post_json('weather_routing/carico', payload=payload, timeout=300)

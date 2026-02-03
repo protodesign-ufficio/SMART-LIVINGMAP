@@ -115,8 +115,11 @@ window.updateShip = function(data){
         }
         // update popup content to reflect latest state
         try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
-        // append to path (no max length; keep full history)
+        // append to path (limit history to 500 points to avoid memory leaks)
         s.coords.push([lat, lon]);
+        if (s.coords.length > 5000) {
+          s.coords.shift();
+        }
         if(s.polyline) s.polyline.setLatLngs(s.coords);
       }
     } else if(msg_type === 5){
