@@ -139,5 +139,13 @@ window.updateShip = function(data){
   }
 };
 
+window.updateShips = function(list) {
+  if (Array.isArray(list)) {
+      list.forEach(function(item) {
+          window.updateShip(item);
+      });
+  }
+};
+
 // expose for debugging
 window._nv_ships = ships;

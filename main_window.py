@@ -130,10 +130,10 @@ class MainWindow(QMainWindow):
         # request the application to open embedded dashboards
         try:
             self._webbridge = _WebBridge(self)
-            channel = QWebChannel(self.view.page())
-            channel.registerObject('pyMain', self._webbridge)
+            self._channel = QWebChannel(self.view.page())
+            self._channel.registerObject('pyMain', self._webbridge)
             try:
-                self.view.page().setWebChannel(channel)
+                self.view.page().setWebChannel(self._channel)
             except Exception:
                 # older/newer PyQt variants may not need this call
                 pass
@@ -232,32 +232,40 @@ class MainWindow(QMainWindow):
         """Drain AIS queue and forward updates to the embedded map JS.
 
         Each item put on the queue is expected to be a dict (the deserialized
-        Kafka message value). We call the global JS `updateShip(obj)` function
-        in the page context with the object.
+        Kafka message value). We batch items to minimize IPC calls to the web view.
         """
         q = self._ais_queue
         if q is None:
             return
+        
+        batch = []
+        MAX_BATCH = 100
+        
         try:
             import json as _json
-            while not q.empty():
+            import queue
+            
+            # Retrieve up to MAX_BATCH items
+            for _ in range(MAX_BATCH):
                 try:
                     item = q.get_nowait()
-                except Exception:
+                    batch.append(item)
+                except queue.Empty:
+                    # Queue is empty, stop collecting
                     break
+                except Exception:
+                    # Generic error reading queue
+                    break
+            
+            # If we have items, send them in one go
+            if batch:
                 try:
-                    # log the item for debug
-                    try:
-                        js = f"if(typeof window.updateShip === 'function'){{window.updateShip({_json.dumps(item)})}}"
-                        try:
-                            self.view.page().runJavaScript(js)
-                        except Exception:
-                            # ignore JS errors silently
-                            pass
-                    except Exception:
-                        pass
+                    # Calls window.updateShips([item1, item2, ...])
+                    js = f"if(typeof window.updateShips === 'function'){{window.updateShips({_json.dumps(batch)})}} else if(typeof window.updateShip === 'function'){{ {_json.dumps(batch)}.forEach(window.updateShip); }}"
+                    self.view.page().runJavaScript(js)
                 except Exception:
                     pass
+
         except Exception:
             pass
 

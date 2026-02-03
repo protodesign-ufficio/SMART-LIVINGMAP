@@ -5,12 +5,18 @@ This file provides a minimal entry point that imports `MainWindow` from
 """
 
 import sys
+import os
+
+# CONFIGURAZIONE GPU E WEBENGINE
+# Usa ANGLE (DirectX su Windows) per maggiore stabilità senza sacrificare le prestazioni
+os.environ["QT_OPENGL"] = "angle"
+# --no-sandbox risolve molti crash "silenziosi" del processo di rendering
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox"
+
 import queue
 import requests
 import ApiClient
 from PyQt5.QtWidgets import QApplication, QMessageBox
-# import os
-# os.environ['QTWEBENGINE_REMOTE_DEBUGGING'] = '9222'
 
 from main_window import MainWindow
 try:
