@@ -61,7 +61,7 @@ Dopo l'attivazione, il prompt dovrebbe mostrare il prefisso `(VENV_SMART)`.
 È buona pratica aggiornare `pip` prima dell'installazione:
 
 ```cmd
-pip install -r ProjectSMART\requirements.txt
+pip install -r smart-livingmap\requirements.txt
 ```
 
 Se l'installazione dovesse fallire per pacchetti nativi, verificare di avere
@@ -73,7 +73,7 @@ precompilati (wheels) quando disponibili.
 Per eseguire l'applicazione principale:
 
 ```cmd
-python ProjectSMART\main.py
+python smart-livingmap\main.py
 ```
 
 Se tutto è configurato correttamente, l'applicazione dovrebbe avviarsi e
