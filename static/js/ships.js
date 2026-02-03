@@ -9,7 +9,7 @@ window._nv_ships = window._nv_ships || {};
 
 // Called from popup button. Attempts to call into the PyQt application via
 // the QWebChannel bridge; falls back to opening a new browser window.
-function openDashboardVesselFromPopup(encodedMmsi){
+function openDashboardVesselFromPopup(encodedMmsi, source){
   var mmsi = '';
   try{ mmsi = decodeURIComponent(encodedMmsi || ''); }catch(e){ mmsi = encodedMmsi || ''; }
   var pageRelative = 'static/dashboard/index.html#/vascello';
@@ -17,7 +17,7 @@ function openDashboardVesselFromPopup(encodedMmsi){
   try{
     if(window.pyMain && typeof window.pyMain.openDashboard === 'function'){
       try{
-        window.pyMain.openDashboard(pageRelative, JSON.stringify({mmsi: mmsi}), 'Vascello: ' + mmsi, 1500, 900);
+        window.pyMain.openDashboard(pageRelative, JSON.stringify({mmsi: mmsi, source: source || 'real'}), 'Vascello: ' + mmsi, 1500, 900);
         return;
       }catch(e){ /* fallthrough to fallback */ }
     }
@@ -29,7 +29,7 @@ function openDashboardVesselFromPopup(encodedMmsi){
     if(indexUrl === base){
       try{ var parts = base.split('/'); parts.pop(); indexUrl = parts.join('/') + '/dashboard/index.html'; }catch(e){ indexUrl = 'dashboard/index.html'; }
     }
-    var full = indexUrl + '#/vascello?mmsi=' + encodeURIComponent(mmsi || '');
+    var full = indexUrl + '#/vascello?mmsi=' + encodeURIComponent(mmsi || '') + '&source=' + encodeURIComponent(source || 'real');
     window.open(full, '_blank');
   }catch(e){ /* ignore */ }
 }
@@ -53,6 +53,7 @@ function makeShipIcon(color, heading){
 
 function popupHtml(m){
   const staticInfo = m.static || {};
+  const source = staticInfo.is_simulation ? 'simulation' : 'real';
   return `<div style="font-size:12px">
     <b>${staticInfo.shipname || ''}</b><br/>
     MMSI: ${m.mmsi || ''}<br/>
@@ -61,7 +62,7 @@ function popupHtml(m){
     Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
     Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}<br/>
     Sorgente: <b>${staticInfo.is_simulation ? 'Simulazione' : 'Reale'}</b><br/><br/>
-    <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}')">Mostra in Dashboard</button>
+    <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}', '${source}')">Mostra in Dashboard</button>
   </div>`;
 }
 

@@ -189,9 +189,11 @@ async function handlePianoChange(e) {
         const res = await fetch(url);
         const data = await res.json();
         
-        // Mappa assegnazioni server
+        // Mappa assegnazioni server (solo PIANIFICATA)
         data.forEach(ass => {
-            state.assegnazioni[ass.id_corsa] = { ...ass, isLocal: false };
+            if (ass.stato_esecuzione === 'PIANIFICATA') {
+                state.assegnazioni[ass.id_corsa] = { ...ass, isLocal: false };
+            }
         });
         
         console.log('Assegnazioni piano loaded:', data.length);
@@ -381,8 +383,29 @@ function renderGantt() {
 
             if (startParams) {
                 const bar = document.createElement('div');
-                bar.className = `absolute h-8 top-2 rounded px-2 flex items-center shadow-lg text-xs font-bold text-white whitespace-nowrap overflow-hidden task-bar
-                    ${assigned.isLocal ? 'status-assigned-local' : 'status-assigned-server'}`;
+                
+                // Determina classi stile base
+                let baseClasses = `absolute h-8 top-2 rounded px-2 flex items-center shadow-lg text-xs font-bold whitespace-nowrap overflow-hidden task-bar`;
+                
+                // Gestione stile Virtuale vs Reale
+                const isVirtual = assigned.virtuale === true;
+                const statusClass = assigned.isLocal ? 'status-assigned-local' : 'status-assigned-server';
+                
+                if (isVirtual) {
+                    // Stile Virtuale: Trasparente con Bordo
+                    bar.className = `${baseClasses} bg-transparent border-2`;
+                    // Applico colori inline per semplicità non avendo classi CSS specifiche per i bordi nel file
+                    if (assigned.isLocal) {
+                        bar.style.borderColor = '#22c55e'; // green-500
+                        bar.style.color = '#22c55e';
+                    } else {
+                        bar.style.borderColor = '#3b82f6'; // blue-500
+                        bar.style.color = '#3b82f6';
+                    }
+                } else {
+                    // Stile Reale: Pieno
+                    bar.className = `${baseClasses} text-white ${statusClass}`;
+                }
                 
                 // Posizionamento
                 const leftPx = timeToPixels(startParams);
@@ -393,7 +416,7 @@ function renderGantt() {
                 
                 // Content
                 const vascelloName = state.vascelli[assigned.vascello_id] ? state.vascelli[assigned.vascello_id].nome : 'Vascello ' + assigned.vascello_id;
-                bar.innerText = vascelloName;
+                bar.innerText = isVirtual ? `${vascelloName}` : vascelloName;
                 track.appendChild(bar);
             }
 
@@ -476,26 +499,43 @@ async function openCorsaModal(corsaId) {
                 <td class="px-4 py-3">${Math.round(p._derivedDuration || 0)} min</td>
                 <td class="px-4 py-3">${p.consumo || '-'} L</td>
                 <td class="px-4 py-3">${p.comfort || '-'}</td>
-                <td class="px-4 py-3">
-                    <button 
-                        class="px-3 py-1 rounded text-xs font-bold ${conflict ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}"
-                        ${conflict ? 'disabled' : ''}
-                        onclick="${conflict ? '' : `selectPercorso('${p.id}')`}" 
-                        data-percorso-obj='${JSON.stringify(p).replace(/'/g, "&#39;")}'
-                    >
-                        ${conflict ? 'Occupato' : 'Seleziona'}
-                    </button>
-                    ${conflict ? `<div class="text-[10px] text-red-400 mt-1">Conflitto orario</div>` : ''}
+                <td class="px-4 py-3 space-x-2">
+                    ${!conflict ? `
+                        <button 
+                            class="px-3 py-1 rounded text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white"
+                            onclick="window.selectPercorsoById('${p.id}', false)" 
+                        >
+                            Assegna
+                        </button>
+                        <button 
+                            class="px-3 py-1 rounded text-xs font-bold bg-transparent border border-blue-500 hover:bg-blue-500/10 text-blue-400"
+                            onclick="window.selectPercorsoById('${p.id}', true)" 
+                        >
+                            Simulazione
+                        </button>
+                    ` : `
+                        <button disabled class="px-3 py-1 rounded text-xs font-bold bg-slate-700 text-slate-500 cursor-not-allowed">
+                            Occupato
+                        </button>
+                        <div class="text-[10px] text-red-400 mt-1">Conflitto orario</div>
+                    `}
                 </td>
             `;
 
-            // Brutto hack per passare l'oggetto via onclick string, meglio addEventListener
-            // Ma per rapidità qui uso un trick: attach data to button row
-            const btn = tr.querySelector('button');
-            if (!conflict) {
-                btn.onclick = () => selectPercorso(p);
-            }
-
+            // Nota: Ho rimosso il trick del data-percorso-obj perché ora passiamo l'ID e recuperiamo l'oggetto dalla lista locale se necessario,
+            // oppure (meglio) passiamo l'oggetto intero se la funzione lo supporta ancora, ma selectPercorso prendeva un Obj prima.
+            // Aggiorno selectPercorso per prendere ID e flag, o gestisco qui il passaggio
+            
+            // FIX: selectPercorso si aspetta un OGGETTO intero (usato poi per _percorsoDetails).
+            // Dobbiamo mantenere la signature o cambiare l'approccio. 
+            // Dato che siamo in una stringa HTML onclick, passare un oggetto complesso è rischioso (escaping JSON).
+            // Soluzione migliore: salvare i percorsi in una mappa temporanea per ID e fare lookup.
+            state._tempPercorsiMap = state._tempPercorsiMap || {};
+            state._tempPercorsiMap[p.id] = p;
+            
+            // Ridefiniamo l'onclick per chiamare un helper che recupera l'oggetto
+            // Modifico la stringa HTML sopra per chiamare selectPercorsoById
+            
             tbody.appendChild(tr);
         });
 
@@ -512,11 +552,26 @@ function formatMinutesToTime(totalMins) {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-// Deprecated or Unused parsing helper can be removed or kept just in case
-// function parseTempoPercorrenza...
+// Helper bridge per chiamare selectPercorso dalla stringa HTML onclick
+window.selectPercorsoById = function(percorsoId, isSimulation) {
+    const p = state._tempPercorsiMap[percorsoId];
+    if (p) {
+        selectPercorso(p, isSimulation);
+    } else {
+        console.error('Percorso not found in temp map', percorsoId);
+    }
+};
 
-function selectPercorso(percorsoObj) {
+function selectPercorso(percorsoObj, isSimulation = false) {
     if (!state.activeModalCorsaId) return;
+
+    // Check for existing server assignment to cancel later
+    const existing = state.assegnazioni[state.activeModalCorsaId];
+    let prevId = null;
+    if (existing) {
+        if (!existing.isLocal) prevId = existing.id; // It's from server
+        else if (existing._previousServerAssignmentId) prevId = existing._previousServerAssignmentId; // Already local edit of server item
+    }
 
     // Aggiorna stato locale
     state.assegnazioni[state.activeModalCorsaId] = {
@@ -525,9 +580,10 @@ function selectPercorso(percorsoObj) {
         vascello_id: percorsoObj.vascello_id,
         piano_id: state.selectedPianoId,
         stato_esecuzione: "PIANIFICATA",
-        virtuale: true,
+        virtuale: isSimulation, // Usa il flag passato dal bottone
         isLocal: true,
-        _percorsoDetails: percorsoObj // Salviamo i dettagli per il render corretto
+        _percorsoDetails: percorsoObj, // Salviamo i dettagli per il render corretto
+        _previousServerAssignmentId: prevId
     };
 
     closeModal();
@@ -548,26 +604,36 @@ function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
     const startMins = isoToMinutes(startIso);
     const endMins = isoToMinutes(endIso);
 
-    // Itera tutte le assegnazioni correnti
+    // Itera tutte le assegnazioni correnti (Locali E Server)
     for (const [cId, ass] of Object.entries(state.assegnazioni)) {
         if (cId === currentCorsaId) continue; // Salta se stessa (caso edit)
         if (ass.vascello_id !== vascelloId) continue; // Altro vascello, ok
 
-        // Recupera orari dell'altra assegnazione
-        // Qui sta il problema: se l'assegnazione viene dal server, potrei non avere gli orari precisi
-        // (Vedi note in renderGantt).
-        // PER ORA: controlliamo solo contro le assegnazioni LOCALI che hanno _percorsoDetails ricco.
-        // Se vogliamo controllare contro server, dovremmo avere info orarie nel payload server assegnazione.
-        // Assumiamo che per un MVP il controllo lato client avvenga perlopiù su quello che stiamo costruendo.
-        
-        if (ass.isLocal && ass._percorsoDetails) {
-            const otherStart = isoToMinutes(ass._percorsoDetails.orario_partenza_schedulato);
-            const otherEnd = isoToMinutes(ass._percorsoDetails.orario_arrivo_previsto);
+        let otherStart = 0;
+        let otherEnd = 0;
 
-            // Overlap logic: (StartA < EndB) && (EndA > StartB)
-            if (startMins < otherEnd && endMins > otherStart) {
-                return true; // Conflict
+        // Se abbiamo i dettagli del percorso (O da local o da enrichment background)
+        if (ass._percorsoDetails) {
+            otherStart = isoToMinutes(ass._percorsoDetails.orario_partenza_schedulato);
+            otherEnd = isoToMinutes(ass._percorsoDetails.orario_arrivo_previsto);
+        } else {
+            // Fallback: Assegnazione esistente su server ma dettagli non ancora caricati
+            // Recuperiamo almeno l'orario di partenza dalla corsa associata in memoria state.corse
+            const existingCorsa = state.corse.find(c => c.id === ass.id_corsa);
+            if (existingCorsa && existingCorsa.orario) {
+                otherStart = isoToMinutes(existingCorsa.orario);
+                // Stima durata difensiva (es. 60 min) per non ignorare completamente il conflitto
+                // Se possibile, è meglio che l'enrichment sia veloce.
+                otherEnd = otherStart + 60; 
+            } else {
+                // Se non abbiamo dati temporali è impossibile verificare, saltiamo (o logghiamo warning)
+                continue;
             }
+        }
+
+        // Overlap logic: (StartA < EndB) && (EndA > StartB)
+        if (startMins < otherEnd && endMins > otherStart) {
+            return true; // Conflict
         }
     }
     return false;
@@ -599,11 +665,22 @@ async function savePiano() {
     // ENDPOINT_ASSEGNAZIONE/CREA
     for (const ass of localAssignments) {
         try {
+            // 1. Se c'era una assegnazione precedente sul server (PIANIFICATA), la annulliamo
+            if (ass._previousServerAssignmentId) {
+                const patchUrl = API_ROOT + `assegnazione/${ass._previousServerAssignmentId}/stato`;
+                await fetch(patchUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stato_esecuzione: 'CANCELLATA' })
+                });
+            }
+
+            // 2. Creiamo la nuova assegnazione
             const payload = {
                 piano_id: state.selectedPianoId,
                 percorso_id: ass.percorso_id,
                 stato_esecuzione: "PIANIFICATA",
-                virtuale: true
+                virtuale: ass.virtuale // Usa il valore salvato (true/false) invece di hardcoded true
             };
 
             const res = await fetch(ENDPOINTS.ASSEGNAZIONE_CREA, {
@@ -615,7 +692,12 @@ async function savePiano() {
             if (!res.ok) throw new Error('API Error');
             
             // Mark as saved (server)
+            const jsonRes = await res.json(); 
+            // Aggiorna ID reale e pulisci stato locale
             state.assegnazioni[ass.id_corsa].isLocal = false;
+            state.assegnazioni[ass.id_corsa].id = jsonRes.id;
+            delete state.assegnazioni[ass.id_corsa]._previousServerAssignmentId;
+
             successCount++;
 
         } catch (e) {
