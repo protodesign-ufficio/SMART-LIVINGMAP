@@ -6,7 +6,8 @@ const ENDPOINTS = {
     PERCORSO_CORSA: (id) => API_ROOT + `percorso/by_corsa/${id}`,
     PIANO_LISTA: API_ROOT + 'piano/lista',   // ?data_riferimento=YYYY-MM-DD
     ASSEGNAZIONE_PIANO: (id) => API_ROOT + `assegnazione/by_piano/${id}`,
-    ASSEGNAZIONE_CREA: API_ROOT + 'assegnazione/crea'
+    ASSEGNAZIONE_CREA: API_ROOT + 'assegnazione/crea',
+    PIANIFICAZIONE_COMPATIBILI: API_ROOT + 'pianificazione/compatibili'
 };
 
 // Global State
@@ -327,8 +328,8 @@ function renderGantt() {
         const label = document.createElement('div');
         label.className = 'w-64 shrink-0 border-r border-slate-800 flex flex-col justify-center px-4 truncate bg-slate-950 z-20 sticky left-0 border-b border-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.3)]';
         label.innerHTML = `
-            <div class="text-sm font-medium text-slate-300 truncate" title="${corsa.nome}">${corsa.nome}</div>
-            <div class="text-xs text-slate-500">${corsa.tratta || corsa.tratta_nome || 'N/A'} - ${corsa.orario || 'N/A'}</div>
+            <div class="text-sm font-medium text-slate-300 truncate">${corsa.tratta || 'N/A'} - ${corsa.orario || 'N/A'} ➜ ${corsa.orario_arrivo_max || 'N/A'}</div>
+            <div class="text-xs text-slate-500">${corsa.nome || corsa.tratta_nome || 'N/A'}</div>
         `;
         row.appendChild(label);
 
@@ -417,6 +418,69 @@ function renderGantt() {
                 // Content
                 const vascelloName = state.vascelli[assigned.vascello_id] ? state.vascelli[assigned.vascello_id].nome : 'Vascello ' + assigned.vascello_id;
                 bar.innerText = isVirtual ? `${vascelloName}` : vascelloName;
+
+                // Tooltip Events
+                bar.addEventListener('mouseenter', (e) => {
+                    const tooltip = createTooltip();
+                    const details = assigned._percorsoDetails || {};
+                    // Se non abbiamo dettagli ma solo l'assegnazione server base, usiamo placeholder
+                    
+                    // Orari: Preferiamo quelli del percorso, fallback su quelli della corsa (partenza)
+                    const startStrRaw = details.orario_partenza_schedulato || corsa.orario;
+                    const endStrRaw = details.orario_arrivo_previsto;
+                    
+                    const startDisplay = formatTimeStr(startStrRaw);
+                    const endDisplay = endStrRaw ? formatTimeStr(endStrRaw) : '--:--';
+                    
+                    const duration = Math.round(details._derivedDuration || durationMinutes);
+                    const consumo = details.consumo !== undefined ? details.consumo : 'N/A';
+                    const comfort = details.comfort !== undefined ? details.comfort : 'N/A';
+
+                    tooltip.innerHTML = `
+                        <div class="font-bold text-white mb-2 border-b border-slate-600 pb-1 flex items-center justify-between gap-2">
+                            <span>${vascelloName}</span>
+                            ${assigned.virtuale ? '<span class="text-[10px] bg-blue-900/80 text-blue-200 px-1.5 py-0.5 rounded border border-blue-700/50 uppercase tracking-widest font-semibold flex-shrink-0">Simulazione</span>' : ''}
+                        </div>
+                        <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                            <span class="text-slate-400">Orario:</span>
+                            <span class="font-mono text-slate-200">${startDisplay} ➜ ${endDisplay}</span>
+                            
+                            <span class="text-slate-400">Durata:</span>
+                            <span class="text-slate-200">${duration} min</span>
+                            
+                            <span class="text-slate-400">Consumo:</span>
+                            <span class="text-slate-200">${consumo} L</span>
+                            
+                            <span class="text-slate-400">Comfort:</span>
+                            <span class="text-slate-200">${comfort}</span>
+                            
+                        </div>
+                    `;
+                    
+                    // Initial Position
+                    const x = e.clientX + 15;
+                    const y = e.clientY + 15;
+                    tooltip.style.left = `${x}px`;
+                    tooltip.style.top = `${y}px`;
+                    
+                    tooltip.classList.remove('invisible');
+                });
+
+                bar.addEventListener('mousemove', (e) => {
+                    const tooltip = document.getElementById('gantt-tooltip');
+                    if(tooltip) {
+                        const x = e.clientX + 15;
+                        const y = e.clientY + 15;
+                        tooltip.style.left = `${x}px`;
+                        tooltip.style.top = `${y}px`;
+                    }
+                });
+
+                bar.addEventListener('mouseleave', () => {
+                    const tooltip = document.getElementById('gantt-tooltip');
+                    if (tooltip) tooltip.classList.add('invisible');
+                });
+
                 track.appendChild(bar);
             }
 
@@ -427,9 +491,18 @@ function renderGantt() {
             if (timeParts) {
                 const bar = document.createElement('div');
                 bar.className = 'absolute h-8 top-2 rounded px-2 flex items-center border border-red-500 bg-red-500/20 text-red-400 text-xs font-bold whitespace-nowrap overflow-hidden task-bar status-unassigned';
-                // Default 1h duration visual hint
+                // Default 1h duration visual hint or calc based on orario_arrivo_max
+                let duration = 60;
+                if (corsa.orario_arrivo_max) {
+                    const startMins = (timeParts.h * 60) + timeParts.m;
+                    const endMins = isoToMinutes(corsa.orario_arrivo_max);
+                    if (endMins > startMins) {
+                        duration = endMins - startMins;
+                    }
+                }
+
                 const leftPx = timeToPixels(timeParts);
-                const widthPx = minutesToPixels(60); 
+                const widthPx = minutesToPixels(duration);
 
                 bar.style.left = `${leftPx}px`;
                 bar.style.width = `${widthPx}px`;
@@ -455,9 +528,33 @@ async function openCorsaModal(corsaId) {
     modal.classList.remove('hidden');
 
     try {
-        const res = await fetch(ENDPOINTS.PERCORSO_CORSA(corsaId));
-        const data = await res.json(); // { corsa_id, percorsi: [] }
-        const percorsi = data.percorsi || [];
+        // Prepare payload for compatibility check
+        // Raccogliamo tutti i percorsi attualmente assegnati (DB + Locali), escludendo l'eventuale assegnazione della corsa corrente che stiamo modificando
+        const assignedPercorsiIds = Object.values(state.assegnazioni)
+            .filter(a => a.id_corsa !== corsaId) 
+            .map(a => a.percorso_id)
+            .filter(id => !!id);
+
+        const payload = {
+            corsa_id: corsaId,
+            percorsi_id: assignedPercorsiIds
+        };
+
+        // Fetch in parallelo: Tutti i percorsi possibili + Check compatibilità
+        const [resAll, resCompat] = await Promise.all([
+            fetch(ENDPOINTS.PERCORSO_CORSA(corsaId)),
+            fetch(ENDPOINTS.PIANIFICAZIONE_COMPATIBILI, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+        ]);
+
+        const dataAll = await resAll.json(); // { computer_id, percorsi: [] }
+        const dataCompat = await resCompat.json(); // { corsa_id, percorsi_compatibili: [...] }
+
+        const percorsi = dataAll.percorsi || [];
+        const compatibiliIds = new Set((dataCompat.percorsi_compatibili || []).map(p => p.percorso_id));
 
         // Recupera la Corsa corrente per prendere l'orario di partenza
         const currentCorsa = state.corse.find(c => c.id === corsaId);
@@ -483,7 +580,8 @@ async function openCorsaModal(corsaId) {
 
 
             // Validazione Conflitti (con i valori calcolati)
-            const conflict = checkConflict(p.vascello_id, p.orario_partenza_schedulato, p.orario_arrivo_previsto, corsaId);
+            // const conflict = checkConflict(p.vascello_id, p.orario_partenza_schedulato, p.orario_arrivo_previsto, corsaId);
+            const conflict = !compatibiliIds.has(p.id);
             
             const tr = document.createElement('tr');
             tr.className = `border-b border-slate-800 hover:bg-white/5 transition-colors ${conflict ? 'opacity-50 grayscale' : ''}`;
@@ -596,7 +694,7 @@ function closeModal() {
 }
 
 // --- Conflict Logic ---
-
+// --- DEPRECATED : la logica di conflitto è demandata al backend ---
 function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
     // startIso e endIso sono stringhe complete o parti? L'API dice "string"
     // Assumiamo siano timestamp completi o orari. Se sono orari HH:MM, li normalizziamo a minuti
@@ -712,9 +810,17 @@ async function savePiano() {
     if (errors > 0) {
         alert(`Salvato con errori. Successi: ${successCount}, Errori: ${errors}`);
     } else {
-        // Reload per sicurezza e pulizia
-        // handlePianoChange({ target: { value: state.selectedPianoId }});
-        renderGantt(); // Rerender aggiorna colori a blu (server)
+        // Rerender aggiorna colori a blu (server) e stato locale
+        renderGantt(); 
+
+        // Ricarica la lista dei piani per aggiornare il conteggio assegnazioni nella select
+        const currentPianoId = state.selectedPianoId;
+        await loadPiani();
+        const select = document.getElementById('piano-select');
+        if (select && currentPianoId) {
+            select.value = currentPianoId;
+        }
+
         alert('Piano aggiornato con successo!');
     }
 }
@@ -764,4 +870,15 @@ function formatTimeStr(isoStr) {
     const t = parseTime(isoStr);
     if (!t) return '--:--';
     return `${t.h.toString().padStart(2,'0')}:${t.m.toString().padStart(2,'0')}`;
+}
+
+function createTooltip() {
+    let tooltip = document.getElementById('gantt-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'gantt-tooltip';
+        tooltip.className = 'fixed z-50 invisible bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg shadow-2xl p-3 min-w-[200px] pointer-events-none backdrop-blur-sm bg-opacity-95';
+        document.body.appendChild(tooltip);
+    }
+    return tooltip;
 }

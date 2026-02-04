@@ -116,9 +116,9 @@ window.updateShip = function(data){
         }
         // update popup content to reflect latest state
         try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
-        // append to path (limit history to 500 points to avoid memory leaks)
+        // append to path (limit history to 10000 points to avoid memory leaks)
         s.coords.push([lat, lon]);
-        if (s.coords.length > 5000) {
+        if (s.coords.length > 10000) {
           s.coords.shift();
         }
         if(s.polyline) s.polyline.setLatLngs(s.coords);
