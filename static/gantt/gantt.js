@@ -10,6 +10,12 @@ const ENDPOINTS = {
     PIANIFICAZIONE_COMPATIBILI: API_ROOT + 'pianificazione/compatibili'
 };
 
+const colorScheme = {
+    assignedLocal: '#22c55e',   // green-500
+    assignedServer: '#3b82f6',  // blue-500
+    unassigned: '#ef4444'       // red-500
+};
+
 // Global State
 let state = {
     today: new Date().toISOString().split('T')[0], // YYYY-MM-DD
@@ -397,11 +403,11 @@ function renderGantt() {
                     bar.className = `${baseClasses} bg-transparent border-2`;
                     // Applico colori inline per semplicità non avendo classi CSS specifiche per i bordi nel file
                     if (assigned.isLocal) {
-                        bar.style.borderColor = '#22c55e'; // green-500
-                        bar.style.color = '#22c55e';
+                        bar.style.borderColor = colorScheme.assignedLocal; // green-500
+                        bar.style.color = colorScheme.assignedLocal;
                     } else {
-                        bar.style.borderColor = '#3b82f6'; // blue-500
-                        bar.style.color = '#3b82f6';
+                        bar.style.borderColor = colorScheme.assignedServer; // blue-500
+                        bar.style.color = colorScheme.assignedServer;
                     }
                 } else {
                     // Stile Reale: Pieno

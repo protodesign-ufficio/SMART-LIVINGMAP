@@ -1,9 +1,9 @@
 // ships.js
 // Manage ship markers and tracks on the Leaflet map.
 
-real_ship_color = '#00C800'; // default orange for real AIS
-simulation_ship_color = '#007FFF'; // DarkTurquoise/Azureish for simulation
-debug_ship_color = '#eeff00'; // bright yellow for debug (if needed)
+real_ship_color = '#00C800';        // default orange for real AIS
+simulation_ship_color = '#007FFF';  // DarkTurquoise/Azureish for simulation
+debug_ship_color = '#eeff00';       // bright yellow for debug (if needed)
 
 window._nv_ships = window._nv_ships || {};
 

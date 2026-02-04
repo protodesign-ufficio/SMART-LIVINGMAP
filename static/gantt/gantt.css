@@ -10,9 +10,6 @@
     background-attachment: local;
 }
 
-#timeline-hours {
-    /* Ensure header matches body grid */
-}
 
 .hour-marker {
     width: var(--hour-width, 60px);
