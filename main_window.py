@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
         self.open_gantt_btn.clicked.connect(
             lambda: self.open_dashboard_embedded(
                 'static/gantt/gantt.html',
-                query={'giorno': '2026-01-29'},
+                query={'giorno': time.strftime('%Y-%m-%d')},
                 title='Gantt',
                 size=(1600, 900),
             )

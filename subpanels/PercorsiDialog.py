@@ -251,7 +251,14 @@ class PercorsiDialog(QDialog):
         for p in percorsi:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            tempo = p.get('tempo_percorrenza', '')
+
+            tempo_val = p.get('tempo_percorrenza')
+            if tempo_val is not None:
+                try:
+                    tempo = f"{float(tempo_val):.2f}"
+                except ValueError:
+                    tempo = str(tempo_val)
+
             consumo = p.get('consumo', '')
             comfort = p.get('comfort', '')
 

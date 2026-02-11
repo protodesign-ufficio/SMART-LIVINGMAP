@@ -151,6 +151,7 @@ class OptimizationDialog(QDialog):
     def __init__(self, parent=None, corsa_id=None):
         super().__init__(parent)
         self.setWindowTitle('Ottimizza Percorsi')
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
         self.corsa_id = str(corsa_id) if corsa_id is not None else ''
 
         layout = QVBoxLayout(self)
@@ -254,7 +255,7 @@ class OptimizationDialog(QDialog):
                     'corsa_id': corsa_id,
                     'vascello_id': vid,
                     'eps_time': eps_time,
-                    'fake_data': True,
+                    'fake_data': False,
                     'tolerance': 1,
                     've_min': 0.1
                 })
@@ -269,7 +270,7 @@ class OptimizationDialog(QDialog):
                 'corsa_id': corsa_id,
                 'vascello_id': vascello_id,
                 'eps_time': eps_time,
-                'fake_data': True,
+                'fake_data': False,
                 'tolerance': 1,
                 've_min': 0.1
             }]}
@@ -310,6 +311,7 @@ class OptimizationDayDialog(QDialog):
     def __init__(self, parent=None, initial_date=None):
         super().__init__(parent)
         self.setWindowTitle('Ottimizza Giorno')
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
         self.resize(250, 380)
         
         layout = QVBoxLayout(self)
@@ -413,7 +415,7 @@ class OptimizationDayDialog(QDialog):
             "end": f"{d_str}T23:59:00",
             "vessels": selected_ids,
             "eps_time": 5,
-            "fake_data": True
+            "fake_data": False
         }
         
         # Disable UI and start thread
@@ -422,7 +424,7 @@ class OptimizationDayDialog(QDialog):
         self.table.setEnabled(False)
         self.date_edit.setEnabled(False)
         
-        self.worker = OptimizationWorker('assegnazione/pianifica', payload)
+        self.worker = OptimizationWorker('assegnazione/pianifica', payload, timeout=600)
         self.worker.finished.connect(self._on_opt_finished)
         self.worker.error.connect(self._on_opt_error)
         self.worker.start()
@@ -757,8 +759,8 @@ class CorsePanel(QWidget):
         if corsa_id is None and item is not None:
             corsa_id = item.text()
 
-        dlg = OptimizationDialog(self, corsa_id=corsa_id)
-        dlg.exec_()
+        self._opt_dialog = OptimizationDialog(self, corsa_id=corsa_id)
+        self._opt_dialog.show()
 
     def _open_dashboard(self):
         # open the previsione_domanda dashboard page for the selected corsa
@@ -815,5 +817,5 @@ class CorsePanel(QWidget):
 
     def open_optimize_day_dialog(self):
         cur_date = self.date_filter.date()
-        dlg = OptimizationDayDialog(self, initial_date=cur_date)
-        dlg.exec_()
+        self._opt_day_dialog = OptimizationDayDialog(self, initial_date=cur_date)
+        self._opt_day_dialog.show()

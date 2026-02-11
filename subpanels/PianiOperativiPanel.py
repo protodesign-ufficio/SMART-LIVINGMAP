@@ -336,10 +336,13 @@ class PianiOperativiPanel(QWidget):
                         # Crea Assegnazioni (Bulk)
                         percorsi_list = []
                         for act in activities:
-                            percorsi_list.append({
-                                "percorso_id": act.get('route_id'),
-                                "virtuale": False
-                            })
+                            if act.get('route_id') is None: # TODO GESTIRE RIPOSIZIONAMENTI
+                                continue
+                            else:
+                                percorsi_list.append({
+                                    "percorso_id": act.get('route_id'),
+                                    "virtuale": False
+                                })
 
                         if percorsi_list:
                             bulk_payload = {
@@ -396,15 +399,16 @@ class DettagliPianoDialog(QDialog):
     def __init__(self, parent=None, piano_id=None, data_riferimento=None):
         super().__init__(parent)
         self.setWindowTitle(f"Dettagli Piano Operativo: {_format_date(data_riferimento)}")
-        self.resize(800,600)
+        self.resize(700, 600)
         layout = QVBoxLayout(self)
 
-        # table for assignments (include additional percorso fields)
-        self.table = QTableWidget(0, 6, self)
+        # table for assignments with separated columns
+        self.table = QTableWidget(0, 8, self)
         self.table.setHorizontalHeaderLabels([
-            'Vascello', 'Stato Esecuzione', 'Virtuale',
-            'Tempo Percorrenza', 'Consumo', 'Comfort'
+            'Tratta', 'Partenza', 'Durata', 'Vascello', 
+            'Stato Esecuzione', 'Virtuale', 'Consumo', 'Comfort'
         ])
+        
         layout.addWidget(self.table)
 
         # load assignments
@@ -430,56 +434,102 @@ class DettagliPianoDialog(QDialog):
             QMessageBox.warning(self, 'Errore', f'Impossibile caricare assegnazioni: {e}')
             return
 
-        self.table.setRowCount(0)
+        # Prepare list for sorting
+        row_items = []
+
         for a in data:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
             percorso_id = a.get('percorso_id') or ''
             vascello_id = a.get('vascello_id') or ''
-            percorso = get_corsa_name_or_from_percorso(percorso_id) if percorso_id else ''
-            vascello = get_vascello_name(vascello_id) if vascello_id else ''
+            
+            vascello_name = get_vascello_name(vascello_id) if vascello_id else ''
             stato = str(a.get('stato_esecuzione') or '')
             virtuale = str(a.get('virtuale', False))
 
-            # default additional fields
-            tempo_percorrenza = ''
-            consumo = ''
-            comfort = ''
-            # try to fetch percorso details (use cache if available)
-            try:
-                pid = str(percorso_id)
-                p = None
-                if pid and pid in _percorso_cache:
-                    p = _percorso_cache[pid]
-                elif pid and get_json is not None:
-                    try:
-                        p = get_json(f'percorso/{pid}')
-                        if isinstance(p, dict):
-                            _percorso_cache[pid] = p
-                    except Exception:
-                        p = None
-                if isinstance(p, dict):
-                    tempo_percorrenza = str(p.get('tempo_percorrenza') or '')
-                    consumo = str(p.get('consumo') or '')
-                    comfort = str(p.get('comfort') or '')
-            except Exception:
-                pass
+            # info retrieved from expanded endpoint
+            tratta_nome = "N/D"
+            orario_fmt = ""
+            orario_sort = ""
+            tempo_str = ""
+            consumo_str = ""
+            comfort_str = ""
 
-            it_vas = QTableWidgetItem(vascello)
-            it_st = QTableWidgetItem(stato)
-            it_vi = QTableWidgetItem(virtuale)
-            it_tp = QTableWidgetItem(tempo_percorrenza)
-            it_cons = QTableWidgetItem(consumo)
-            it_comf = QTableWidgetItem(comfort)
-            for it in (it_vas, it_st, it_vi, it_tp, it_cons, it_comf):
+            if percorso_id:
+                try:
+                    # Request with includes
+                    p_info = get_json(f'percorso/{percorso_id}?include=corsa,tratta,vascello')
+                    if isinstance(p_info, dict):
+                        # Extract info
+                        tratta_obj = p_info.get('tratta') or {}
+                        tratta_nome = tratta_obj.get('nome') or 'Tratta N/D'
+                        
+                        corsa_obj = p_info.get('corsa') or {}
+                        orario_partenza = corsa_obj.get('orario_partenza_schedulato') or ''
+                        orario_sort = orario_partenza
+                        
+                        # Format time
+                        if orario_partenza:
+                            orario_fmt = orario_partenza
+                            if 'T' in str(orario_partenza):
+                                try:
+                                    from datetime import datetime
+                                    dt = datetime.fromisoformat(str(orario_partenza).replace('Z', '+00:00'))
+                                    orario_fmt = dt.strftime('%H:%M')
+                                except Exception:
+                                    pass
+                        
+                        tempo_val = p_info.get('tempo_percorrenza')
+                        if tempo_val is not None:
+                            try:
+                                tempo_str = f"{float(tempo_val):.2f}"
+                            except ValueError:
+                                tempo_str = str(tempo_val)
+                        
+                        consumo_str = str(p_info.get('consumo') or '')
+                        comfort_str = str(p_info.get('comfort') or '')
+                        
+                except Exception as e:
+                    print(f"Errore recupero dettagli percorso {percorso_id}: {e}")
+
+            row_items.append({
+                'sort_key': orario_sort,
+                'tratta': tratta_nome,
+                'partenza': orario_fmt,
+                'durata': tempo_str,
+                'vascello': vascello_name,
+                'stato': stato,
+                'virtuale': virtuale,
+                'consumo': consumo_str,
+                'comfort': comfort_str
+            })
+            
+        # Sort rows by departure time (orario_sort)
+        row_items.sort(key=lambda x: x['sort_key'])
+
+        self.table.setRowCount(0)
+        for item in row_items:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+
+            it_tratta = QTableWidgetItem(item['tratta'])
+            it_partenza = QTableWidgetItem(item['partenza'])
+            it_durata = QTableWidgetItem(item['durata'])
+            it_vas = QTableWidgetItem(item['vascello'])
+            it_st = QTableWidgetItem(item['stato'])
+            it_vi = QTableWidgetItem(item['virtuale'])
+            it_cons = QTableWidgetItem(item['consumo'])
+            it_comf = QTableWidgetItem(item['comfort'])
+            
+            for it in (it_tratta, it_partenza, it_durata, it_vas, it_st, it_vi, it_cons, it_comf):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            self.table.setItem(row, 0, it_vas)
-            self.table.setItem(row, 1, it_st)
-            self.table.setItem(row, 2, it_vi)
-            self.table.setItem(row, 3, it_tp)
-            self.table.setItem(row, 4, it_cons)
-            self.table.setItem(row, 5, it_comf)
+            self.table.setItem(row, 0, it_tratta)
+            self.table.setItem(row, 1, it_partenza)
+            self.table.setItem(row, 2, it_durata)
+            self.table.setItem(row, 3, it_vas)
+            self.table.setItem(row, 4, it_st)
+            self.table.setItem(row, 5, it_vi)
+            self.table.setItem(row, 6, it_cons)
+            self.table.setItem(row, 7, it_comf)
 
         self.table.resizeColumnsToContents()
 
