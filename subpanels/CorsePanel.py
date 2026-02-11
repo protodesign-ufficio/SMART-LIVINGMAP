@@ -1,4 +1,4 @@
-from PyQt5.QtCore import Qt, QDate, QTime
+from PyQt5.QtCore import Qt, QDate, QTime, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -120,6 +120,27 @@ class AddCorsaDialog(QDialog):
         return getattr(self, '_payload', None)
 
 
+class OptimizationWorker(QThread):
+    finished = pyqtSignal()
+    error = pyqtSignal(str)
+
+    def __init__(self, endpoint, payload, **kwargs):
+        super().__init__()
+        self.endpoint = endpoint
+        self.payload = payload
+        self.kwargs = kwargs
+
+    def run(self):
+        if post_json is None:
+            self.error.emit("Client API non disponibile")
+            return
+        try:
+            post_json(self.endpoint, self.payload, **self.kwargs)
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class OptimizationDialog(QDialog):
     """Dialog per avviare l'ottimizzazione per una corsa selezionata.
 
@@ -214,66 +235,36 @@ class OptimizationDialog(QDialog):
             QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
             return
 
-        # disable UI controls to prevent duplicate submits
-        try:
-            self.start_btn.setEnabled(False)
-            self.vascello_cb.setEnabled(False)
-            self.optimize_all_cb.setEnabled(False)
-        except Exception:
-            pass
-
-        # show a simple status dialog with only a text label (no progress bar)
-        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QApplication
-        corsa_name = self.corsa_label.text() or str(corsa_id)
-        status_dlg = QDialog(self)
-        status_dlg.setWindowTitle('Ottimizzazione')
-        status_dlg.setWindowModality(Qt.ApplicationModal)
-        status_layout = QVBoxLayout(status_dlg)
-        status_label = QLabel(f"Avvio ottimizzazione per la corsa {corsa_name}")
-        status_layout.addWidget(status_label)
-        status_dlg.show()
-        QApplication.processEvents()
-
-        errors = []
-        try:
-            if self.optimize_all_cb.isChecked():
-                vlist = getattr(self, '_vascello_list', []) or []
-                if not vlist:
-                    QMessageBox.warning(self, 'Errore', 'Nessun vascello disponibile per ottimizzare')
-                    return
-
-                items_payload = []
-                for v in vlist:
-                    if isinstance(v, dict):
-                        vid = str(v.get('id', ''))
-                    else:
-                        vid = str(v)
-
-                    items_payload.append({
-                        'corsa_id': corsa_id,
-                        'vascello_id': vid,
-                        'eps_time': eps_time,
-                        'fake_data': True,
-                        'tolerance': 1,
-                        've_min': 0.1
-                    })
-
-                status_label.setText(f"Invio richiesta ottimizzazione per tutti i vascelli...")
-                QApplication.processEvents()
-                
-                post_json('weather_routing/carico', payload={'items': items_payload}, timeout=300)
-                
-                status_dlg.close()
-                QMessageBox.information(self, 'Successo', f'Ottimizzazione massiva avviata per tutti i vascelli.')
-                self.accept()
+        payload = {}
+        # Prepare payload
+        if self.optimize_all_cb.isChecked():
+            vlist = getattr(self, '_vascello_list', []) or []
+            if not vlist:
+                QMessageBox.warning(self, 'Errore', 'Nessun vascello disponibile per ottimizzare')
                 return
 
+            items_payload = []
+            for v in vlist:
+                if isinstance(v, dict):
+                    vid = str(v.get('id', ''))
+                else:
+                    vid = str(v)
+
+                items_payload.append({
+                    'corsa_id': corsa_id,
+                    'vascello_id': vid,
+                    'eps_time': eps_time,
+                    'fake_data': True,
+                    'tolerance': 1,
+                    've_min': 0.1
+                })
+            payload = {'items': items_payload}
+        else:
             # single vascello flow
             if not vascello_id:
                 QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
                 return
 
-            vname = self.vascello_cb.currentText() or str(vascello_id)
             payload = {'items': [{
                 'corsa_id': corsa_id,
                 'vascello_id': vascello_id,
@@ -282,22 +273,171 @@ class OptimizationDialog(QDialog):
                 'tolerance': 1,
                 've_min': 0.1
             }]}
-            status_label.setText(f"Ottimizzazione percorsi per la corsa {corsa_name} per il vascello {vname}")
-            QApplication.processEvents()
-            post_json('weather_routing/carico', payload=payload, timeout=300)
-            status_dlg.close()
-            QMessageBox.information(self, 'Successo', 'Ottimizzazione completata con successo')
-            self.accept()
-        except Exception as e:
-            progress.close()
-            QMessageBox.warning(self, 'Errore', f'Ottimizzazione fallita: {e}')
-        finally:
-            try:
-                self.start_btn.setEnabled(True)
-                self.vascello_cb.setEnabled(True)
-                self.optimize_all_cb.setEnabled(True)
-            except Exception:
-                pass
+
+        # Disable UI controls to prevent duplicate submits
+        try:
+            self.start_btn.setEnabled(False)
+            self.start_btn.setText("Elaborazione...")
+            self.vascello_cb.setEnabled(False)
+            self.optimize_all_cb.setEnabled(False)
+            self.eps_spin.setEnabled(False)
+        except Exception:
+            pass
+
+        # Create and start worker
+        self.worker = OptimizationWorker('weather_routing/carico', payload, timeout=300)
+        self.worker.finished.connect(self._on_opt_finished)
+        self.worker.error.connect(self._on_opt_error)
+        self.worker.start()
+
+    def _on_opt_finished(self):
+        QMessageBox.information(self, 'Successo', 'Ottimizzazione inviata con successo')
+        self.accept()
+
+    def _on_opt_error(self, err_msg):
+        QMessageBox.warning(self, 'Errore', f'Ottimizzazione fallita: {err_msg}')
+        try:
+            self.start_btn.setEnabled(True)
+            self.start_btn.setText("Avvia")
+            self.vascello_cb.setEnabled(True)
+            self.optimize_all_cb.setEnabled(True)
+            self.eps_spin.setEnabled(True)
+        except Exception:
+            pass
+
+
+class OptimizationDayDialog(QDialog):
+    def __init__(self, parent=None, initial_date=None):
+        super().__init__(parent)
+        self.setWindowTitle('Ottimizza Giorno')
+        self.resize(250, 380)
+        
+        layout = QVBoxLayout(self)
+        
+        # Date selection
+        form = QFormLayout()
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        if initial_date:
+            self.date_edit.setDate(initial_date)
+        else:
+            self.date_edit.setDate(QDate.currentDate())
+        form.addRow('Giorno', self.date_edit)
+        layout.addLayout(form)
+        
+        # Table for vessels
+        layout.addWidget(QLabel("Seleziona i vascelli da utilizzare:"))
+        self.table = QTableWidget(0, 2, self)
+        self.table.setHorizontalHeaderLabels([' ', 'Vascello'])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        layout.addWidget(self.table)
+        
+        # Helper to toggle all
+        btn_toggle = QPushButton("Seleziona/Deseleziona Tutti")
+        btn_toggle.clicked.connect(self._toggle_all)
+        layout.addWidget(btn_toggle)
+        
+        # Buttons
+        btn_row = QHBoxLayout()
+        self.start_btn = QPushButton('Avvia')
+        self.start_btn.clicked.connect(self.start_optimization)
+        cancel = QPushButton('Annulla')
+        cancel.clicked.connect(self.reject)
+        
+        btn_row.addStretch()
+        btn_row.addWidget(self.start_btn)
+        btn_row.addWidget(cancel)
+        
+        layout.addLayout(btn_row)
+        
+        self.load_vessels()
+
+    def load_vessels(self):
+        if get_json is None:
+            return
+        try:
+            vessels = get_json('vascello/lista') or []
+            self.table.setRowCount(0)
+            for v in vessels:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                
+                vid = str(v.get('id', '')) if isinstance(v, dict) else str(v)
+                vname = v.get('nome') or v.get('name') or vid if isinstance(v, dict) else vid
+                
+                chk = QTableWidgetItem()
+                chk.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                chk.setCheckState(Qt.Checked) # All selected by default
+                chk.setData(Qt.UserRole, vid)
+                
+                name_item = QTableWidgetItem(vname)
+                name_item.setFlags(Qt.ItemIsEnabled)
+                
+                self.table.setItem(row, 0, chk)
+                self.table.setItem(row, 1, name_item)
+                
+        except Exception:
+            pass
+
+    def _toggle_all(self):
+        cnt = self.table.rowCount()
+        if cnt == 0: return
+        # check first item state
+        first = self.table.item(0, 0)
+        new_state = Qt.Unchecked if first.checkState() == Qt.Checked else Qt.Checked
+        for i in range(cnt):
+            it = self.table.item(i, 0)
+            it.setCheckState(new_state)
+
+    def start_optimization(self):
+        if post_json is None:
+            QMessageBox.warning(self, 'Errore', 'Client API non disponibile')
+            return
+            
+        selected_ids = []
+        for i in range(self.table.rowCount()):
+            it = self.table.item(i, 0)
+            if it.checkState() == Qt.Checked:
+                selected_ids.append(it.data(Qt.UserRole))
+        
+        if not selected_ids:
+            QMessageBox.warning(self, 'Errore', 'Seleziona almeno un vascello')
+            return
+            
+        d = self.date_edit.date()
+        d_str = d.toString('yyyy-MM-dd')
+        
+        payload = {
+            "start": f"{d_str}T00:00:00",
+            "end": f"{d_str}T23:59:00",
+            "vessels": selected_ids,
+            "eps_time": 5,
+            "fake_data": True
+        }
+        
+        # Disable UI and start thread
+        self.start_btn.setEnabled(False)
+        self.start_btn.setText("Elaborazione...")
+        self.table.setEnabled(False)
+        self.date_edit.setEnabled(False)
+        
+        self.worker = OptimizationWorker('assegnazione/pianifica', payload)
+        self.worker.finished.connect(self._on_opt_finished)
+        self.worker.error.connect(self._on_opt_error)
+        self.worker.start()
+
+    def _on_opt_finished(self):
+        QMessageBox.information(self, 'Successo', 'Pianificazione giornaliera completata')
+        self.accept()
+
+    def _on_opt_error(self, msg):
+        QMessageBox.warning(self, 'Errore', f'Errore pianificazione: {msg}')
+        # Re-enable UI
+        self.start_btn.setText("Avvia")
+        self.start_btn.setEnabled(True)
+        self.table.setEnabled(True)
+        self.date_edit.setEnabled(True)
 
 
 class CorsePanel(QWidget):
@@ -318,14 +458,27 @@ class CorsePanel(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
 
+        # Row filtri (Data)
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Giorno:"))
+        self.date_filter = QDateEdit()
+        self.date_filter.setCalendarPopup(True)
+        self.date_filter.setDate(QDate.currentDate())
+        self.date_filter.dateChanged.connect(self._on_date_changed)
+        # Increase width slightly
+        self.date_filter.setFixedWidth(120)
+        filter_layout.addWidget(self.date_filter)
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
         # columns: Nome, Tratta (nome), Orario Partenza, Previsione Passeggeri, Arrivo Max, ID
         self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels([
             "Nome",
             "Tratta",
             "Orario Partenza",
-            "Previsione Passeggeri",
             "Arrivo Max",
+            "Previsione Passeggeri",
             "ID",
         ])
 
@@ -380,9 +533,16 @@ class CorsePanel(QWidget):
         # Servizi group: Mostra in Dashboard, Ottimizza Percorsi, Dettagli Percorsi
         serv_group = QGroupBox('Servizi')
         serv_layout = QVBoxLayout()
+        
+        self.optimize_day_btn = QPushButton('Ottimizza Giorno')
+        self.optimize_day_btn.clicked.connect(self.open_optimize_day_dialog)
+        if post_json is None:
+            self.optimize_day_btn.setEnabled(False)
+            
         serv_layout.addWidget(self.show_dashboard_btn)
         serv_layout.addWidget(self.details_btn)
         serv_layout.addWidget(self.optimize_btn)
+        serv_layout.addWidget(self.optimize_day_btn)
         serv_group.setLayout(serv_layout)
         right_panel_widget.addWidget(serv_group)
 
@@ -438,14 +598,30 @@ class CorsePanel(QWidget):
         self.tratta_cache[tid] = str(name)
         return str(name)
 
+    def _on_date_changed(self, qdate):
+        self.load_data()
+
     def load_data(self):
         if get_json is None:
             QMessageBox.warning(self, 'Errore', 'Client API non disponibile')
             return
         try:
-            data = get_json('corsa/lista')
+            d = self.date_filter.date()
+            date_str = d.toString('yyyy-MM-dd')
+            path = f'corsa/giorno?giorno={date_str}'
+            data = get_json(path)
+            
             if not isinstance(data, list):
-                raise ValueError('Risposta API non è una lista')
+                # sometimes APIs return dict with list wrapped
+                if isinstance(data, dict) and 'items' in data:
+                    data = data['items']
+                elif isinstance(data, dict) and 'data' in data:
+                    data = data['data']
+                else:
+                    # fallback validation
+                    # raise ValueError('Risposta API non è una lista')
+                    data = [] # empty list on unexpected structure
+            
             self.populate_table(data)
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile caricare corse: {e}')
@@ -483,25 +659,42 @@ class CorsePanel(QWidget):
             cid = str(item.get('id', ''))
             # corsa name if present
             corsa_name = str(item.get('nome') or item.get('nome_corsa') or item.get('name') or '')
-            tratta_raw = item.get('tratta_id')
-            # tratta can be an object or id
-            tratta_id = None
-            if isinstance(tratta_raw, dict):
-                tratta_id = tratta_raw.get('id')
+            
+            # Tratta: prefer display string 'tratta'; fallback to resolving 'tratta_id'
+            tratta_display = item.get('tratta')
+            if not tratta_display:
+                tratta_raw = item.get('tratta_id')
+                tratta_id = None
+                if isinstance(tratta_raw, dict):
+                    tratta_id = tratta_raw.get('id')
+                else:
+                    tratta_id = tratta_raw
+                tratta_display = self.get_tratta_name(tratta_id)
+            
+            # Orario: prefer 'orario'; fallback to 'orario_partenza_schedulato'
+            orario_raw = item.get('orario') or item.get('orario_partenza_schedulato') or ''
+            # if orario_raw is already HH:MM, _format_dt might fail or return as is. 
+            # Let's ensure consistency. If it's a simple time, we leave it. If ISO, we format.
+            if 'T' in str(orario_raw):
+                orario = self._format_dt(orario_raw)
             else:
-                tratta_id = tratta_raw
-            tratta = self.get_tratta_name(tratta_id)
-            orario_raw = item.get('orario_partenza_schedulato', '')
-            orario = self._format_dt(orario_raw)
+                orario = str(orario_raw)
+
             arrivo_max = item.get('orario_arrivo_max')
-            arrivo_text = '' if arrivo_max is None else self._format_dt(arrivo_max)
+            # arrival sometimes full ISO, sometimes time. 
+            arrivo_text = ''
+            if arrivo_max:
+                 if 'T' in str(arrivo_max):
+                     arrivo_text = self._format_dt(arrivo_max)
+                 else:
+                     arrivo_text = str(arrivo_max)
 
             previsione = item.get('previsione') or {}
             pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
             pax_text = '' if pax is None else str(pax)
 
             it_name = QTableWidgetItem(corsa_name)
-            it_tratta = QTableWidgetItem(tratta)
+            it_tratta = QTableWidgetItem(str(tratta_display))
             it_orario = QTableWidgetItem(orario)
             it_pax = QTableWidgetItem(pax_text)
             it_arrivo = QTableWidgetItem(arrivo_text)
@@ -512,12 +705,12 @@ class CorsePanel(QWidget):
             for it in (it_name, it_tratta, it_orario, it_pax, it_arrivo, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            # Nome, Tratta, Orario, Previsione, Arrivo, ID
+            # Nome, Tratta, Orario, Arrivo, Previsione, ID
             self.table.setItem(row, 0, it_name)
             self.table.setItem(row, 1, it_tratta)
             self.table.setItem(row, 2, it_orario)
-            self.table.setItem(row, 3, it_pax)
-            self.table.setItem(row, 4, it_arrivo)
+            self.table.setItem(row, 3, it_arrivo)
+            self.table.setItem(row, 4, it_pax)
             self.table.setItem(row, 5, it_id)
 
         self.table.resizeColumnsToContents()
@@ -619,3 +812,8 @@ class CorsePanel(QWidget):
             main.open_dashboard_embedded('static/dashboard/index.html#/previsione_domanda', {'corsa': corsa_id}, title=f'Previsione Corsa: {corsa_name}', size=(1500, 900))
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile aprire la dashboard integrata: {e}')
+
+    def open_optimize_day_dialog(self):
+        cur_date = self.date_filter.date()
+        dlg = OptimizationDayDialog(self, initial_date=cur_date)
+        dlg.exec_()

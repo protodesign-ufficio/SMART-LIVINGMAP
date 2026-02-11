@@ -7,7 +7,8 @@ const ENDPOINTS = {
     PIANO_LISTA: API_ROOT + 'piano/lista',   // ?data_riferimento=YYYY-MM-DD
     ASSEGNAZIONE_PIANO: (id) => API_ROOT + `assegnazione/by_piano/${id}`,
     ASSEGNAZIONE_CREA: API_ROOT + 'assegnazione/crea',
-    PIANIFICAZIONE_COMPATIBILI: API_ROOT + 'pianificazione/compatibili'
+    PIANIFICAZIONE_COMPATIBILI: API_ROOT + 'pianificazione/compatibili',
+    PIANO_VALIDA: API_ROOT + 'piano/valida'
 };
 
 const colorScheme = {
@@ -62,6 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Event Listeners
     document.getElementById('piano-select').addEventListener('change', handlePianoChange);
     document.getElementById('btn-save').addEventListener('click', savePiano);
+    const btnValidate = document.getElementById('btn-validate');
+    if (btnValidate) btnValidate.addEventListener('click', validatePiano);
     document.getElementById('date-select').addEventListener('change', handleDateChange);
     
     // Zoom Slider
@@ -828,6 +831,58 @@ async function savePiano() {
         }
 
         alert('Piano aggiornato con successo!');
+    }
+}
+
+// --- Validate Piano ---
+async function validatePiano() {
+    if (!state.selectedPianoId) {
+        alert('Seleziona un piano prima di validarlo.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-validate');
+    const originalText = btn ? btn.innerText : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Validazione...';
+    }
+
+    try {
+        const payload = { piano_id: state.selectedPianoId };
+        const res = await fetch(ENDPOINTS.PIANO_VALIDA, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            throw new Error('API Error');
+        }
+
+        const data = await res.json();
+
+        // Expecting { validato: bool, messaggio?: string, dettagli?: {...} }
+        if (data.validato === true) {
+            alert(data.messaggio || 'Piano validato con successo.');
+        } else {
+            const msg = data.messaggio || 'Validazione fallita.';
+            // If server returns details (e.g., list of problemi) include brief info
+            if (data.dettagli) {
+                alert(`${msg}\nDettagli: ${JSON.stringify(data.dettagli)}`);
+            } else {
+                alert(msg);
+            }
+        }
+
+    } catch (e) {
+        console.error('Validate failed', e);
+        alert('Errore durante la validazione del piano.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
     }
 }
 

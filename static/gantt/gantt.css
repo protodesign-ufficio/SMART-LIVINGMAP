@@ -65,3 +65,14 @@
     background-color: #f59e0b; /* amber-500 - warning state if needed */
     opacity: 0.7;
 }
+
+/* Legend styles */
+.legend-swatch {
+    display: inline-block;
+}
+.legend-virtual {
+    background: transparent;
+}
+
+/* Legend box styling */
+/* old .gantt-legend-box removed: legend is now inline text-only in header */

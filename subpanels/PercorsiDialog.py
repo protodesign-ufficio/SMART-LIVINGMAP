@@ -63,11 +63,18 @@ class PercorsiDialog(QDialog):
             info_text = f'Client API non disponibile per recuperare corsa {corsa_id}.'
         else:
             try:
-                data = get_json(f'corsa/{corsa_id}')
+                data = get_json(f'corsa/{corsa_id}?include=tratta')
                 if not isinstance(data, dict):
                     raise ValueError('Risposta non valida')
 
-                tratta = data.get('tratta_nome', '')
+                # Adapt to new structure
+                nom_corsa = data.get('nome', '')
+                tratta_node = data.get('tratta')
+                if isinstance(tratta_node, dict):
+                    tratta = tratta_node.get('nome', '') 
+                else:
+                    tratta = data.get('tratta_nome', '')
+
                 orario = data.get('orario_partenza_schedulato', '')
                 previsione = data.get('previsione') or {}
                 pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
@@ -93,7 +100,7 @@ class PercorsiDialog(QDialog):
                         else:
                             date_str = str(orario)
 
-                info_text = f'Tratta: {tratta}  Data: {date_str}  Orario: {time_str}  Previsione Biglietti: {pax}'
+                info_text = f'Corsa: {nom_corsa}  Tratta: {tratta}  Data: {date_str}  Orario: {time_str}  Previsione Biglietti: {pax}'
             except Exception as e:
                 info_text = f'Per la corsa selezionata non sono presenti percorsi sul database: {e}'
 

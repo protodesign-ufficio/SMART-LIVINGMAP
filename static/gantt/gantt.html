@@ -13,11 +13,32 @@
 <body class="h-screen flex flex-col bg-slate-950 text-slate-200 overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center h-16 shrink-0">
-        <div>
-            <h1 class="text-xl font-semibold text-white tracking-tight" id="page-title">
-                Gestione Piano Operativo
-            </h1>
+    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center h-24 shrink-0">
+        <div class="space-x-6 flex items-center gap-6">
+            <div>
+                <h1 class="text-xl font-semibold text-white tracking-tight" id="page-title">
+                    Gestione Piano Operativo
+                </h1>
+            </div>
+            <!-- Legend as text-only list -->
+            <div id="gantt-legend" class="flex flex-col text-xs text-slate-300">
+                <div class="space-x-2 flex items-center gap-2">
+                    <span class="status-unassigned w-3 h-3 inline-block rounded-sm border border-red-500"></span>
+                    <span>Percorso da Assegnare</span>
+                </div>
+                <div class="space-x-2 flex items-center gap-2">
+                    <span class="status-assigned-server w-3 h-3 inline-block rounded-sm"></span>
+                    <span>Percorso presente sul Database</span>
+                </div>
+                <div class="space-x-2 flex items-center gap-2">
+                    <span class="status-assigned-local w-3 h-3 inline-block rounded-sm"></span>
+                    <span>Percorso assegnato non salvato</span>
+                </div>
+                <div class="space-x-2 flex items-center gap-2">
+                    <span class="legend-virtual w-3 h-3 inline-block rounded-sm border-2 border-slate-400 bg-transparent"></span>
+                    <span>Solo bordo: percorso virtuale</span>
+                </div>
+            </div>
         </div>
         
         <div class="space-x-6 flex items-center gap-4">
@@ -43,6 +64,9 @@
 
             <button id="btn-save" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Salva Piano
+            </button>
+            <button id="btn-validate" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Valida Piano
             </button>
         </div>
     </header>

@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
                 'static/gantt/gantt.html',
                 query={'giorno': '2026-01-29'},
                 title='Gantt',
-                size=(1500, 900),
+                size=(1600, 900),
             )
         )
         right_layout.addWidget(self.open_gantt_btn)

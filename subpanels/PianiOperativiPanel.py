@@ -14,6 +14,8 @@ from PyQt5.QtWidgets import (
     QDateEdit,
     QComboBox,
     QLabel,
+    QCheckBox,
+    QSpinBox,
 )
 
 try:
@@ -266,20 +268,96 @@ class PianiOperativiPanel(QWidget):
         dlg = AddPianoDialog(self)
         if dlg.exec_() != QDialog.Accepted:
             return
-        payload = dlg.get_payload()
-        if payload is None:
-            QMessageBox.warning(self, 'Errore', 'Dati non validi')
-            return
-        if post_json is None:
-            QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
-            return
-        try:
-            post_json('piano/crea', payload)
-            QMessageBox.information(self, 'Successo', 'Piano operativo creato')
-            # reload for currently selected date
-            self.load_data()
-        except Exception as e:
-            QMessageBox.warning(self, 'Errore', f'Creazione piano fallita: {e}')
+
+        mode, payload, search_params = dlg.get_data()
+
+        if mode == 'manual':
+            if payload is None:
+                QMessageBox.warning(self, 'Errore', 'Dati non validi')
+                return
+            if post_json is None:
+                QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
+                return
+            try:
+                post_json('piano/crea', payload)
+                QMessageBox.information(self, 'Successo', 'Piano operativo creato')
+                # reload for currently selected date
+                self.load_data()
+            except Exception as e:
+                QMessageBox.warning(self, 'Errore', f'Creazione piano fallita: {e}')
+
+        elif mode == 'auto':
+            if post_json is None:
+                QMessageBox.warning(self, 'Errore', 'Client API non disponibile per invio')
+                return
+            
+            # 1. Chiama scheduling/giorno
+            try:
+                resp = post_json('scheduling/giorno', search_params)
+                if not isinstance(resp, dict) or resp.get('status') != 'ok':
+                    msg = resp.get('message') if isinstance(resp, dict) else 'Risposta imprevista'
+                    raise ValueError(msg or 'Errore scheduling remoto')
+                
+                solutions = resp.get('solutions', [])
+                if not solutions:
+                    QMessageBox.information(self, 'Info', 'Nessuna soluzione trovata.')
+                    return
+
+                # 2. Mostra Dialog Selezione Soluzioni
+                sel_dlg = SolutionsSelectionDialog(self, solutions)
+                if sel_dlg.exec_() != QDialog.Accepted:
+                    return
+                
+                selected_sols = sel_dlg.get_selected_solutions()
+                if not selected_sols:
+                    return
+
+                # 3. Crea piani e assegnazioni per ogni soluzione selezionata
+                count_ok = 0
+                giorno_str = search_params.get('giorno')
+                # costruiamo data riferimento base
+                data_rif = f"{giorno_str}T00:00:00.000Z"
+
+                for sol in selected_sols:
+                    try:
+                        # Crea Piano
+                        plan_payload = {
+                            "data_riferimento": data_rif,
+                            "stato": "CREATO"
+                        }
+                        plan_resp = post_json('piano/crea', plan_payload)
+                        if not plan_resp or 'id' not in plan_resp:
+                            print(f"Errore creazione piano per solution {sol.get('solution_id')}")
+                            continue
+                        
+                        pid = plan_resp['id']
+                        activities = sol.get('activities', [])
+                        
+                        # Crea Assegnazioni (Bulk)
+                        percorsi_list = []
+                        for act in activities:
+                            percorsi_list.append({
+                                "percorso_id": act.get('route_id'),
+                                "virtuale": False
+                            })
+
+                        if percorsi_list:
+                            bulk_payload = {
+                                "piano_id": pid,
+                                "percorsi": percorsi_list
+                            }
+                            post_json('assegnazione/bulk', bulk_payload)
+                        
+                        count_ok += 1
+                        
+                    except Exception as e:
+                        print(f"Errore salvataggio soluzione {sol.get('solution_id')}: {e}")
+
+                QMessageBox.information(self, 'Successo', f'Creati {count_ok} piani operativi.')
+                self.load_data()
+
+            except Exception as e:
+                QMessageBox.warning(self, 'Errore', f'Procedura automatica fallita: {e}')
 
     def open_modify_dialog(self):
         QMessageBox.information(self, 'Modifica', 'Funzionalità Modifica da implementare')
@@ -322,9 +400,9 @@ class DettagliPianoDialog(QDialog):
         layout = QVBoxLayout(self)
 
         # table for assignments (include additional percorso fields)
-        self.table = QTableWidget(0, 7, self)
+        self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels([
-            'Percorso', 'Vascello', 'Stato Esecuzione', 'Virtuale',
+            'Vascello', 'Stato Esecuzione', 'Virtuale',
             'Tempo Percorrenza', 'Consumo', 'Comfort'
         ])
         layout.addWidget(self.table)
@@ -387,23 +465,21 @@ class DettagliPianoDialog(QDialog):
             except Exception:
                 pass
 
-            it_per = QTableWidgetItem(percorso)
             it_vas = QTableWidgetItem(vascello)
             it_st = QTableWidgetItem(stato)
             it_vi = QTableWidgetItem(virtuale)
             it_tp = QTableWidgetItem(tempo_percorrenza)
             it_cons = QTableWidgetItem(consumo)
             it_comf = QTableWidgetItem(comfort)
-            for it in (it_per, it_vas, it_st, it_vi, it_tp, it_cons, it_comf):
+            for it in (it_vas, it_st, it_vi, it_tp, it_cons, it_comf):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            self.table.setItem(row, 0, it_per)
-            self.table.setItem(row, 1, it_vas)
-            self.table.setItem(row, 2, it_st)
-            self.table.setItem(row, 3, it_vi)
-            self.table.setItem(row, 4, it_tp)
-            self.table.setItem(row, 5, it_cons)
-            self.table.setItem(row, 6, it_comf)
+            self.table.setItem(row, 0, it_vas)
+            self.table.setItem(row, 1, it_st)
+            self.table.setItem(row, 2, it_vi)
+            self.table.setItem(row, 3, it_tp)
+            self.table.setItem(row, 4, it_cons)
+            self.table.setItem(row, 5, it_comf)
 
         self.table.resizeColumnsToContents()
 
@@ -412,7 +488,7 @@ class AddPianoDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Aggiungi Piano Operativo')
-        self.setMinimumWidth(320)
+        self.setMinimumWidth(380)
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
@@ -423,38 +499,166 @@ class AddPianoDialog(QDialog):
         self.date_edit.setDate(QDate.currentDate())
 
         self.assegnazione_cb = QComboBox()
-        self.assegnazione_cb.addItem('Automatica')
-        self.assegnazione_cb.addItem('Manuale')
+        # ItemData: 'manual' o 'auto'
+        self.assegnazione_cb.addItem('Singolo (Ass. Manuale)', 'manual')
+        self.assegnazione_cb.addItem('Multipli (Ass. Automatica)', 'auto')
+        self.assegnazione_cb.currentIndexChanged.connect(self._on_mode_changed)
 
         form.addRow('Data', self.date_edit)
-        form.addRow('Assegnazione Vascelli', self.assegnazione_cb)
+        form.addRow('Modalità', self.assegnazione_cb)
 
         layout.addLayout(form)
 
+        # Widget parametri Auto
+        self.auto_widget = QWidget()
+        auto_layout = QFormLayout(self.auto_widget)
+        
+        self.chk_future = QCheckBox("Solo Future")
+        self.chk_future.setChecked(True)
+        
+        self.spin_max_sol = QSpinBox()
+        self.spin_max_sol.setRange(1, 50)
+        self.spin_max_sol.setValue(5)
+        
+        self.spin_eps = QSpinBox()
+        self.spin_eps.setRange(0, 120)
+        self.spin_eps.setValue(5)
+        
+        self.chk_details = QCheckBox("Includi Dettagli")
+        self.chk_details.setChecked(True)
+        
+        self.chk_fake = QCheckBox("Fake Data")
+        self.chk_fake.setChecked(False)
+
+        auto_layout.addRow('Future', self.chk_future)
+        auto_layout.addRow('Soluzioni Massime', self.spin_max_sol)
+        auto_layout.addRow('Eps Time (min)', self.spin_eps)
+        auto_layout.addRow('Includi Dettagli', self.chk_details)
+        auto_layout.addRow('Fake Data', self.chk_fake)
+
+        self.auto_widget.setVisible(False)
+        layout.addWidget(self.auto_widget)
+
         btn_row = QHBoxLayout()
-        crea = QPushButton('Crea')
-        crea.clicked.connect(self._on_create)
+        self.btn_ok = QPushButton('Crea')
+        self.btn_ok.clicked.connect(self._on_ok)
         annulla = QPushButton('Annulla')
         annulla.clicked.connect(self.reject)
         btn_row.addStretch()
-        btn_row.addWidget(crea)
+        btn_row.addWidget(self.btn_ok)
         btn_row.addWidget(annulla)
         layout.addLayout(btn_row)
 
+        self._mode = 'manual'
         self._payload = None
+        self._search_params = None
 
-    def _on_create(self):
-        # build payload with date at midnight UTC (simple format)
+    def _on_mode_changed(self, idx):
+        self._mode = self.assegnazione_cb.itemData(idx)
+        is_auto = (self._mode == 'auto')
+        self.auto_widget.setVisible(is_auto)
+        self.btn_ok.setText('Cerca Soluzioni' if is_auto else 'Crea')
+        # resize dialog to fit content
+        self.adjustSize()
+
+    def _on_ok(self):
         d = self.date_edit.date()
         date_str = d.toString('yyyy-MM-dd')
-        # append time at midnight with Z
-        data_rif = f"{date_str}T00:00:00.000Z"
-
-        self._payload = {
-            'data_riferimento': data_rif,
-            'stato': 'CREATO',
-        }
+        
+        if self._mode == 'manual':
+            # build payload with date at midnight UTC
+            data_rif = f"{date_str}T00:00:00.000Z"
+            self._payload = {
+                'data_riferimento': data_rif,
+                'stato': 'CREATO',
+            }
+            self._search_params = None
+        else:
+            self._payload = None
+            self._search_params = {
+                "giorno": date_str,
+                "solo_future": self.chk_future.isChecked(),
+                "max_solutions": self.spin_max_sol.value(),
+                "include_details": self.chk_details.isChecked(),
+                "eps_time": self.spin_eps.value(),
+                "fake_data": self.chk_fake.isChecked()
+            }
+        
         self.accept()
 
-    def get_payload(self):
-        return getattr(self, '_payload', None)
+    def get_data(self):
+        """Returns (mode, payload, search_params)"""
+        return self._mode, self._payload, self._search_params
+
+
+class SolutionsSelectionDialog(QDialog):
+    def __init__(self, parent=None, solutions=None):
+        super().__init__(parent)
+        self.setWindowTitle('Risultati Scheduling Automatico')
+        self.resize(700, 400)
+        self.solutions = solutions or []
+
+        layout = QVBoxLayout(self)
+        
+        lbl = QLabel(f"Trovate {len(self.solutions)} soluzioni. Seleziona quelle da salvare come Piani Operativi:")
+        layout.addWidget(lbl)
+
+        self.table = QTableWidget(0, 5, self)
+        self.table.setHorizontalHeaderLabels(['Seleziona', 'ID Soluzione', 'Costo', 'Rischio', 'N. Attività'])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table)
+        
+        self.populate()
+
+        btn_row = QHBoxLayout()
+        ok_btn = QPushButton('Salva Selezionati')
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton('Annulla')
+        cancel_btn.clicked.connect(self.reject)
+        
+        btn_row.addStretch()
+        btn_row.addWidget(ok_btn)
+        btn_row.addWidget(cancel_btn)
+        layout.addLayout(btn_row)
+
+    def populate(self):
+        self.table.setRowCount(0)
+        for sol in self.solutions:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+
+            # Checkbox item
+            it_check = QTableWidgetItem()
+            it_check.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            it_check.setCheckState(Qt.Unchecked)
+            # Store full solution object
+            it_check.setData(Qt.UserRole, sol)
+
+            sid = str(sol.get('solution_id', ''))
+            cost = str(sol.get('cost', ''))
+            risk = str(sol.get('risk', ''))
+            n_acts = str(len(sol.get('activities', [])))
+
+            it_id = QTableWidgetItem(sid)
+            it_cost = QTableWidgetItem(cost)
+            it_risk = QTableWidgetItem(risk)
+            it_n = QTableWidgetItem(n_acts)
+            
+            for it in (it_id, it_cost, it_risk, it_n):
+                it.setFlags(it.flags() & ~Qt.ItemIsEditable)
+
+            self.table.setItem(row, 0, it_check)
+            self.table.setItem(row, 1, it_id)
+            self.table.setItem(row, 2, it_cost)
+            self.table.setItem(row, 3, it_risk)
+            self.table.setItem(row, 4, it_n)
+
+        self.table.resizeColumnsToContents()
+
+    def get_selected_solutions(self):
+        selected = []
+        for i in range(self.table.rowCount()):
+            it = self.table.item(i, 0)
+            if it.checkState() == Qt.Checked:
+                selected.append(it.data(Qt.UserRole))
+        return selected
