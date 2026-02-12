@@ -181,7 +181,7 @@
 ===================================================== */
 const API_BASE_URL = "http://87.26.178.190:15080";
 const SOCKET_URL   = "http://localhost:5000";
-const CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes cache
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 min: scadenza cache navi simulate
 
 /* =====================================================
    STATE MANAGEMENT
@@ -357,8 +357,8 @@ async function preloadRegistry() {
             color: generateColor(mmsi, 'real'),
             destination: vesselRegistry[mmsi].initialDest,
             eta: null,
-            lastUpdated: Date.now(),
-            detailsLoaded: false
+            detailsLoaded: false,
+            lastUpdated: Date.now()
         };
     });
 
@@ -584,9 +584,9 @@ socket.on("analytics_update", msg => {
     if (delta !== null) {
         shipRecord.history.shift();
         shipRecord.history.push(delta);
-        shipReclastUpdated = Date.now();
-    shipRecord.ord.last_delta = delta;
+        shipRecord.last_delta = delta;
     }
+    shipRecord.lastUpdated = Date.now();
     shipRecord.destination = msg.destination || shipRecord.destination;
     shipRecord.eta = msg.eta || shipRecord.eta;
 
@@ -616,28 +616,24 @@ toggleBtn.onclick = () => {
 };
 
 /* =====================================================
-   CLEANUP LOGIC (CACHE EXPIRY)
+   CACHE CLEANUP (solo navi simulate)
 ===================================================== */
 setInterval(() => {
     const now = Date.now();
-    ['simulation'].forEach(source => {
-        let dirty = false;
-        Object.keys(ships[source]).forEach(mmsi => {
-           if (now - ships[source][mmsi].lastUpdated > CACHE_TTL_MS) {
-               delete ships[source][mmsi];
-               dirty = true;
-               
-               // Se abbiamo cancellato la nave attualmente selezionata
-               if (currentSelection.mmsi === mmsi && currentSelection.source === source) {
-                   currentSelection = { mmsi: null, source: null };
-                   updateInfoUI(); 
-                   updateChart();
-               }
-           }
-        });
-        if(dirty) renderList(source);
+    let dirty = false;
+    Object.keys(ships.simulation).forEach(mmsi => {
+        if (now - ships.simulation[mmsi].lastUpdated > CACHE_TTL_MS) {
+            delete ships.simulation[mmsi];
+            dirty = true;
+            if (currentSelection.mmsi === mmsi && currentSelection.source === 'simulation') {
+                currentSelection = { mmsi: null, source: null };
+                updateInfoUI();
+                updateChart();
+            }
+        }
     });
-}, 60 * 1000); // Check every minute
+    if (dirty) renderList('simulation');
+}, 60 * 1000);
 
 </script>
 </body>
