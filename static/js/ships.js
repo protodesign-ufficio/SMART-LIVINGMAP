@@ -4,6 +4,10 @@
 real_ship_color = '#00C800';        // default orange for real AIS
 simulation_ship_color = '#007FFF';  // DarkTurquoise/Azureish for simulation
 debug_ship_color = '#eeff00';       // bright yellow for debug (if needed)
+stale_ship_color = '#999999';       // gray for inactive ships
+
+const STALE_TIMEOUT_MS  = 60 * 1000;   // 1 minute  -> gray out
+const REMOVE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes -> remove
 
 window._nv_ships = window._nv_ships || {};
 
@@ -34,7 +38,6 @@ function openDashboardVesselFromPopup(encodedMmsi, source){
   }catch(e){ /* ignore */ }
 }
 
-
 function makeShipIcon(color, heading){
   const h = (heading || 0);
   // simple arrow-shaped SVG; rotation applied via inline style
@@ -51,9 +54,19 @@ function makeShipIcon(color, heading){
   });
 }
 
+function formatLastUpdate(lastUpdateTs){
+  if(!lastUpdateTs) return 'N/A';
+  const elapsed = Math.floor((Date.now() - lastUpdateTs) / 1000);
+  if(elapsed < 60) return elapsed + 's fa';
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  return mins + 'm ' + secs + 's fa';
+}
+
 function popupHtml(m){
   const staticInfo = m.static || {};
   const source = staticInfo.is_simulation ? 'simulation' : 'real';
+  const lastUpd = formatLastUpdate(m.lastUpdate);
   return `<div style="font-size:12px">
     <b>${staticInfo.shipname || ''}</b><br/>
     MMSI: ${m.mmsi || ''}<br/>
@@ -61,6 +74,7 @@ function popupHtml(m){
     Heading: ${m.heading != null ? m.heading : ''} <br/>
     Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
     Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}<br/>
+    // Last Update: <b>${lastUpd}</b><br/>
     Sorgente: <b>${staticInfo.is_simulation ? 'Simulazione' : 'Reale'}</b><br/><br/>
     <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}', '${source}')">Mostra in Dashboard</button>
   </div>`;
@@ -77,9 +91,15 @@ window.updateShip = function(data){
     if(!mmsi) return;
 
     if(!ships[mmsi]){
-      ships[mmsi] = {mmsi: mmsi, static: {}, coords: [], marker: null, polyline: null};
+      ships[mmsi] = {mmsi: mmsi, static: {}, coords: [], marker: null, polyline: null, lastUpdate: Date.now(), isStale: false};
     }
     const s = ships[mmsi];
+    s.lastUpdate = Date.now();
+
+    // If ship was stale (grayed out), restore its original color
+    if(s.isStale){
+      s.isStale = false;
+    }
 
     // Handle simulation flag
     if (data.is_simulation) {
@@ -97,28 +117,29 @@ window.updateShip = function(data){
       const heading = ((payload.heading || 0) + 90.0) % 360;
       s.lat = lat; s.lon = lon; s.speed = payload.speed; s.heading = heading;
 
+      // Determine active color (restore from gray if needed)
+      const activeColor = s.static.color || debug_ship_color;
+
       if(s.marker === null){
-        s.marker = L.marker([lat, lon], {icon: makeShipIcon(s.static.color || debug_ship_color, heading), riseOnHover: true}).addTo(window.map);
+        s.marker = L.marker([lat, lon], {icon: makeShipIcon(activeColor, heading), riseOnHover: true}).addTo(window.map);
         // bind popup once and open on click
         s.marker.bindPopup(popupHtml(s));
         s.marker.on('click', function(){
           try{ s.marker.openPopup(); }catch(e){}
         });
         s.coords = [[lat, lon]];
-        s.polyline = L.polyline(s.coords, {color: s.static.color || debug_ship_color, weight:2, opacity:0.8}).addTo(window.map);
+        s.polyline = L.polyline(s.coords, {color: activeColor, weight:2, opacity:0.8}).addTo(window.map);
       } else {
         s.marker.setLatLng([lat, lon]);
-        // update icon HTML to reflect heading / color
-        const el = s.marker.getElement();
-        if(el){
-          const div = el.querySelector('div');
-          if(div){ div.style.transform = `rotate(${heading}deg)`; }
-        }
+        // update icon (restore color if was stale + update heading)
+        s.marker.setIcon(makeShipIcon(activeColor, heading));
+        // restore polyline color if was grayed out
+        if(s.polyline) s.polyline.setStyle({color: activeColor, opacity: 0.8});
         // update popup content to reflect latest state
         try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
         // append to path (limit history to 10000 points to avoid memory leaks)
         s.coords.push([lat, lon]);
-        if (s.coords.length > 10000) {
+        if (s.coords.length > 20000) {
           s.coords.shift();
         }
         if(s.polyline) s.polyline.setLatLngs(s.coords);
@@ -147,6 +168,49 @@ window.updateShips = function(list) {
       });
   }
 };
+
+// --- Staleness checker: runs every 10 seconds ---
+function removeShip(mmsi){
+  const s = ships[mmsi];
+  if(!s) return;
+  try{ if(s.marker) window.map.removeLayer(s.marker); }catch(e){}
+  try{ if(s.polyline) window.map.removeLayer(s.polyline); }catch(e){}
+  delete ships[mmsi];
+}
+
+function grayOutShip(s){
+  if(s.isStale) return; // already gray
+  s.isStale = true;
+  // update marker icon to gray
+  if(s.marker){
+    s.marker.setIcon(makeShipIcon(stale_ship_color, s.heading || 0));
+    try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
+  }
+  // update polyline color to gray
+  if(s.polyline){
+    s.polyline.setStyle({color: stale_ship_color, opacity: 0.4});
+  }
+}
+
+setInterval(function(){
+  const now = Date.now();
+  const mmsiList = Object.keys(ships);
+  for(let i = 0; i < mmsiList.length; i++){
+    const mmsi = mmsiList[i];
+    const s = ships[mmsi];
+    if(!s || !s.lastUpdate) continue;
+    const elapsed = now - s.lastUpdate;
+    if(elapsed >= REMOVE_TIMEOUT_MS){
+      removeShip(mmsi);
+    } else if(elapsed >= STALE_TIMEOUT_MS){
+      grayOutShip(s);
+      // refresh popup if it is open
+      if(s.marker){
+        try{ s.marker.bindPopup(popupHtml(s)); }catch(e){}
+      }
+    }
+  }
+}, 10000);
 
 // expose for debugging
 window._nv_ships = ships;

@@ -186,10 +186,16 @@ class PianiOperativiPanel(QWidget):
         self.gantt_btn.setEnabled(False)
         self.gantt_btn.clicked.connect(self.open_gantt_dashboard)
 
+        # Bottone Simulazione
+        self.simulazione_btn = QPushButton('Simulazione')
+        self.simulazione_btn.setEnabled(False)
+        self.simulazione_btn.clicked.connect(self.open_simulazione_dialog)
+
         serv_group = QGroupBox('Servizi')
         serv_layout = QVBoxLayout()
         serv_layout.addWidget(self.details_btn)
         serv_layout.addWidget(self.gantt_btn)
+        serv_layout.addWidget(self.simulazione_btn)
         serv_group.setLayout(serv_layout)
         right_panel.addWidget(serv_group)
 
@@ -384,7 +390,11 @@ class PianiOperativiPanel(QWidget):
             self.gantt_btn.setEnabled(bool(has))
         except Exception:
             pass
-
+        try:
+            self.simulazione_btn.setEnabled(bool(has))
+        except Exception:
+            pass
+        
     def open_details_dialog(self):
         # get selected row and piano id
         sel = self.table.selectionModel().selectedRows()
@@ -462,6 +472,130 @@ class PianiOperativiPanel(QWidget):
             )
         except Exception as e:
             QMessageBox.warning(self, 'Errore', f'Impossibile aprire il Gantt: {e}')
+
+    def open_simulazione_dialog(self):
+        # recupera piano selezionato
+        sel = self.table.selectionModel().selectedRows()
+        if not sel:
+            return
+        row = sel[0].row()
+        item = self.table.item(row, 4)
+        if item is None:
+            return
+            
+        piano = item.data(Qt.UserRole) or {}
+        piano_id = piano.get('id') if isinstance(piano, dict) else item.text()
+        
+        # Recupera dettagli completi piano per contare i percorsi virtuali
+        try:
+            full_piano = None
+            if get_json:
+                full_piano = get_json(f'piano/{piano_id}')
+            
+            if not isinstance(full_piano, dict):
+                full_piano = {}
+        except Exception as e:
+            QMessageBox.warning(self, "Errore", f"Impossibile recuperare dettagli piano: {e}")
+            return
+
+        dlg = SimulazioneDialog(self, piano_id, full_piano)
+        dlg.exec_()
+
+
+class SimulazioneDialog(QDialog):
+    def __init__(self, parent=None, piano_id=None, piano_data=None):
+        super().__init__(parent)
+        self.piano_id = piano_id
+        self.piano_data = piano_data or {}
+        
+        self.setWindowTitle("Configurazione Simulazione")
+        self.resize(300, 150)
+        
+        layout = QVBoxLayout(self)
+        
+        # Estrazione dati
+        data_rif = self.piano_data.get('data_riferimento', '')
+        # Prova a formattare se funzione disponibile o raw
+        giorno_str = _format_date(data_rif)
+        
+        assegnazioni = self.piano_data.get('assegnazioni', []) or []
+        # Conta quanti hanno virtuale=True
+        num_virtuali = 0
+        if isinstance(assegnazioni, list):
+             num_virtuali = sum(1 for a in assegnazioni if isinstance(a, dict) and a.get('virtuale') is True)
+        
+        # Info labels
+        # Usa un layout form o verticale semplice
+        info_layout = QVBoxLayout()
+        lbl_info = QLabel(f"Avvia simulazione per il giorno: {giorno_str}")
+        # Rendi bold il titolo se vuoi, o semplice testo
+        font = lbl_info.font()
+        font.setBold(True)
+        lbl_info.setFont(font)
+        info_layout.addWidget(lbl_info)
+        
+        lbl_count = QLabel(f"Percorsi simulati: {num_virtuali}")
+        info_layout.addWidget(lbl_count)
+        layout.addLayout(info_layout)
+        
+        layout.addSpacing(20)
+        
+        # Form inputs
+        form_layout = QFormLayout()
+        
+        self.sb_delay = QSpinBox()
+        self.sb_delay.setRange(0, 3600)
+        self.sb_delay.setValue(5) # default 5s
+        self.sb_delay.setSuffix(" sec")
+        form_layout.addRow("Delay partenza:", self.sb_delay)
+        
+        self.sb_speed = QSpinBox()
+        self.sb_speed.setRange(1, 100)
+        self.sb_speed.setValue(1) # default x1
+        self.sb_speed.setPrefix("x")
+        form_layout.addRow("Velocità simulazione:", self.sb_speed)
+        
+        layout.addLayout(form_layout)
+        
+        layout.addStretch()
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.btn_avvia = QPushButton("Avvia")
+        self.btn_avvia.clicked.connect(self._on_avvia)
+        # Stile avvia
+        self.btn_avvia.setDefault(True)
+        
+        self.btn_annulla = QPushButton("Annulla")
+        self.btn_annulla.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.btn_avvia)
+        btn_layout.addWidget(self.btn_annulla)
+        
+        layout.addLayout(btn_layout)
+
+    def _on_avvia(self):
+        delay = self.sb_delay.value()
+        speed = self.sb_speed.value()
+        
+        payload = {
+            "delay_start_seconds": delay,
+            "piano_id": self.piano_id,
+            "sim_speed_factor": speed
+        }
+        
+        try:
+            if post_json:
+                # Usa l'endpoint specificato
+                # Nota: la richiesta precedente diceva /simulation/simula_piano
+                resp = post_json('simulation/simula_piano', payload)
+                QMessageBox.information(self, "Successo", "Simulazione avviata correttamente.")
+                self.accept()
+            else:
+                QMessageBox.warning(self, "Errore", "API Client (post_json) non disponibile.")
+        except Exception as e:
+            QMessageBox.critical(self, "Errore", f"Errore nell'avvio della simulazione:\n{e}")
 
 
 class DettagliPianoDialog(QDialog):
