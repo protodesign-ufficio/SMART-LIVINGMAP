@@ -76,3 +76,12 @@
 
 /* Legend box styling */
 /* old .gantt-legend-box removed: legend is now inline text-only in header */
+
+#modal-confirm-delete{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+

@@ -15,11 +15,11 @@
     <!-- Header -->
     <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center h-24 shrink-0">
         <div class="space-x-6 flex items-center gap-6">
-            <div>
+            <!-- <div>
                 <h1 class="text-xl font-semibold text-white tracking-tight" id="page-title">
-                    Gestione Piano Operativo
+                    Piano Operativo
                 </h1>
-            </div>
+            </div> -->
             <!-- Legend as text-only list -->
             <div id="gantt-legend" class="flex flex-col text-xs text-slate-300">
                 <div class="space-x-2 flex items-center gap-2">
@@ -41,27 +41,34 @@
             </div>
         </div>
         
-        <div class="space-x-6 flex items-center gap-4">
+        <div class="space-x-4 flex items-center gap-3">
             <!-- Zoom Slider -->
             <div class="space-x-2 flex items-center gap-2">
-                <label for="zoom-slider" class="text-sm font-medium text-slate-400">Zoom:</label>
+                <label for="zoom-slider" class="text-xl font-medium">Zoom:</label>
                 <input type="range" id="zoom-slider" min="50" max="150" value="60" class="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
             </div>
 
             <!-- Selettore Data -->
             <div class="space-x-2 flex items-center">
-                <label for="date-select" class="text-sm font-medium text-slate-400">Data:</label>
+                <label for="date-select" class="text-xl font-medium">Data:</label>
                 <input type="date" id="date-select" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" />
             </div>
 
             <!-- Selettore Piano -->
             <div class="space-x-2 flex items-center">
-                <label for="piano-select" class="text-sm font-medium text-slate-400">Piano:</label>
+                <label for="piano-select" class="text-xl font-medium">Piano Operativo:</label>
                 <select id="piano-select" class="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-64 p-2">
                     <option value="">Seleziona un piano...</option>
                 </select>
             </div>
+            
+            <!-- Status Display -->
+            <div id="piano-status-container" class="w-48 h-14 bg-slate-800 border border-slate-700 rounded flex flex-col items-center justify-center shrink-0">
+                <p class="text-[12px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">Stato piano</p>
+                <span id="piano-status-text" class="text-lg font-semibold text-red-400 text-center whitespace-nowrap px-1 w-full overflow-hidden text-ellipsis">non definito</span>
+            </div>
 
+            <!-- Pulsanti Salva/Valida -->
             <button id="btn-save" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Salva Piano
             </button>
@@ -97,9 +104,9 @@
     </main>
 
     <!-- Modal Selezione Percorso -->
-    <div id="modal-percorso" class="fixed inset-0 hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            
+    <div id="modal-percorso" class="fixed inset-0 hidden flex items-center justify-center z-50 p-5">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+
             <div class="p-4 border-b border-slate-800 flex justify-between items-center">
                 <h3 class="text-lg font-bold text-white">Seleziona Percorso</h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-white">
@@ -127,6 +134,24 @@
 
             <div class="p-4 border-t border-slate-800 bg-slate-900/50 rounded-b-xl">
                 <p class="text-xs text-slate-500">* I percorsi in conflitto con altre assegnazioni non sono selezionabili.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Conferma Cancellazione -->
+    <div id="modal-confirm-delete" class="fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div class="space-y-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full p-6 flex flex-col gap-4">
+            <h3 class="text-xl font-bold text-white">Conferma Cancellazione</h3>
+            <p id="delete-msg" class="text-lg text-slate-300">
+                Sei sicuro di voler rimuovere questa assegnazione?
+            </p>
+            <p id="delete-warning-server" class="text-sm text-red-400 hidden">
+                Attenzione: L'assegnazione è già salvata.<br>
+                Procedendo, verrà impostata immediatamente come "CANCELLATA" sul server.
+            </p>
+            <div class="space-x-4 flex justify-end gap-3 mt-4">
+                <button onclick="closeDeleteModal()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded transition-colors">Annulla</button>
+                <button onclick="confirmDelete()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors">Rimuovi Assegnazione</button>
             </div>
         </div>
     </div>

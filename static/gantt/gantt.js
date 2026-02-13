@@ -1,16 +1,19 @@
 // Costanti & Configurazione
 const API_ROOT = 'http://87.26.178.190:15080/';
+
 const ENDPOINTS = {
     VASCELLO_LISTA: API_ROOT + 'vascello/lista',
     CORSA_GIORNO: API_ROOT + 'corsa/giorno', // ?giorno=YYYY-MM-DD
     PERCORSO_CORSA: (id) => API_ROOT + `percorso/by_corsa/${id}`,
     PIANO_LISTA: API_ROOT + 'piano/lista',   // ?data_riferimento=YYYY-MM-DD
+    PIANO_DETTAGLIO: (id) => API_ROOT + `piano/${id}`,
     ASSEGNAZIONE_PIANO: (id) => API_ROOT + `assegnazione/by_piano/${id}`,
     ASSEGNAZIONE_CREA: API_ROOT + 'assegnazione/crea',
     PIANIFICAZIONE_COMPATIBILI: API_ROOT + 'pianificazione/compatibili',
     PIANO_VALIDA: API_ROOT + 'piano/valida'
 };
 
+// Color Scheme per stati assegnazione
 const colorScheme = {
     assignedLocal: '#22c55e',   // green-500
     assignedServer: '#3b82f6',  // blue-500
@@ -18,14 +21,15 @@ const colorScheme = {
 };
 
 // Global State
-let state = {
+    let state = {
     today: new Date().toISOString().split('T')[0], // YYYY-MM-DD
     corse: [], // Tutte le corse del giorno
     vascelli: {}, // Mappa id -> nome
     piani: [],
     selectedPianoId: null,
     assegnazioni: {}, // Mappa corsa_id -> { ...assegnazione, isLocal: bool }
-    activeModalCorsaId: null
+    activeModalCorsaId: null,
+    pendingDeleteCorsaId: null, // Per modale conferma
 };
 
 // Configurazione Gantt
@@ -36,7 +40,6 @@ const GANTT_CONFIG = {
 };
 
 // --- Initialization ---
-
 document.addEventListener('DOMContentLoaded', async () => {
     // Event Listeners
     document.getElementById('piano-select').addEventListener('change', handlePianoChange);
@@ -54,7 +57,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.today = queryGiorno;
         }
     }
-
 
     initDateDisplay();
     setupGanttGrid();
@@ -135,6 +137,7 @@ async function handleDateChange(e) {
     const pianoSelect = document.getElementById('piano-select');
     pianoSelect.innerHTML = '<option value="">Seleziona un piano...</option>';
     pianoSelect.value = "";
+    updatePianoStatus(null);
     
     renderGantt();
 
@@ -143,6 +146,43 @@ async function handleDateChange(e) {
     await loadCorseDelGiorno();
     await loadPiani();
     renderGantt();
+}
+
+async function handlePianoChange(e) {
+    const pianoId = e.target.value;
+    state.selectedPianoId = pianoId;
+    state.assegnazioni = {}; // Reset visualizzazione assegnazioni
+    
+    if (!pianoId) {
+        updatePianoStatus(null);
+        renderGantt();
+        return;
+    }
+
+    // Aggiorna stato piano
+    updatePianoStatus(pianoId);
+
+    try {
+        const url = ENDPOINTS.ASSEGNAZIONE_PIANO(pianoId);
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        // Mappa assegnazioni server (solo PIANIFICATA)
+        data.forEach(ass => {
+            if (ass.stato_esecuzione === 'PIANIFICATA') {
+                state.assegnazioni[ass.id_corsa] = { ...ass, isLocal: false };
+            }
+        });
+        
+        console.log('Assegnazioni piano loaded:', data.length);
+        renderGantt();
+
+        // Background: Arricchisci assegnazioni con dettagli percorso (per durata corretta)
+        enrichAssignmentsWithDetails(data);
+
+    } catch (e) {
+        console.error('Errore caricamento assegnazioni', e);
+    }
 }
 
 // --- Data Loading ---
@@ -194,39 +234,6 @@ async function loadPiani() {
         });
     } catch (e) {
         console.error('Errore caricamento piani', e);
-    }
-}
-
-async function handlePianoChange(e) {
-    const pianoId = e.target.value;
-    state.selectedPianoId = pianoId;
-    state.assegnazioni = {}; // Reset visualizzazione assegnazioni
-    
-    if (!pianoId) {
-        renderGantt();
-        return;
-    }
-
-    try {
-        const url = ENDPOINTS.ASSEGNAZIONE_PIANO(pianoId);
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        // Mappa assegnazioni server (solo PIANIFICATA)
-        data.forEach(ass => {
-            if (ass.stato_esecuzione === 'PIANIFICATA') {
-                state.assegnazioni[ass.id_corsa] = { ...ass, isLocal: false };
-            }
-        });
-        
-        console.log('Assegnazioni piano loaded:', data.length);
-        renderGantt();
-
-        // Background: Arricchisci assegnazioni con dettagli percorso (per durata corretta)
-        enrichAssignmentsWithDetails(data);
-
-    } catch (e) {
-        console.error('Errore caricamento assegnazioni', e);
     }
 }
 
@@ -365,10 +372,8 @@ function renderGantt() {
         // Verifica assegnazione
         const assigned = state.assegnazioni[corsa.id];
         
-        // Logica click sulla riga vuota o sulla barra?
-        // Facciamo che cliccando ovunque nella track si apre la modal
-        track.addEventListener('click', () => openCorsaModal(corsa.id));
-        track.style.cursor = 'pointer';
+        // Track: contenitore righe. I click sono gestiti dalle barre specifiche.
+        track.style.cursor = 'default';
 
         if (assigned) {
             // Render Barra Assegnata
@@ -440,6 +445,12 @@ function renderGantt() {
                 // Content
                 const vascelloName = state.vascelli[assigned.vascello_id] ? state.vascelli[assigned.vascello_id].nome : 'Vascello ' + assigned.vascello_id;
                 bar.innerText = isVirtual ? `${vascelloName}` : vascelloName;
+
+                // Click Event: Confirm Delete
+                bar.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Evita che il click raggiunga la track (che aprirebbe la modal inserimento)
+                    openDeleteModal(corsa.id);
+                });
 
                 // Tooltip Events
                 bar.addEventListener('mouseenter', (e) => {
@@ -529,6 +540,13 @@ function renderGantt() {
                 bar.style.left = `${leftPx}px`;
                 bar.style.width = `${widthPx}px`;
                 bar.innerText = 'Da Assegnare';
+                
+                // Click Event: Open Assign Modal
+                bar.style.cursor = 'pointer';
+                bar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openCorsaModal(corsa.id);
+                });
                 
                 track.appendChild(bar);
             }
@@ -715,6 +733,78 @@ function closeModal() {
     state.activeModalCorsaId = null;
 }
 
+// --- Delete Confirmation Logic ---
+
+function openDeleteModal(corsaId) {
+    state.pendingDeleteCorsaId = corsaId;
+    const assignment = state.assegnazioni[corsaId];
+    if (!assignment) return; // Should not happen
+
+    const modal = document.getElementById('modal-confirm-delete');
+    const warningText = document.getElementById('delete-warning-server');
+    
+    // Mostra warning specifico se è salvata sul server
+    if (!assignment.isLocal) {
+        warningText.classList.remove('hidden');
+    } else {
+        warningText.classList.add('hidden');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('modal-confirm-delete').classList.add('hidden');
+    state.pendingDeleteCorsaId = null;
+}
+
+async function confirmDelete() {
+    const corsaId = state.pendingDeleteCorsaId;
+    if (!corsaId) return;
+
+    const assignment = state.assegnazioni[corsaId];
+    if (!assignment) {
+        closeDeleteModal();
+        return;
+    }
+
+    // Se è assegnazione SERVER -> Chiamata API per CANCELLATA
+    if (!assignment.isLocal) {
+        try {
+            const patchUrl = API_ROOT + `assegnazione/${assignment.id}/stato`;
+            const res = await fetch(patchUrl, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stato_esecuzione: 'CANCELLATA' })
+            });
+
+            if (!res.ok) {
+                const err = await res.text();
+                throw new Error(err || 'Errore durante la cancellazione');
+            }
+            
+            // Rimozione da stato locale -> Diventa Rossa (Da Assegnare)
+            delete state.assegnazioni[corsaId];
+            renderGantt();
+            updatePianoStatus(state.selectedPianoId);
+            alert('Assegnazione cancellata sul server.');
+
+        } catch (e) {
+            console.error('Errore delete', e);
+            alert('Errore durante la cancellazione: ' + e.message);
+        }
+    } else {
+        // Se è assegnazione LOCALE -> Rimuovi solo da stato, nessuna chiamata API
+        // Nota: Se questa locale sovrascriveva una server, eliminando la locale
+        // tornerebbe visibile quella server se ricaricassimo i dati. 
+        // Ma qui rimuoviamo 'l'oggetto' visualizzato.
+        delete state.assegnazioni[corsaId];
+        renderGantt();
+    }
+
+    closeDeleteModal();
+}
+
 // --- Conflict Logic ---
 // --- DEPRECATED : la logica di conflitto è demandata al backend ---
 function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
@@ -760,7 +850,6 @@ function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
 }
 
 // --- Saving ---
-
 async function savePiano() {
     if (!state.selectedPianoId) {
         alert('Seleziona un piano prima di salvare.');
@@ -843,6 +932,9 @@ async function savePiano() {
             select.value = currentPianoId;
         }
 
+        // Aggiorna stato piano
+        updatePianoStatus(state.selectedPianoId);
+        
         alert('Piano aggiornato con successo!');
     }
 }
@@ -878,6 +970,8 @@ async function validatePiano() {
         // Expecting { validato: bool, messaggio?: string, dettagli?: {...} }
         if (data.validato === true) {
             alert(data.messaggio || 'Piano validato con successo.');
+            // Update status immediately if successful
+            updatePianoStatus(state.selectedPianoId);
         } else {
             const msg = data.messaggio || 'Validazione fallita.';
             // If server returns details (e.g., list of problemi) include brief info
@@ -896,6 +990,58 @@ async function validatePiano() {
             btn.disabled = false;
             btn.innerText = originalText;
         }
+    }
+}
+
+async function updatePianoStatus(pianoId) {
+    const container = document.getElementById('piano-status-container');
+    const textEl = document.getElementById('piano-status-text');
+
+    textEl.classList.remove('text-green-400', 'text-yellow-400', 'text-blue-400', 'text-red-400', 'text-white');
+
+    if (!pianoId) {
+        if (textEl) {
+            textEl.innerText = 'non definito';
+            textEl.classList.add('text-red-400');
+        }
+        return;
+    }
+
+    try {
+        const res = await fetch(ENDPOINTS.PIANO_DETTAGLIO(pianoId));
+        if (res.ok) {
+            const data = await res.json();
+            // data.stato
+            if (textEl) {
+                textEl.innerText = data.stato || 'N/D';
+            
+                // Colora in base allo stato
+                switch (data.stato) {
+                    case 'CREATO':
+                        textEl.classList.add('text-white');
+                        break;
+                    case 'VALIDATO':
+                        textEl.classList.add('text-green-400');
+                        break;
+                    case 'IN_OTTIMIZZAZIONE':
+                        textEl.innerText = 'IN OTTIMIZZAZIONE';
+                        textEl.classList.add('text-yellow-400');
+                        break;
+                    case 'PRONTO':
+                        textEl.classList.add('text-blue-400');
+                        break;
+                    default:
+                        textEl.classList.add('text-red-400');
+                }
+            }
+            if (container) container.classList.remove('hidden');
+        } else {
+            console.warn("Impossibile recuperare stato piano", res.status);
+            if (container) container.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error("Errore fetch stato piano", e);
+        if (container) container.classList.add('hidden');
     }
 }
 
