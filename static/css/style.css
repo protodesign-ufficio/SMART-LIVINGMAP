@@ -32,5 +32,21 @@ html, body, #map {
     text-align: center;
 }
 
+#home-button {
+    position: absolute;
+    top: 45px;
+    right: 10px;
+    z-index: 1000;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
 /* Port marker label */
 .port-div-icon{ pointer-events:auto; }

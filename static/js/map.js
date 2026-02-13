@@ -9,6 +9,7 @@ map.setMaxBounds([[-90, -180], [90, 180]]);
 // Coordinate display box (show absolute values with N/S and E/W)
 (function(){
   const box = document.getElementById('coords-box');
+  box.textContent = '40.00000° N 14.00000° E'; 
   if (!box) return;
   function fmtLat(n){
     if (typeof n !== 'number') return '';
@@ -30,9 +31,17 @@ map.setMaxBounds([[-90, -180], [90, 180]]);
       box.textContent = lat + '  ' + lon;
     });
     // clear when mouse leaves map
-    map.on('mouseout', function(){ box.textContent = ''; });
+    map.on('mouseout', function(){ 
+      box.textContent = '40.00000° N 14.00000° E'; 
+    });
   }
 })();
+
+function returnToHome(){
+  if (typeof map !== 'undefined' && map){
+    map.setView([40.65, 14.6], 12);
+  }
+}
 
 // OpenStreetMap base layer
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

@@ -74,7 +74,7 @@ function popupHtml(m){
     Heading: ${m.heading != null ? m.heading : ''} <br/>
     Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
     Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}<br/>
-    // Last Update: <b>${lastUpd}</b><br/>
+    Last Update: <b>${lastUpd}</b><br/>
     Sorgente: <b>${staticInfo.is_simulation ? 'Simulazione' : 'Reale'}</b><br/><br/>
     <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}', '${source}')">Mostra in Dashboard</button>
   </div>`;
