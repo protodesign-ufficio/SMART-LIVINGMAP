@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QTimeEdit,
     QProgressDialog,
     QSpinBox,
+    QDoubleSpinBox,
     QCheckBox,
     QGroupBox,
 )
@@ -176,9 +177,22 @@ class OptimizationDialog(QDialog):
         self.optimize_all_cb.setToolTip("Esegue l'ottimizzazione per tutti i vascelli disponibili")
         self.optimize_all_cb.toggled.connect(self._on_optimize_all_toggled)
 
+        # New fields requested
+        self.fake_data_cb = QCheckBox("Usa Fake Data")
+        self.fake_data_cb.setChecked(False)
+        
+        self.tolerance_edit = QLineEdit("1")
+        self.tolerance_edit.setToolTip("Valore tolerance (default 1)")
+        
+        self.ve_min_edit = QLineEdit("0.1")
+        self.ve_min_edit.setToolTip("Valore ve_min (default 0.1)")
+
         form.addRow('Corsa Selezionata', self.corsa_label)
         form.addRow('Vascello', self.vascello_cb)
         form.addRow('Eps Time', self.eps_spin)
+        form.addRow('Tolerance', self.tolerance_edit)
+        form.addRow('Ve Min', self.ve_min_edit)
+        form.addRow('', self.fake_data_cb)
         form.addRow('', self.optimize_all_cb)
 
         layout.addLayout(form)
@@ -227,6 +241,18 @@ class OptimizationDialog(QDialog):
         vascello_id = self.vascello_cb.currentData() or self.vascello_cb.currentText()
         corsa_id = self.corsa_id
         eps_time = int(self.eps_spin.value())
+        fake_data = self.fake_data_cb.isChecked()
+        
+        try:
+            tolerance = float(self.tolerance_edit.text() if self.tolerance_edit.text().strip() else 1)
+        except ValueError:
+            tolerance = 1
+
+        try:
+            ve_min = float(self.ve_min_edit.text() if self.ve_min_edit.text().strip() else 0.1)
+        except ValueError:
+            ve_min = 0.1
+        
         # basic validations
         if not corsa_id:
             QMessageBox.warning(self, 'Errore', 'ID corsa non disponibile')
@@ -255,9 +281,9 @@ class OptimizationDialog(QDialog):
                     'corsa_id': corsa_id,
                     'vascello_id': vid,
                     'eps_time': eps_time,
-                    'fake_data': False,
-                    'tolerance': 1,
-                    've_min': 0.1
+                    'fake_data': fake_data,
+                    'tolerance': tolerance,
+                    've_min': ve_min
                 })
             payload = {'items': items_payload}
         else:
@@ -270,9 +296,9 @@ class OptimizationDialog(QDialog):
                 'corsa_id': corsa_id,
                 'vascello_id': vascello_id,
                 'eps_time': eps_time,
-                'fake_data': False,
-                'tolerance': 1,
-                've_min': 0.1
+                'fake_data': fake_data,
+                'tolerance': tolerance,
+                've_min': ve_min
             }]}
 
         # Disable UI controls to prevent duplicate submits
@@ -282,6 +308,9 @@ class OptimizationDialog(QDialog):
             self.vascello_cb.setEnabled(False)
             self.optimize_all_cb.setEnabled(False)
             self.eps_spin.setEnabled(False)
+            self.fake_data_cb.setEnabled(False)
+            self.tolerance_edit.setEnabled(False)
+            self.ve_min_edit.setEnabled(False)
         except Exception:
             pass
 
@@ -303,6 +332,9 @@ class OptimizationDialog(QDialog):
             self.vascello_cb.setEnabled(True)
             self.optimize_all_cb.setEnabled(True)
             self.eps_spin.setEnabled(True)
+            self.fake_data_cb.setEnabled(True)
+            self.tolerance_edit.setEnabled(True)
+            self.ve_min_edit.setEnabled(True)
         except Exception:
             pass
 
@@ -312,12 +344,32 @@ class OptimizationDayDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle('Ottimizza Giorno')
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
-        self.resize(250, 380)
+        self.resize(450, 400)
         
         layout = QVBoxLayout(self)
         
-        # Date selection
+        # Main Horizontal Layout
+        h_layout = QHBoxLayout()
+
+        # Left Column: Vessels
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(QLabel("Seleziona i vascelli da utilizzare:"))
+        self.table = QTableWidget(0, 2, self)
+        self.table.setHorizontalHeaderLabels([' ', 'Vascello'])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setColumnWidth(0, 30)  # Reduce width of checkbox column
+        left_layout.addWidget(self.table)
+        
+        btn_toggle = QPushButton("Seleziona/Deseleziona Tutti")
+        btn_toggle.clicked.connect(self._toggle_all)
+        left_layout.addWidget(btn_toggle)
+        h_layout.addLayout(left_layout, stretch=1)
+        
+        # Right Column: Settings
+        right_layout = QVBoxLayout()
         form = QFormLayout()
+        
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
         if initial_date:
@@ -325,20 +377,29 @@ class OptimizationDayDialog(QDialog):
         else:
             self.date_edit.setDate(QDate.currentDate())
         form.addRow('Giorno', self.date_edit)
-        layout.addLayout(form)
         
-        # Table for vessels
-        layout.addWidget(QLabel("Seleziona i vascelli da utilizzare:"))
-        self.table = QTableWidget(0, 2, self)
-        self.table.setHorizontalHeaderLabels([' ', 'Vascello'])
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        layout.addWidget(self.table)
+        self.eps_spin = QSpinBox()
+        self.eps_spin.setRange(0, 3600)
+        self.eps_spin.setValue(5)
+        form.addRow('Eps Time', self.eps_spin)
+
+        self.tolerance_edit = QLineEdit("1")
+        self.tolerance_edit.setToolTip("Valore tolerance (default 1)")
+        form.addRow('Tolerance', self.tolerance_edit)
         
-        # Helper to toggle all
-        btn_toggle = QPushButton("Seleziona/Deseleziona Tutti")
-        btn_toggle.clicked.connect(self._toggle_all)
-        layout.addWidget(btn_toggle)
+        self.ve_min_edit = QLineEdit("0.1")
+        self.ve_min_edit.setToolTip("Valore ve_min (default 0.1)")
+        form.addRow('Ve Min', self.ve_min_edit)
+
+        self.fake_data_cb = QCheckBox("Usa Fake Data")
+        self.fake_data_cb.setChecked(False)
+        form.addRow('', self.fake_data_cb)
+        
+        right_layout.addLayout(form)
+        right_layout.addStretch()
+        h_layout.addLayout(right_layout, stretch=0)
+
+        layout.addLayout(h_layout)
         
         # Buttons
         btn_row = QHBoxLayout()
@@ -410,12 +471,27 @@ class OptimizationDayDialog(QDialog):
         d = self.date_edit.date()
         d_str = d.toString('yyyy-MM-dd')
         
+        eps_time = int(self.eps_spin.value())
+        fake_data = self.fake_data_cb.isChecked()
+        
+        try:
+            tolerance = float(self.tolerance_edit.text() if self.tolerance_edit.text().strip() else 1)
+        except ValueError:
+            tolerance = 1
+
+        try:
+            ve_min = float(self.ve_min_edit.text() if self.ve_min_edit.text().strip() else 0.1)
+        except ValueError:
+            ve_min = 0.1
+
         payload = {
             "start": f"{d_str}T00:00:00",
             "end": f"{d_str}T23:59:00",
             "vessels": selected_ids,
-            "eps_time": 5,
-            "fake_data": False
+            "eps_time": eps_time,
+            "fake_data": fake_data,
+            "tolerance": tolerance,
+            "ve_min": ve_min
         }
         
         # Disable UI and start thread
@@ -423,6 +499,10 @@ class OptimizationDayDialog(QDialog):
         self.start_btn.setText("Elaborazione...")
         self.table.setEnabled(False)
         self.date_edit.setEnabled(False)
+        self.eps_spin.setEnabled(False)
+        self.fake_data_cb.setEnabled(False)
+        self.tolerance_edit.setEnabled(False)
+        self.ve_min_edit.setEnabled(False)
         
         self.worker = OptimizationWorker('assegnazione/pianifica', payload, timeout=600)
         self.worker.finished.connect(self._on_opt_finished)
@@ -440,6 +520,10 @@ class OptimizationDayDialog(QDialog):
         self.start_btn.setEnabled(True)
         self.table.setEnabled(True)
         self.date_edit.setEnabled(True)
+        self.eps_spin.setEnabled(True)
+        self.fake_data_cb.setEnabled(True)
+        self.tolerance_edit.setEnabled(True)
+        self.ve_min_edit.setEnabled(True)
 
 
 class CorsePanel(QWidget):

@@ -38,6 +38,13 @@ const GANTT_CONFIG = {
 // --- Initialization ---
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Event Listeners
+    document.getElementById('piano-select').addEventListener('change', handlePianoChange);
+    document.getElementById('btn-save').addEventListener('click', savePiano);
+    const btnValidate = document.getElementById('btn-validate');
+    if (btnValidate) btnValidate.addEventListener('click', validatePiano);
+    document.getElementById('date-select').addEventListener('change', handleDateChange);
+
     // Check URL params for date
     const params = new URLSearchParams(window.location.search);
     const queryGiorno = params.get('giorno');
@@ -47,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.today = queryGiorno;
         }
     }
+
 
     initDateDisplay();
     setupGanttGrid();
@@ -59,14 +67,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Carica Piani Disponibili
     await loadPiani();
-
-    // Event Listeners
-    document.getElementById('piano-select').addEventListener('change', handlePianoChange);
-    document.getElementById('btn-save').addEventListener('click', savePiano);
-    const btnValidate = document.getElementById('btn-validate');
-    if (btnValidate) btnValidate.addEventListener('click', validatePiano);
-    document.getElementById('date-select').addEventListener('change', handleDateChange);
     
+    const queryPiano = params.get('piano');
+    if (queryPiano) {
+        const pianoSelect = document.getElementById('piano-select');
+        if (pianoSelect) {
+            pianoSelect.value = queryPiano;
+            // Se il valore è stato impostato correttamente (esiste nella lista)
+            if (pianoSelect.value === queryPiano) {
+                pianoSelect.dispatchEvent(new Event('change'));
+            }
+        }
+    }
+
     // Zoom Slider
     const zoomSlider = document.getElementById('zoom-slider');
     if (zoomSlider) {

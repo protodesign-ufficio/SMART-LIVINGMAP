@@ -181,10 +181,15 @@ class PianiOperativiPanel(QWidget):
         self.details_btn = QPushButton('Dettagli Piano')
         self.details_btn.setEnabled(False)
         self.details_btn.clicked.connect(self.open_details_dialog)
+        
+        self.gantt_btn = QPushButton('Gantt')
+        self.gantt_btn.setEnabled(False)
+        self.gantt_btn.clicked.connect(self.open_gantt_dashboard)
 
         serv_group = QGroupBox('Servizi')
         serv_layout = QVBoxLayout()
         serv_layout.addWidget(self.details_btn)
+        serv_layout.addWidget(self.gantt_btn)
         serv_group.setLayout(serv_layout)
         right_panel.addWidget(serv_group)
 
@@ -375,6 +380,10 @@ class PianiOperativiPanel(QWidget):
             self.details_btn.setEnabled(bool(has))
         except Exception:
             pass
+        try:
+            self.gantt_btn.setEnabled(bool(has))
+        except Exception:
+            pass
 
     def open_details_dialog(self):
         # get selected row and piano id
@@ -393,6 +402,66 @@ class PianiOperativiPanel(QWidget):
 
         dlg = DettagliPianoDialog(self, piano_id=piano_id, data_riferimento=data_rif)
         dlg.exec_()
+    
+    def open_gantt_dashboard(self):
+        # recupera piano selezionato
+        sel = self.table.selectionModel().selectedRows()
+        if not sel:
+            QMessageBox.warning(self, 'Errore', 'Nessun piano selezionato')
+            return
+        row = sel[0].row()
+        item = self.table.item(row, 4)
+        if item is None:
+            QMessageBox.warning(self, 'Errore', 'Elemento selezionato non valido')
+            return
+            
+        piano = item.data(Qt.UserRole) or {}
+        piano_id = piano.get('id') if isinstance(piano, dict) else item.text()
+        data_rif = piano.get('data_riferimento') if isinstance(piano, dict) else ''
+        
+        # estrai giorno YYYY-MM-DD da data_riferimento (ISO)
+        giorno_str = str(data_rif).split('T')[0] if data_rif else ''
+        
+        # cerca main window per aprire dashboard
+        p = self
+        main = None
+        for _ in range(8):
+            p = p.parent()
+            if p is None:
+                break
+            if hasattr(p, 'open_dashboard_embedded'):
+                main = p
+                break
+
+        if main is None:
+            # try finding via QApplication
+            try:
+                from PyQt5.QtWidgets import QApplication
+                app = QApplication.instance()
+                if app is not None:
+                    for w in app.topLevelWidgets():
+                        try:
+                            if hasattr(w, 'open_dashboard_embedded'):
+                                main = w
+                                break
+                        except Exception:
+                            continue
+            except Exception:
+                main = None
+
+        if main is None:
+            QMessageBox.warning(self, 'Errore', 'Funzionalità dashboard non disponibile')
+            return
+            
+        try:
+            main.open_dashboard_embedded(
+                'static/gantt/gantt.html', 
+                query={'giorno': giorno_str, 'piano': str(piano_id)},
+                title=f'Gantt Piano {piano_id}', 
+                size=(1600, 900)
+            )
+        except Exception as e:
+            QMessageBox.warning(self, 'Errore', f'Impossibile aprire il Gantt: {e}')
 
 
 class DettagliPianoDialog(QDialog):
@@ -645,7 +714,7 @@ class SolutionsSelectionDialog(QDialog):
     def __init__(self, parent=None, solutions=None):
         super().__init__(parent)
         self.setWindowTitle('Risultati Scheduling Automatico')
-        self.resize(700, 400)
+        self.resize(500, 400)
         self.solutions = solutions or []
 
         layout = QVBoxLayout(self)
@@ -653,8 +722,8 @@ class SolutionsSelectionDialog(QDialog):
         lbl = QLabel(f"Trovate {len(self.solutions)} soluzioni. Seleziona quelle da salvare come Piani Operativi:")
         layout.addWidget(lbl)
 
-        self.table = QTableWidget(0, 5, self)
-        self.table.setHorizontalHeaderLabels(['Seleziona', 'ID Soluzione', 'Costo', 'Rischio', 'N. Attività'])
+        self.table = QTableWidget(0, 4, self)
+        self.table.setHorizontalHeaderLabels(['Seleziona', 'Costo', 'Rischio', 'N. Attività'])
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
         
@@ -684,24 +753,21 @@ class SolutionsSelectionDialog(QDialog):
             # Store full solution object
             it_check.setData(Qt.UserRole, sol)
 
-            sid = str(sol.get('solution_id', ''))
             cost = str(sol.get('cost', ''))
             risk = str(sol.get('risk', ''))
             n_acts = str(len(sol.get('activities', [])))
 
-            it_id = QTableWidgetItem(sid)
             it_cost = QTableWidgetItem(cost)
             it_risk = QTableWidgetItem(risk)
             it_n = QTableWidgetItem(n_acts)
             
-            for it in (it_id, it_cost, it_risk, it_n):
+            for it in (it_cost, it_risk, it_n):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
             self.table.setItem(row, 0, it_check)
-            self.table.setItem(row, 1, it_id)
-            self.table.setItem(row, 2, it_cost)
-            self.table.setItem(row, 3, it_risk)
-            self.table.setItem(row, 4, it_n)
+            self.table.setItem(row, 1, it_cost)
+            self.table.setItem(row, 2, it_risk)
+            self.table.setItem(row, 3, it_n)
 
         self.table.resizeColumnsToContents()
 
