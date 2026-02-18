@@ -53,9 +53,9 @@ class _WebBridge(QObject):
         except Exception:
             pass
 
-    @pyqtSlot(str, str, result=QVariant)
-    def getWeatherData(self, layer_type, bounds_json=None):
-        """Fetch weather data (mocked for now) from Copernicus Service"""
+    @pyqtSlot(str, str, str, result=QVariant)
+    def getWeatherData(self, layer_type, bounds_json=None, timestamp=None):
+        """Fetch weather data from Copernicus Service"""
         try:
             if WeatherService is None:
                 return []
@@ -68,8 +68,12 @@ class _WebBridge(QObject):
                 except:
                     pass
             
+            # If timestamp is 'null' or empty, treat as None (real-time)
+            if not timestamp or timestamp == 'null':
+                timestamp = None
+
             service = WeatherService()
-            return service.get_data(layer_type, bounds)
+            return service.get_data(layer_type, bounds, timestamp=timestamp)
         except Exception as e:
             print(f"Error in getWeatherData: {e}")
             return []

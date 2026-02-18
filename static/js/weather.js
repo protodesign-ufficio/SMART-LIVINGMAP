@@ -3,6 +3,33 @@
 
 let activeWeatherLayerGroup = L.layerGroup();
 let currentLayerType = null;
+window.currentWeatherTime = null; // null = real-time/latest
+
+/**
+ * Sets the reference time for weather data.
+ * @param {string|null} isoStr - ISO timestamp string, or null for real-time.
+ */
+window.setWeatherTime = function(isoStr) {
+    window.currentWeatherTime = isoStr;
+    console.log('Weather time updated to:', isoStr || 'Real-time');
+
+    // Update timestamp label visually immediately to reflect intent
+    const el = document.getElementById('weather-timestamp');
+    if (el) {
+        if (!isoStr) {
+             // Let the next updateWeatherLayer call refresh the actual time
+        } else {
+             el.textContent = `Richiesta meteo: ${isoStr}`;
+             el.style.backgroundColor = '#fff3cd'; // Light yellow to indicate non-realtime
+             el.classList.remove('hidden');
+        }
+    }
+
+    // Refresh if active
+    if (currentLayerType) {
+        selectWeatherLayer(currentLayerType);
+    }
+}
 
 function toggleWeatherMenu() {
     const menu = document.getElementById('weather-menu');
@@ -43,10 +70,14 @@ function selectWeatherLayer(type) {
         west: bounds.getWest()
     };
 
-    if (window.pyMain && window.pyMain.getWeatherData) {
-        console.log(`Fetching weather data for: ${type}`);
+    if (window.pyMain && window.pyMain.getWeatherDataT) {
+        console.log(`Fetching weather data for: ${type} at time: ${window.currentWeatherTime || 'Real-time'}`);
         // Pass bounds as JSON string
-        window.pyMain.getWeatherData(type, JSON.stringify(boundsObj), function(response) {
+        fetchWeatherData(type, boundsObj);
+    } else if (window.pyMain && window.pyMain.getWeatherData) {
+         // Fallback if updated signature not deployed yet? No, we updated Python.
+         // Pass explicit timestamp or null
+         window.pyMain.getWeatherData(type, JSON.stringify(boundsObj), window.currentWeatherTime, function(response) {
             
             // Handle both legacy (list) and new (dict) response formats
             let data = response;
@@ -58,6 +89,10 @@ function selectWeatherLayer(type) {
             } else if (response && response.error) {
                 console.error("Weather error:", response.error);
                 return;
+            } else if (response && response.items) {
+                // Should match above, but just in case
+                data = response.items;
+                timestamp = response.timestamp;
             }
 
             console.log("Weather data received:", data ? data.length : 0);
@@ -75,7 +110,16 @@ function updateTimestamp(ts) {
     if (!el) return;
     
     if (ts) {
-        el.textContent = `Dati meteo del: ${ts}`;
+        // Parse the timestamp string returned by backend
+        let displayTime = ts.replace('T', ' ');
+        // If we requested a specific time, indicate it clearly
+        if (window.currentWeatherTime) {
+            el.innerHTML = `<strong>Overlay del:</strong>&nbsp;${displayTime} (Pianificato)`;
+            el.style.backgroundColor = '#fff3cd'; 
+        } else {
+            el.innerHTML = `<strong>Overlay del:</strong>&nbsp;${displayTime} (In tempo reale)`;
+            el.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        }
         el.classList.remove('hidden');
     } else {
         el.classList.add('hidden');

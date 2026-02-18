@@ -76,6 +76,7 @@ class PercorsiDialog(QDialog):
                     tratta = data.get('tratta_nome', '')
 
                 orario = data.get('orario_partenza_schedulato', '')
+                self._corsa_full_timestamp = orario if orario else None
                 previsione = data.get('previsione') or {}
                 pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
 
@@ -517,45 +518,67 @@ class PercorsiDialog(QDialog):
         """Handle checkbox toggles in the 'Mostra' column to show/hide routes on the map."""
         if self._suppress_item_changed:
             return
+        
         try:
             col = item.column()
-            # Mostra column is 0
             if col != 0:
                 return
-            row = item.row()
+
             checked = (item.checkState() == Qt.Checked)
             route_obj = item.data(Qt.UserRole)
             if not isinstance(route_obj, dict):
                 return
-            # use JSON serialization for safe JS passing
-            try:
-                rid = route_obj.get('id')
-                if checked:
-                    # draw route
-                    js = f"window.routesManager.drawRoute({json.dumps(route_obj)})"
+            
+            rid = str(route_obj.get('id', ''))
+            
+            # Access parent (or self) visible routes set
+            parent = self.parent()
+            if parent is not None and hasattr(parent, '_visible_routes'):
+                visible_set = parent._visible_routes
+            else:
+                if not hasattr(self, '_visible_routes'):
+                    self._visible_routes = set()
+                visible_set = self._visible_routes
+
+            if checked:
+                # SINGLE SELECTION MODE:
+                # 1. Clear all routes on map
+                self._run_js("if(window.routesManager) window.routesManager.clearAll();")
+                
+                # 2. Clear memory set
+                visible_set.clear()
+                
+                # 3. Uncheck other rows in UI without triggering events
+                self._suppress_item_changed = True
+                for row_idx in range(self.table.rowCount()):
+                    it = self.table.item(row_idx, 0)
+                    if it and it is not item:
+                        it.setCheckState(Qt.Unchecked)
+                self._suppress_item_changed = False
+
+                # 4. Add ONLY the current route
+                visible_set.add(rid)
+                js = f"window.routesManager.addRoute({json.dumps(route_obj)})"
+                self._run_js(js)
+                
+                # 5. Set Weather Time to scheduled departure
+                # Uses self._corsa_full_timestamp stored in __init__
+                ts_val = getattr(self, '_corsa_full_timestamp', None)
+                ts_js = f"'{ts_val}'" if ts_val else "null"
+                self._run_js(f"if(window.setWeatherTime) window.setWeatherTime({ts_js});")
+
+            else:
+                # If unchecked, just remove this specific route
+                if rid in visible_set:
+                    visible_set.discard(rid)
+                    js = f"window.routesManager.removeRoute('{rid}')"
                     self._run_js(js)
-                    # store selection in-memory on parent (or locally if no parent)
-                    parent = self.parent()
-                    try:
-                        if parent is not None:
-                            parent._visible_routes.add(str(rid))
-                        else:
-                            self._visible_routes.add(str(rid))
-                    except Exception:
-                        pass
-                else:
-                    if rid is not None:
-                        js = f"window.routesManager.removeRoute({json.dumps(rid)})"
-                        self._run_js(js)
-                        parent = self.parent()
-                        try:
-                            if parent is not None:
-                                parent._visible_routes.discard(str(rid))
-                            else:
-                                self._visible_routes.discard(str(rid))
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-        except Exception:
+                    
+                    # Reset weather to real-time since no route is active (in this dialog's context)
+                    # Note: Ideally we should check if ANY route is visible, but since 
+                    # we enforce single selection, this is safe.
+                    self._run_js("if(window.setWeatherTime) window.setWeatherTime(null);")
+
+        except Exception as e:
+            print(f"Error in _on_item_changed: {e}")
             pass

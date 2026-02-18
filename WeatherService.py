@@ -2,6 +2,7 @@
 import math
 import datetime
 import numpy as np
+import pandas as pd
 import xarray as xr
 import copernicusmarine
 
@@ -26,16 +27,17 @@ class WeatherService:
             except Exception as e:
                 print(f"[WeatherService] Login failed: {e}")
 
-    def get_data(self, layer_type, bounds=None):
+    def get_data(self, layer_type, bounds=None, timestamp=None):
         """
         Fetch weather data based on layer_type from Copernicus Marine Service.
         
         Args:
             layer_type (str): 'currents' or 'waves'
             bounds (dict): {north, south, east, west} visible area (optional)
-            
+            timestamp (str): ISO formatted datetime string (optional)
+
         Returns:
-            list: List of data points
+            dict: {timestamp: str, items: list}
         """
         self._ensure_login()
 
@@ -63,10 +65,23 @@ class WeatherService:
                 password=self.password,
             )
             
-            # Select the most recent time available (nearest to now)
-            target_time = datetime.datetime.now()
             # Select time slice
-            ds_slice = ds.sel(time=target_time, method='nearest')
+            if timestamp:
+                try:
+                    target_time = pd.to_datetime(timestamp)
+                    print(f"[WeatherService] Using requested timestamp: {target_time}")
+                except Exception as e:
+                    print(f"[WeatherService] Invalid timestamp '{timestamp}': {e}. Using current time.")
+                    target_time = datetime.datetime.now()
+            else:
+                target_time = datetime.datetime.now()
+
+            try:
+                ds_slice = ds.sel(time=target_time, method='nearest')
+            except KeyError:
+                 # fallback if time is out of range
+                 print(f"[WeatherService] Time {target_time} out of range. Using last available time.")
+                 ds_slice = ds.isel(time=-1)
 
             # Spatial subsetting if bounds are provided
             # Copernicus MED datasets usually have lat between 30 and 46, lon -6 to 37
