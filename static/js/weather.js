@@ -24,6 +24,9 @@ function selectWeatherLayer(type) {
         activeWeatherLayerGroup.removeFrom(window.map);
     }
     
+    // Clear timestamp
+    updateTimestamp(null);
+
     currentLayerType = type;
     
     if (!type) {
@@ -43,13 +46,39 @@ function selectWeatherLayer(type) {
     if (window.pyMain && window.pyMain.getWeatherData) {
         console.log(`Fetching weather data for: ${type}`);
         // Pass bounds as JSON string
-        window.pyMain.getWeatherData(type, JSON.stringify(boundsObj), function(data) {
+        window.pyMain.getWeatherData(type, JSON.stringify(boundsObj), function(response) {
+            
+            // Handle both legacy (list) and new (dict) response formats
+            let data = response;
+            let timestamp = null;
+            
+            if (response && !Array.isArray(response) && response.items) {
+                data = response.items;
+                timestamp = response.timestamp;
+            } else if (response && response.error) {
+                console.error("Weather error:", response.error);
+                return;
+            }
+
             console.log("Weather data received:", data ? data.length : 0);
             renderWeatherData(type, data);
+            updateTimestamp(timestamp);
         });
     } else {
         console.warn("pyMain.getWeatherData not available");
         // Fallback or retry logic could go here
+    }
+}
+
+function updateTimestamp(ts) {
+    const el = document.getElementById('weather-timestamp');
+    if (!el) return;
+    
+    if (ts) {
+        el.textContent = `Dati meteo del: ${ts}`;
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
     }
 }
 

@@ -1,8 +1,16 @@
 // Initialize the map (disable world copy wrapping and keep map bounded)
 // Set sensible zoom limits to avoid excessive zooming
-const map = L.map('map', { worldCopyJump: false, maxBoundsViscosity: 1, minZoom: 3, maxZoom: 18 }).setView([40.65, 14.6], 12);
+const map = L.map('map', { 
+  attributionControl: false,
+  worldCopyJump: false, 
+  maxBoundsViscosity: 1, 
+  minZoom: 3, 
+  maxZoom: 18 
+}).setView([40.65, 14.6], 12);
+
 // expose map globally so other scripts can access it
 window.map = map;
+
 // Restrict map to a single world view (no infinite longitudinal panning)
 map.setMaxBounds([[-90, -180], [90, 180]]);
 
@@ -55,4 +63,8 @@ const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.pn
   maxZoom: 18,
   attribution: '© OpenSeaMap',
   noWrap: true
+}).addTo(map);
+
+L.control.attribution({
+    position: 'bottomleft'
 }).addTo(map);

@@ -25,17 +25,14 @@
       </svg>
     </button>
     <div id="weather-menu" class="hidden">
-      <div class="menu-item" onclick="selectWeatherLayer('currents')">
-        Correnti
-      </div>
-      <div class="menu-item" onclick="selectWeatherLayer('waves')">
-        Onde
-      </div>
-      <div class="menu-item" onclick="selectWeatherLayer(null)">
-        Nessuno
-      </div>
+      <div class="menu-item" onclick="selectWeatherLayer('currents')">Correnti Marine</div>
+      <div class="menu-item" onclick="selectWeatherLayer('waves')">Onde</div>
+      <div class="menu-item" onclick="selectWeatherLayer(null)">Nessuno</div>
+    </div>
     </div>
   </div>
+  
+  <div id="weather-timestamp" class="hidden"></div>
 
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

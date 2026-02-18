@@ -104,7 +104,16 @@ class WeatherService:
             ds_slice = ds_slice[req_vars]
             df = ds_slice.to_dataframe().dropna().reset_index()
             
+            # Get the actual time of the data slice
+            # Assuming 'time' is a scalar coordinate after selection
+            data_time = "?"
+            if 'time' in ds_slice.coords:
+                dt_val = ds_slice.time.values
+                # Convert numpy.datetime64 to readable string
+                data_time = str(np.datetime_as_string(dt_val, unit='m'))
+            
             # Filter exactly within the requested bounds (pandas filtering)
+
             lat_req_min, lat_req_max = 40.52, 40.80
             lon_req_min, lon_req_max = 14.30, 14.90
             
@@ -152,15 +161,20 @@ class WeatherService:
                             'period': float(row.VTM01_WW)
                         })
 
-            
             ds.close()
-            return data
+            # Check if this return object still matches QWebChannel slot signature
+            return {
+                "timestamp": data_time.replace('T', ' '),
+                "dataset": dataset_id,
+                "items": data
+            }
 
         except Exception as e:
             print(f"[WeatherService] Error fetching data for {layer_type}: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return {"error": str(e)}
+
 
 
 
