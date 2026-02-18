@@ -1,7 +1,7 @@
 import json
 import time
 from pathlib import Path
-from PyQt5.QtCore import QUrl, QTimer
+from PyQt5.QtCore import QUrl, QTimer, QVariant
 # logging removed per user request
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtWebChannel import QWebChannel
@@ -27,6 +27,11 @@ try:
 except Exception:
     get_json = None
 
+try:
+    from WeatherService import WeatherService
+except Exception:
+    WeatherService = None
+
 # Classe _webbridge: helper QObject exposed to the web page via QWebChannel
 class _WebBridge(QObject):
     def __init__(self, main_window):
@@ -47,6 +52,28 @@ class _WebBridge(QObject):
             self._mw.open_dashboard_embedded(page_relative, query=q, title=title or None, size=(width or 1500, height or 900))
         except Exception:
             pass
+
+    @pyqtSlot(str, str, result=QVariant)
+    def getWeatherData(self, layer_type, bounds_json=None):
+        """Fetch weather data (mocked for now) from Copernicus Service"""
+        try:
+            if WeatherService is None:
+                return []
+            
+            bounds = None
+            if bounds_json:
+                import json
+                try:
+                    bounds = json.loads(bounds_json)
+                except:
+                    pass
+            
+            service = WeatherService()
+            return service.get_data(layer_type, bounds)
+        except Exception as e:
+            print(f"Error in getWeatherData: {e}")
+            return []
+
 
 
 class MainWindow(QMainWindow):
