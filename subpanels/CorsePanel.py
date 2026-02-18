@@ -546,7 +546,7 @@ class CorsePanel(QWidget):
 
         # Row filtri (Data)
         filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Giorno:"))
+        filter_layout.addWidget(QLabel("Corse per il giorno:"))
         self.date_filter = QDateEdit()
         self.date_filter.setCalendarPopup(True)
         self.date_filter.setDate(QDate.currentDate())

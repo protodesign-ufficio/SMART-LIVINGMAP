@@ -213,7 +213,7 @@ async function loadCorseDelGiorno() {
         console.log('Corse loaded:', state.corse.length);
     } catch (e) {
         console.error('Errore caricamento corse', e);
-        alert('Impossibile caricare le corse per la data odierna.');
+        CustomAlert('Impossibile caricare le corse per la data odierna.', 'Error');
     }
 }
 
@@ -787,11 +787,13 @@ async function confirmDelete() {
             delete state.assegnazioni[corsaId];
             renderGantt();
             updatePianoStatus(state.selectedPianoId);
-            alert('Assegnazione cancellata sul server.');
+            CustomAlert('Assegnazione cancellata sul server.', 'Success');
+            // alert('Assegnazione cancellata sul server.');
 
         } catch (e) {
             console.error('Errore delete', e);
-            alert('Errore durante la cancellazione: ' + e.message);
+            CustomAlert('Errore durante la cancellazione: ' + e.message, 'Error');
+            // alert('Errore durante la cancellazione: ' + e.message);
         }
     } else {
         // Se è assegnazione LOCALE -> Rimuovi solo da stato, nessuna chiamata API
@@ -852,20 +854,22 @@ function checkConflict(vascelloId, startIso, endIso, currentCorsaId) {
 // --- Saving ---
 async function savePiano() {
     if (!state.selectedPianoId) {
-        alert('Seleziona un piano prima di salvare.');
+        CustomAlert('Seleziona un piano prima di salvare.', 'Warning');
+        // alert('Seleziona un piano prima di salvare.');
         return;
     }
 
     const localAssignments = Object.values(state.assegnazioni).filter(a => a.isLocal);
     if (localAssignments.length === 0) {
-        alert('Nessuna nuova modifica da salvare.');
+        CustomAlert('Nessuna nuova modifica da salvare.', 'Warning');
+        // alert('Nessuna nuova modifica da salvare.');
         return;
     }
 
     const btn = document.getElementById('btn-save');
     const originalText = btn.innerText;
     btn.disabled = true;
-    btn.innerText = 'Salvataggio...';
+    // btn.innerText = 'Salvataggio...';
 
     let successCount = 0;
     let errors = 0;
@@ -919,7 +923,8 @@ async function savePiano() {
     btn.innerText = originalText;
 
     if (errors > 0) {
-        alert(`Salvato con errori. Successi: ${successCount}, Errori: ${errors}`);
+        CustomAlert(`Salvato con errori. Successi: ${successCount}, Errori: ${errors}`, 'Error');
+        // alert(`Salvato con errori. Successi: ${successCount}, Errori: ${errors}`);
     } else {
         // Rerender aggiorna colori a blu (server) e stato locale
         renderGantt(); 
@@ -935,14 +940,16 @@ async function savePiano() {
         // Aggiorna stato piano
         updatePianoStatus(state.selectedPianoId);
         
-        alert('Piano aggiornato con successo!');
+        CustomAlert('Piano aggiornato con successo!', 'Success');
+        // alert('Piano aggiornato con successo!');
     }
 }
 
 // --- Validate Piano ---
 async function validatePiano() {
     if (!state.selectedPianoId) {
-        alert('Seleziona un piano prima di validarlo.');
+        CustomAlert('Seleziona un piano prima di validarlo.', 'Warning');
+        // alert('Seleziona un piano prima di validarlo.');
         return;
     }
 
@@ -950,7 +957,7 @@ async function validatePiano() {
     const originalText = btn ? btn.innerText : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerText = 'Validazione...';
+        // btn.innerText = 'Validazione...';
     }
 
     try {
@@ -969,22 +976,26 @@ async function validatePiano() {
 
         // Expecting { validato: bool, messaggio?: string, dettagli?: {...} }
         if (data.validato === true) {
-            alert(data.messaggio || 'Piano validato con successo.');
+            CustomAlert(data.messaggio || 'Piano validato con successo.', 'Success');
+            // alert(data.messaggio || 'Piano validato con successo.');
             // Update status immediately if successful
             updatePianoStatus(state.selectedPianoId);
         } else {
             const msg = data.messaggio || 'Validazione fallita.';
             // If server returns details (e.g., list of problemi) include brief info
             if (data.dettagli) {
-                alert(`${msg}\nDettagli: ${JSON.stringify(data.dettagli)}`);
+                CustomAlert(`${msg}\nDettagli: ${JSON.stringify(data.dettagli)}`, 'Error');
+                // alert(`${msg}\nDettagli: ${JSON.stringify(data.dettagli)}`);
             } else {
-                alert(msg);
+                CustomAlert(msg, 'Error');
+                // alert(msg);
             }
         }
 
     } catch (e) {
         console.error('Validate failed', e);
-        alert('Errore durante la validazione del piano.');
+        CustomAlert('Errore durante la validazione del piano: ' + e.message, 'Error');
+        // alert('Errore durante la validazione del piano.');
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -1101,4 +1112,80 @@ function createTooltip() {
         document.body.appendChild(tooltip);
     }
     return tooltip;
+}
+
+// --- Custom Alert System ---
+
+function CustomAlert(message, type = 'Success') {
+    const modal = document.getElementById('modal-alert');
+    const title = document.getElementById('modal-alert-title');
+    const msg = document.getElementById('modal-alert-message');
+    const btn = document.getElementById('modal-alert-btn');
+    const iconContainer = document.getElementById('modal-alert-icon');
+    const iconSuccess = document.getElementById('icon-success');
+    const iconWarning = document.getElementById('icon-warning');
+    
+    if (!modal) return;
+
+    // Reset icons
+    iconSuccess.classList.add('hidden');
+    iconWarning.classList.add('hidden');
+    iconContainer.classList.remove('bg-green-900/20', 'bg-red-900/20', 'bg-yellow-900/20');
+    
+    // Rimuovi tutte le classi colore possibili dal bottone e titolo
+    btn.classList.remove(
+        'bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500',
+        'bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500',
+        'bg-yellow-600', 'hover:bg-yellow-700', 'focus:ring-yellow-500'
+    );
+    title.classList.remove('text-green-500', 'text-red-500', 'text-yellow-500');
+
+    if (type === 'Success') {
+        title.innerText = "Fatto!";
+        title.classList.add('text-green-500');
+        
+        iconSuccess.classList.remove('hidden');
+        iconContainer.classList.add('bg-green-900/20');
+        
+        btn.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500');
+
+    } else if (type === 'Warning') {
+        title.innerText = "Attenzione!";
+        title.classList.add('text-yellow-500');
+        
+        // Uso iconWarning anche per warning (è un triangolo) ma lo coloro di giallo via CSS parent o classe diretta?
+        // L'svg ha text-red-500 hardcoded nell'HTML che ho inserito prima?
+        // Controllo gantt.html (dalla memoria precedente): 
+        // <svg id="icon-warning" class="h-6 w-6 text-red-500 hidden" ...>
+        // Devo cambiare il colore dell'icona via JS
+        
+        iconWarning.classList.remove('hidden', 'text-red-500');
+        iconWarning.classList.add('text-yellow-500');
+
+        iconContainer.classList.add('bg-yellow-900/20');
+        
+        btn.classList.add('bg-yellow-600', 'hover:bg-yellow-700', 'focus:ring-yellow-500');
+
+    } else if (type === 'Error') {
+        title.innerText = "Errore!";
+        title.classList.add('text-red-500');
+        
+        iconWarning.classList.remove('hidden', 'text-yellow-500');
+        iconWarning.classList.add('text-red-500');
+
+        iconContainer.classList.add('bg-red-900/20');
+        
+        btn.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500');
+    }
+
+
+    msg.innerText = message;
+    modal.classList.remove('hidden');
+}
+
+function closeAlertModal() {
+    const modal = document.getElementById('modal-alert');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
 }

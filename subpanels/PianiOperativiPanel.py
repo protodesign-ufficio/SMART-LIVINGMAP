@@ -158,7 +158,6 @@ class PianiOperativiPanel(QWidget):
         # Parametri group: Aggiorna, Aggiungi, Modifica
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
-        self.refresh_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         self.add_btn = QPushButton('Aggiungi')
         self.add_btn.clicked.connect(self.open_add_dialog)
