@@ -182,6 +182,7 @@
 const API_BASE_URL = "http://87.26.178.190:15080";
 const SOCKET_URL   = "http://localhost:5000";
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 min: scadenza cache navi simulate
+const CLEANUP_INTERVAL_MS = 10 * 1000;
 
 /* =====================================================
    STATE MANAGEMENT
@@ -232,6 +233,39 @@ function formatETA(ts) {
 function formatISO(ts) {
     if (!ts) return "--";
     return new Date(ts).toLocaleString();
+}
+
+function parseMessageTimestampMs(msg) {
+    if (!msg || typeof msg !== "object") return null;
+
+    const candidates = [
+        msg.timestamp,
+        msg.ts,
+        msg.event_ts,
+        msg.generated_at,
+        msg.created_at,
+        msg.time
+    ];
+
+    for (const value of candidates) {
+        if (value === null || value === undefined) continue;
+
+        if (typeof value === "number" && isFinite(value)) {
+            return value > 10000000000 ? value : value * 1000;
+        }
+
+        if (typeof value === "string") {
+            const asNumber = Number(value);
+            if (!Number.isNaN(asNumber) && isFinite(asNumber)) {
+                return asNumber > 10000000000 ? asNumber : asNumber * 1000;
+            }
+
+            const asDate = Date.parse(value);
+            if (!Number.isNaN(asDate)) return asDate;
+        }
+    }
+
+    return null;
 }
 
 /* =====================================================
@@ -586,7 +620,7 @@ socket.on("analytics_update", msg => {
         shipRecord.history.push(delta);
         shipRecord.last_delta = delta;
     }
-    shipRecord.lastUpdated = Date.now();
+    shipRecord.lastUpdated = parseMessageTimestampMs(msg) || Date.now();
     shipRecord.destination = msg.destination || shipRecord.destination;
     shipRecord.eta = msg.eta || shipRecord.eta;
 
@@ -618,7 +652,7 @@ toggleBtn.onclick = () => {
 /* =====================================================
    CACHE CLEANUP (solo navi simulate)
 ===================================================== */
-setInterval(() => {
+function cleanupSimulationCache() {
     const now = Date.now();
     let dirty = false;
     Object.keys(ships.simulation).forEach(mmsi => {
@@ -633,7 +667,9 @@ setInterval(() => {
         }
     });
     if (dirty) renderList('simulation');
-}, 60 * 1000);
+}
+
+setInterval(cleanupSimulationCache, CLEANUP_INTERVAL_MS);
 
 </script>
 </body>

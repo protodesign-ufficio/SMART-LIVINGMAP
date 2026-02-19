@@ -3,6 +3,7 @@ import threading
 from kafka import KafkaConsumer
 from flask import Flask
 from flask_socketio import SocketIO
+import time
 
 # ----------------------------------------------------
 # CONFIG
@@ -10,6 +11,7 @@ from flask_socketio import SocketIO
 # NOTE: bootstrap servers must be host:port (no http scheme)
 BOOTSTRAP_SERVERS = "87.26.178.190:29092"
 ANALYTICS_TOPIC = "analytics_ais.raw"
+DELTA_ETA_SIM_TTL_SEC = 60
 
 # ----------------------------------------------------
 # APP
@@ -28,6 +30,34 @@ STATE = {
     "berth_incoming": {},   # destination -> last berth msg
     "component_usage": {}   # mmsi -> component -> last usage msg
 }
+
+
+def _is_simulation_msg(data: dict) -> bool:
+    source = str(data.get("source", "")).strip().lower()
+    if source == "simulation":
+        return True
+    return data.get("is_simulation") is True
+
+
+def purge_stale_delta_eta() -> None:
+    now = time.time()
+    to_delete = []
+
+    for mmsi, entry in STATE["delta_eta"].items():
+        if isinstance(entry, dict) and "data" in entry:
+            data = entry.get("data") or {}
+            received_at = float(entry.get("received_at") or 0)
+        else:
+            # Backward compatibility with old cache shape: mmsi -> msg
+            data = entry or {}
+            received_at = 0
+
+        if _is_simulation_msg(data):
+            if received_at <= 0 or (now - received_at) > DELTA_ETA_SIM_TTL_SEC:
+                to_delete.append(mmsi)
+
+    for mmsi in to_delete:
+        STATE["delta_eta"].pop(mmsi, None)
 
 # ----------------------------------------------------
 # KAFKA LOOP
@@ -55,7 +85,11 @@ def kafka_loop():
         if msg_type == "delta_eta":
             mmsi = data.get("mmsi")
             if mmsi:
-                STATE["delta_eta"][mmsi] = data
+                STATE["delta_eta"][mmsi] = {
+                    "data": data,
+                    "received_at": time.time(),
+                }
+                purge_stale_delta_eta()
 
         elif msg_type == "berth_incoming":
             dest = data.get("destination")
@@ -81,8 +115,11 @@ def kafka_loop():
 def on_connect():
     log("Client connected → replaying state as analytics_update")
 
+    purge_stale_delta_eta()
+
     # delta_eta
-    for msg in STATE["delta_eta"].values():
+    for entry in STATE["delta_eta"].values():
+        msg = entry.get("data") if isinstance(entry, dict) and "data" in entry else entry
         socketio.emit("analytics_update", msg)
 
     # berth_incoming
