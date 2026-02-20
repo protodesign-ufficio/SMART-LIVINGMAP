@@ -63,10 +63,32 @@ function formatLastUpdate(lastUpdateTs){
   return mins + 'm ' + secs + 's fa';
 }
 
+function formatETA(ts) {
+    if (!ts) return "--";
+    // If timestamp is in seconds (10 digits), convert to ms
+    const time = ts < 10000000000 ? ts * 1000 : ts;
+    const d = new Date(time);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false});
+}
+
 function popupHtml(m){
   const staticInfo = m.static || {};
   const source = staticInfo.is_simulation ? 'simulation' : 'real';
   const lastUpd = formatLastUpdate(m.lastUpdate);
+  
+  // Format delta and ETA if present
+  let deltaHtml = '';
+  if (m.delta_min !== undefined && m.delta_min !== null) {
+      const deltaVal = parseFloat(m.delta_min);
+      const color = deltaVal > 0 ? 'red' : (deltaVal < 0 ? 'green' : 'gray');
+      deltaHtml = `Delta ETA: <b style="color:${color}">${deltaVal.toFixed(2)} min</b><br/>`;
+  }
+  
+  let etaHtml = '';
+  if (m.eta) {
+      etaHtml = `ETA: <b>${formatETA(m.eta)}</b><br/>`;
+  }
+
   return `<div style="font-size:12px">
     <b>${staticInfo.shipname || ''}</b><br/>
     MMSI: ${m.mmsi || ''}<br/>
@@ -74,13 +96,17 @@ function popupHtml(m){
     Heading: ${m.heading != null ? m.heading : ''} <br/>
     Lat: ${m.lat != null ? m.lat.toFixed(6) : ''}<br/>
     Lon: ${m.lon != null ? m.lon.toFixed(6) : ''}<br/>
-    Last Update: <b>${lastUpd}</b><br/>
+    <!-- Last Update: <b>${lastUpd}</b><br/> -->
+    ${etaHtml}
+    ${deltaHtml}
     Sorgente: <b>${staticInfo.is_simulation ? 'Simulazione' : 'Reale'}</b><br/><br/>
     <button onclick="openDashboardVesselFromPopup('${encodeURIComponent(m.mmsi || '')}', '${source}')">Mostra in Dashboard</button>
   </div>`;
 }
 
 const ships = {};
+// Cache for analytics data (delta/eta) so new ships pick it up
+const analyticsCache = {};
 
 window.updateShip = function(data){
   try{
@@ -92,6 +118,10 @@ window.updateShip = function(data){
 
     if(!ships[mmsi]){
       ships[mmsi] = {mmsi: mmsi, static: {}, coords: [], marker: null, polyline: null, lastUpdate: Date.now(), isStale: false};
+      // Merge cached analytics if available
+      if (analyticsCache[mmsi]) {
+          Object.assign(ships[mmsi], analyticsCache[mmsi]);
+      }
     }
     const s = ships[mmsi];
     s.lastUpdate = Date.now();
@@ -214,3 +244,37 @@ setInterval(function(){
 
 // expose for debugging
 window._nv_ships = ships;
+
+// --- Socket.IO Listener for Analytics ---
+try {
+    if (typeof io !== 'undefined') {
+        const socket = io('http://localhost:5000'); 
+        
+        socket.on('analytics_update', function(msg) {
+            if (msg.type === 'delta_eta') {
+                const mmsi = String(msg.mmsi);
+                
+                // Update persistent cache
+                if (!analyticsCache[mmsi]) analyticsCache[mmsi] = {};
+                analyticsCache[mmsi].delta_min = msg.delta_min;
+                analyticsCache[mmsi].eta = msg.eta;
+
+                const s = ships[mmsi];
+
+                if (s) {
+                    s.delta_min = msg.delta_min;
+                    s.eta = msg.eta;
+                    
+                    if (s.marker) {
+                        s.marker.bindPopup(popupHtml(s));
+                    }
+                }
+            }
+        });
+        console.log("Socket.IO connected for analytics updates.");
+    } else {
+        console.warn("Socket.IO library not found. Analytics updates disabled.");
+    }
+} catch (e) {
+    console.error("Error initializing Socket.IO:", e);
+}

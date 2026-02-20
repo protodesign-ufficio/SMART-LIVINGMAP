@@ -227,7 +227,7 @@ function formatETA(ts) {
     if (!ts) return "--";
     const time = ts > 10000000000 ? ts : ts * 1000;
     const d = new Date(time);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function formatISO(ts) {
