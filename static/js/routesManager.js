@@ -51,8 +51,70 @@
 
     const latlngs = coordsToLatLngs(geom.coordinates);
 
-    const lineStyle = Object.assign({color: options.color || '#9f9d9d', weight: options.weight || 3, opacity: options.opacity || 0.8}, options.lineStyle || {});
+    const lineStyle = Object.assign({color: options.color || '#9f9d9d', weight: options.weight || 4, opacity: options.opacity || 0.8}, options.lineStyle || {});
     const poly = L.polyline(latlngs, lineStyle).addTo(map);
+
+    // BIND POPUP TO POLYLINE
+    if (route) { // Ensure route object exists
+        let popupContent = '<div style="font-family: Arial, sans-serif; font-size: 13px;">';
+        
+        // Tratta
+        if (route.tratta && route.tratta.nome) {
+            popupContent += `<b>Tratta:</b> ${route.tratta.nome}<br>`;
+        }
+        
+        // Orario
+        if (route.corsa && route.corsa.orario_partenza_schedulato) {
+            let timeStr = route.corsa.orario_partenza_schedulato;
+            try {
+                const d = new Date(timeStr);
+                if (!isNaN(d.getTime())) {
+                    timeStr = d.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                }
+            } catch(e) {}
+             popupContent += `<b>Orario:</b> ${timeStr}<br>`;
+        }
+
+        // Durata (Tempo percorrenza)
+        if (route.tempo_percorrenza) {
+            let dur = parseFloat(route.tempo_percorrenza);
+            let durStr = route.tempo_percorrenza;
+            if (!isNaN(dur)) {
+                // Assuming minutes
+                durStr = dur.toFixed(1) + ' min'; 
+            }
+            popupContent += `<b>Durata:</b> ${durStr}<br>`;
+        }
+
+        // Vascello
+        if (route.vascello && route.vascello.nome) {
+            popupContent += `<b>Vascello:</b> ${route.vascello.nome}<br>`;
+        }
+
+        // Consumo
+        if (route.consumo) {
+            let cons = parseFloat(route.consumo);
+            let consStr = route.consumo;
+            if (!isNaN(cons)) {
+                 consStr = cons.toFixed(1);
+            }
+            popupContent += `<b>Consumo:</b> ${consStr}<br>`;
+        }
+
+        // Comfort
+        if (route.comfort) {
+             let comf = parseFloat(route.comfort);
+             let comfStr = route.comfort;
+             if (!isNaN(comf)) {
+                 comfStr = comf.toFixed(2);
+             }
+             popupContent += `<b>Comfort:</b> ${comfStr}`;
+        }
+        
+        popupContent += '</div>';
+        
+        poly.bindPopup(popupContent);
+    }
 
     // create diamond waypoints
     const markers = latlngs.map(function(ll, idx){
@@ -99,12 +161,38 @@
     return addRoute(routeObj, options);
   }
 
+  // Load from backend via pyMain and draw with specified options
+  function loadAndDrawRoute(id, options) {
+    if (!window.pyMain || !window.pyMain.getRouteDetails) {
+        console.error('routesManager: pyMain.getRouteDetails not available');
+        return;
+    }
+    console.log('routesManager.loadAndDrawRoute fetching for id:', id);
+    window.pyMain.getRouteDetails(id, function(data) {
+        if (data && (data.percorso_id || data.id)) {
+            const route = Object.assign({}, data);
+            // ensure internal 'id' is set (backend sends 'percorso_id' or mapped 'id')
+            route.id = data.percorso_id || data.id;
+            
+            // if geom_rotta is missing, check if it's nested or named differently
+            // (The provided JSON has 'geom_rotta' at top level, so it's fine)
+            
+            console.log('routesManager: data received, drawing route', route.id);
+            addRoute(route, options);
+        } else {
+            console.error('routesManager: Invalid route data received for id', id, data);
+        }
+    });
+  }
+
   window.routesManager = {
     addRoute: addRoute,
     drawRoute: drawRouteObject,
+    loadAndDrawRoute: loadAndDrawRoute,
     removeRoute: removeRoute,
     clearAll: clearAll,
     _internal: routes
   };
+
 
 })();

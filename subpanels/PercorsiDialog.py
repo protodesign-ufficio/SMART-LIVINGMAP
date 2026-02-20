@@ -556,9 +556,9 @@ class PercorsiDialog(QDialog):
                         it.setCheckState(Qt.Unchecked)
                 self._suppress_item_changed = False
 
-                # 4. Add ONLY the current route
+                # 4. Add ONLY the current route via loadAndDrawRoute
                 visible_set.add(rid)
-                js = f"window.routesManager.addRoute({json.dumps(route_obj)})"
+                js = f"window.routesManager.loadAndDrawRoute('{rid}')"
                 self._run_js(js)
                 
                 # 5. Set Weather Time to scheduled departure

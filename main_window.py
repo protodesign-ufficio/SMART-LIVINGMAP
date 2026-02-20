@@ -53,6 +53,28 @@ class _WebBridge(QObject):
         except Exception:
             pass
 
+    @pyqtSlot(str, result=QVariant)
+    def getRouteDetails(self, route_id):
+        """Fetch full route details given an ID"""
+        # Call the endpoint requested by user:
+        # /percorso/{id}?include=corsa,tratta,vascello
+        try:
+            # ensure get_json is available
+            if get_json is None:
+                return {}
+            endpoint = f"percorso/{route_id}?include=corsa,tratta,vascello"
+            data = get_json(endpoint)
+            if isinstance(data, dict):
+                # Ensure id is present for frontend compatibility
+                if 'id' not in data and 'percorso_id' in data:
+                    data['id'] = data['percorso_id']
+                return data
+            return {}
+        except Exception as e:
+            print(f"Error fetching route details for {route_id}: {e}")
+            return {}
+
+
     @pyqtSlot(str, str, str, result=QVariant)
     def getWeatherData(self, layer_type, bounds_json=None, timestamp=None):
         """Fetch weather data from Copernicus Service"""
