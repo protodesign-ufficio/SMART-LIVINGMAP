@@ -88,14 +88,14 @@ class WeatherService:
             if bounds:
                 # Add buffer
                 pad = 0.05
-                lat_min = bounds.get('south', 40.52) - pad
-                lat_max = bounds.get('north', 40.80) + pad
+                lat_min = bounds.get('south', 40.50) - pad
+                lat_max = bounds.get('north', 40.76) + pad
                 lon_min = bounds.get('west', 14.30) - pad
                 lon_max = bounds.get('east', 14.90) + pad
             else:
                 # Default bounds (Gulf of Naples/Sorrento area) as requested
-                lat_min = 40.52
-                lat_max = 40.80
+                lat_min = 40.50
+                lat_max = 40.76
                 lon_min = 14.30
                 lon_max = 14.90
 

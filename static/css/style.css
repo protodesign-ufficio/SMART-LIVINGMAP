@@ -61,6 +61,23 @@ html, body, #map {
     z-index: 1000;
 }
 
+#refresh-button {
+    position: absolute;
+    top: 135px;
+    right: 10px;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(0,0,0,0.6);
+    cursor: pointer;
+    border-radius: 4px;
+    border: none;
+    padding: 0;
+}
+
 #weather-timestamp {
     position: absolute;
     bottom: 10px;

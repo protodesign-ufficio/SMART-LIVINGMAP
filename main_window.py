@@ -38,6 +38,35 @@ class _WebBridge(QObject):
         super().__init__()
         self._mw = main_window
 
+    @pyqtSlot(result=bool)
+    def cleanRoutes(self):
+        """Clears all visible routes from the global state"""
+        try:
+            self._mw.visible_routes.clear()
+            return True
+        except Exception:
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def addRoute(self, route_id):
+        """Adds a route ID to the global visible set"""
+        try:
+            if route_id:
+                self._mw.visible_routes.add(str(route_id))
+            return True
+        except Exception:
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def removeRoute(self, route_id):
+        """Removes a route ID from the global visible set"""
+        try:
+            if route_id:
+                self._mw.visible_routes.discard(str(route_id))
+            return True
+        except Exception:
+            return False
+
     @pyqtSlot(str, str, str, int, int)
     def openDashboard(self, page_relative, query_json, title, width, height):
         try:
@@ -118,6 +147,9 @@ class MainWindow(QMainWindow):
         self._ais_queue = queue
         self.setWindowTitle("NavalViewer - Chart Viewer")
         self.resize(1000, 700)
+        
+        # public visible routes set (string IDs)
+        self.visible_routes = set()
 
         central = QWidget()
         self.setCentralWidget(central)

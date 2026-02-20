@@ -147,15 +147,16 @@ class PercorsiDialog(QDialog):
         self._suppress_item_changed = False
         self.table.itemChanged.connect(self._on_item_changed)
 
-        # ensure parent has an in-memory set to persist visible routes during app runtime
+        # ensure parent has an in-memory set to persist visible routes (using global MainWindow set)
         try:
-            if parent is not None:
-                if not hasattr(parent, '_visible_routes'):
-                    parent._visible_routes = set()
-            else:
-                # fallback: keep a dialog-local set for sessions without parent
-                if not hasattr(self, '_visible_routes'):
-                    self._visible_routes = set()
+            from main_window import MainWindow
+            self._main_window_ref = None
+            p = parent
+            while p is not None:
+                if isinstance(p, MainWindow):
+                    self._main_window_ref = p
+                    break
+                p = p.parent()
         except Exception:
             pass
 
@@ -319,13 +320,12 @@ class PercorsiDialog(QDialog):
             self._suppress_item_changed = False
         
 
-        # restore checked state from in-memory parent._visible_routes (no disk persistence)
+        # restore checked state from in-memory global MainWindow.visible_routes if available
         try:
-            parent = self.parent()
-            if parent is not None and hasattr(parent, '_visible_routes'):
-                visible = parent._visible_routes
-            else:
-                visible = getattr(self, '_visible_routes', set())
+            visible = set()
+            if hasattr(self, '_main_window_ref') and self._main_window_ref:
+                visible = self._main_window_ref.visible_routes
+            
             for row_idx in range(self.table.rowCount()):
                 id_item = self.table.item(row_idx, 0)
                 if id_item is None:
@@ -336,19 +336,17 @@ class PercorsiDialog(QDialog):
                 rid = route_obj.get('id')
                 if rid is None:
                     continue
-                # if marked visible in-memory, set checkbox and draw route
+                # if marked visible, set checkbox - map draw is assumed to be persistent or handled elsewhere
+                # (if we wanted to force redraw here we could, but map state might outlive dialog)
                 if str(rid) in visible:
                     chk = self.table.item(row_idx, 0)
                     if chk:
                         self._suppress_item_changed = True
                         chk.setCheckState(Qt.Checked)
                         self._suppress_item_changed = False
-                        try:
-                            js = f"window.routesManager.drawRoute({json.dumps(route_obj)})"
-                            self._run_js(js)
-                        except Exception:
-                            pass
-                # ensure delete buttons reflect row indices (no-op here since buttons stored per-row)
+                        # We do NOT force redraw here because IF the map is already showing it,
+                        # redrawing might duplicate or flicker.
+                        # The philosophy is: MainWindow state tracks what IS visible on map.
         except Exception:
             pass
 
@@ -440,13 +438,14 @@ class PercorsiDialog(QDialog):
                         break
             except Exception:
                 pass
-            # remove from visible set if present
+            # Delete from global visible set
             try:
-                parent = self.parent()
-                if parent is not None and hasattr(parent, '_visible_routes'):
-                    parent._visible_routes.discard(str(rid))
-                else:
-                    getattr(self, '_visible_routes', set()).discard(str(rid))
+                visible = None
+                if hasattr(self, '_main_window_ref') and self._main_window_ref:
+                    visible = self._main_window_ref.visible_routes
+                
+                if visible is not None:
+                     visible.discard(str(rid))
             except Exception:
                 pass
             QMessageBox.information(self, 'Successo', 'Percorso eliminato')
@@ -531,14 +530,15 @@ class PercorsiDialog(QDialog):
             
             rid = str(route_obj.get('id', ''))
             
-            # Access parent (or self) visible routes set
-            parent = self.parent()
-            if parent is not None and hasattr(parent, '_visible_routes'):
-                visible_set = parent._visible_routes
-            else:
-                if not hasattr(self, '_visible_routes'):
-                    self._visible_routes = set()
-                visible_set = self._visible_routes
+            # Access global visible routes set from MainWindow
+            visible_set = None
+            if hasattr(self, '_main_window_ref') and self._main_window_ref:
+                 visible_set = self._main_window_ref.visible_routes
+            
+            if visible_set is None:
+                # If main window not found, we cannot persist/track state
+                # but we can still operate locally without persistence
+                visible_set = set()
 
             if checked:
                 # SINGLE SELECTION MODE:

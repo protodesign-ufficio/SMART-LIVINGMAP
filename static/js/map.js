@@ -6,7 +6,7 @@ const map = L.map('map', {
   maxBoundsViscosity: 1, 
   minZoom: 3, 
   maxZoom: 18 
-}).setView([40.65, 14.6], 12);
+}).setView([40.63, 14.6], 12);
 
 // expose map globally so other scripts can access it
 window.map = map;
@@ -47,8 +47,32 @@ map.setMaxBounds([[-90, -180], [90, 180]]);
 
 function returnToHome(){
   if (typeof map !== 'undefined' && map){
-    map.setView([40.65, 14.6], 12);
+    map.setView([40.63, 14.6], 12);
   }
+}
+
+// Function to refresh the map: clear visible routes, reset weather, clear map
+function refreshMap() {
+    console.log("Refreshing map...");
+    // 1. Clear visible routes in Python
+    if (window.pyMain && window.pyMain.cleanRoutes) {
+        window.pyMain.cleanRoutes(function(success) {
+            console.log("Python routes cleared:", success);
+        });
+    }
+    
+    // 2. Clear routes on map
+    if (window.routesManager && window.routesManager.clearAll) {
+        window.routesManager.clearAll();
+    }
+    
+    // 3. Reset weather to real-time (and refresh if active)
+    if (window.setWeatherTime) {
+        window.setWeatherTime(null);
+    }
+    
+    // 4. Reset view to home (optional, maybe user wants to stay?)
+    // returnToHome(); 
 }
 
 // OpenStreetMap base layer
@@ -64,6 +88,13 @@ const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.pn
   attribution: '© OpenSeaMap',
   noWrap: true
 }).addTo(map);
+
+//Copernicus WMS layer for weather (example, can be toggled on/off in weather menu)
+const copernicusWMS = L.tileLayer.wms('https://services.sentinel-hub.com/ogc/wms/{instance_id}', {
+  maxZoom: 18,
+  attribution: '© Copernicus Sentinel data',
+  noWrap: true
+});
 
 L.control.attribution({
     position: 'bottomleft'
