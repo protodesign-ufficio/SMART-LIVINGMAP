@@ -144,6 +144,22 @@ class WeatherService:
             
             # Debug: print columns to see correct names
             print(f"[WeatherService] Dataframe columns: {df.columns.tolist()}")
+            
+            # Calculate min/max magnitude for visualization scaling
+            val_min = 0.0
+            val_max = 1.0
+            
+            if layer_type == 'currents':
+                # Magnitude = sqrt(u^2 + v^2)
+                mags = np.sqrt(df['uo']**2 + df['vo']**2)
+                if not mags.empty:
+                    val_min = float(mags.min())
+                    val_max = float(mags.max())
+            elif layer_type == 'waves':
+                # Use Wave Height (VHM0_WW) for scaling
+                if 'VHM0_WW' in df.columns and not df.empty:
+                    val_min = float(df['VHM0_WW'].min())
+                    val_max = float(df['VHM0_WW'].max())
 
             data = []
             
@@ -181,7 +197,8 @@ class WeatherService:
             return {
                 "timestamp": data_time.replace('T', ' '),
                 "dataset": dataset_id,
-                "items": data
+                "items": data,
+                "range": {"min": val_min, "max": val_max}
             }
 
         except Exception as e:
