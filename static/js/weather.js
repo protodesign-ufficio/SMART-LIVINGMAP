@@ -18,10 +18,23 @@ window.setWeatherTime = function(isoStr) {
     if (el) {
         if (!isoStr) {
              // Let the next updateWeatherLayer call refresh the actual time
+             // If no layer is active, hide the label
+             if (!currentLayerType) {
+                 el.classList.add('hidden');
+             }
         } else {
              el.textContent = `Richiesta meteo: ${isoStr}`;
              el.style.backgroundColor = '#fff3cd'; // Light yellow to indicate non-realtime
-             el.classList.remove('hidden');
+             
+             // Only show the label if a layer is actually active
+             if (currentLayerType) {
+                 el.classList.remove('hidden');
+             } else {
+                 // Option: Auto-select a default layer? Or just keep hidden until user selects one?
+                 // The user complaint implies they see "Richiesta meteo..." stuck. 
+                 // It's better to NOT show it if no layer is active.
+                 el.classList.add('hidden');
+             }
         }
     }
 
