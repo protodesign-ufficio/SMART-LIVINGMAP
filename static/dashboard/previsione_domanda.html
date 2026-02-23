@@ -633,7 +633,7 @@ async function calcolaPrevisione() {
         };
 
         // Chiamata usando UUID
-        const res = await fetch(`${BACKEND}/corsa/${corsaUuid}/prevedi`, {
+        const res = await fetch(`${BACKEND}/corsa/${corsaUuid}/prevedi?disable_cache=true`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bodyPred)
