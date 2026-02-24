@@ -100,14 +100,14 @@ function highlight(activeRoute) {
     // Reset classe base (senza flex/gap/svg)
     // text-left: allinea il testo a sinistra
     // pl-6: padding sinistro generoso per eleganza
-    btn.className = "nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none focus:ring-0";
+    btn.className = "nav-btn w-full text-left pl-6 pr-4 py-4 text-lg font-bold rounded-xl transition-all duration-200 focus:outline-none focus:ring-0";
 
     if (isActive) {
        // === ATTIVO: BLU ELETTRICO ===
-       btn.classList.add("bg-blue-600", "text-white");
+       btn.classList.add("bg-blue-800", "text-white");
     } else {
        // === INATTIVO: BLU NOTTE ===
-       btn.classList.add("bg-blue-900/20", "text-blue-200", "hover:bg-blue-800");
+       btn.classList.add("bg-blue-800/20", "text-blue-200", "hover:bg-blue-800");
     }
   });
 }

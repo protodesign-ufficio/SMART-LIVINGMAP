@@ -163,7 +163,7 @@ function renderWeatherData(type, data, range) {
              
             // Scale size by relative magnitude within dataset range
             // Avoid division by zero if all values are same
-            const denom = (range.max - range.min) || 1;
+            const denom = ((range.max - range.min) || 1) * 2;
             factor = (magnitude - range.min) / denom;
             factor = Math.max(0, Math.min(1, factor)); // clamp
             
@@ -174,7 +174,7 @@ function renderWeatherData(type, data, range) {
             
             // Simple Arrow
             iconHtml = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg); overflow: visible;">
-                <path d="M12 2L12 22M12 2L7 9M12 2L17 9" stroke="${color}" stroke-width="2" fill="none" />
+                <path d="M12 2L12 22M12 2L7 9M12 2L17 9" stroke="${color}" opacity="0.6" stroke-width="2" fill="none" />
             </svg>`;
             
         } else if (type === 'waves') {
@@ -190,7 +190,7 @@ function renderWeatherData(type, data, range) {
             else color = 'red';
             
             // Scale size
-            const denom = (range.max - range.min) || 1;
+            const denom = ((range.max - range.min) || 1) * 2;
             factor = (h - range.min) / denom;
             factor = Math.max(0, Math.min(1, factor)); // clamp
             
@@ -200,8 +200,8 @@ function renderWeatherData(type, data, range) {
             // SVG viewBox is constant 24x24, we scale the divIcon size.
 
             iconHtml = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg); overflow: visible;">
-                 <path d="M12 2L12 18M12 2L7 9M12 2L17 9" stroke="${color}" stroke-width="2" fill="none" />
-                 <path d="M7 20 Q 9.5 22 12 20 T 17 20" stroke="${color}" stroke-width="2" fill="none" />
+                 <path d="M12 2L12 18M12 2L7 9M12 2L17 9" stroke="${color}" opacity="0.6" stroke-width="2" fill="none" />
+                 <path d="M7 20 Q 9.5 22 12 20 T 17 20" stroke="${color}" opacity="0.6" stroke-width="2" fill="none" />
             </svg>`;
         }
 
