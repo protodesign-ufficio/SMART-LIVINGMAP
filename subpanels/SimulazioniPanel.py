@@ -152,8 +152,8 @@ class SimulazioniPanel(QWidget):
                         'raw_ass': ass_data
                     })
             
-            # Sort by simulation time descending (newest first)
-            rows_data.sort(key=lambda x: x['orario_sim'] or '', reverse=True)
+            # Sort by simulation time ascending (oldest first)
+            rows_data.sort(key=lambda x: x['orario_sim'] or '')
             
             self.populate_table(rows_data)
 
