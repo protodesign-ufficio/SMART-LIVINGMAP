@@ -1,6 +1,7 @@
 
 import math
 import datetime
+import logging
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -8,6 +9,9 @@ import copernicusmarine
 
 class WeatherService:
     def __init__(self):
+        # Suppress copernicusmarine INFO logs
+        logging.getLogger("copernicusmarine").setLevel(logging.ERROR)
+
         # TODO: Replace with your actual Copernicus Marine credentials
         self.username = "sriccardi"
         self.password = "Napoli1926"
@@ -143,7 +147,7 @@ class WeatherService:
             ]
             
             # Debug: print columns to see correct names
-            print(f"[WeatherService] Dataframe columns: {df.columns.tolist()}")
+            # print(f"[WeatherService] Dataframe columns: {df.columns.tolist()}")
             
             # Calculate min/max magnitude for visualization scaling
             val_min = 0.0
