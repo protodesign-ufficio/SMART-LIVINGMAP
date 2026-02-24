@@ -2,7 +2,6 @@ import json
 import time
 from pathlib import Path
 from PyQt5.QtCore import QUrl, QTimer, QVariant
-# logging removed per user request
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtCore import QObject, pyqtSlot
@@ -20,16 +19,19 @@ from PyQt5.QtGui import QIcon  # <--- RICCARDO
 try:
     from panels.ManagerDialog import ManagerDialog
 except Exception:
+    print("[main_window] panels.ManagerDialog not available", flush=True)
     ManagerDialog = None
 
 try:
     from ApiClient import get_json
 except Exception:
+    print("[main_window] ApiClient.get_json not available", flush=True)
     get_json = None
 
 try:
     from WeatherService import WeatherService
 except Exception:
+    print("[main_window] WeatherServiceCopernicus not available", flush=True)
     WeatherService = None
 
 # Classe _webbridge: helper QObject exposed to the web page via QWebChannel
