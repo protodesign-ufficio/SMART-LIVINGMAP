@@ -8,6 +8,7 @@ from subpanels.VascelliPanel import VascelliPanel
 from subpanels.TrattePanel import TrattePanel
 from subpanels.CorsePanel import CorsePanel
 from subpanels.PianiOperativiPanel import PianiOperativiPanel
+from subpanels.SimulazioniPanel import SimulazioniPanel
 
 
 class ManagerDialog(QDialog):
@@ -31,11 +32,13 @@ class ManagerDialog(QDialog):
         self.tratte = TrattePanel(self)
         self.corse = CorsePanel(self)
         self.piani = PianiOperativiPanel(self)
+        self.simulazioni = SimulazioniPanel(self)
 
         self.tabs.addTab(self.porti, 'Porti')
         self.tabs.addTab(self.vascelli, 'Vascelli')
         self.tabs.addTab(self.tratte, 'Tratte')
         self.tabs.addTab(self.corse, 'Corse')
         self.tabs.addTab(self.piani, 'Piani Operativi')
+        self.tabs.addTab(self.simulazioni, 'Simulazioni')
 
         layout.addWidget(self.tabs)

@@ -164,15 +164,10 @@ class PianiOperativiPanel(QWidget):
         if post_json is None:
             self.add_btn.setEnabled(False)
 
-        self.modify_btn = QPushButton('Modifica')
-        self.modify_btn.clicked.connect(self.open_modify_dialog)
-        self.modify_btn.setEnabled(False)
-
         param_group = QGroupBox('Parametri')
         param_layout = QVBoxLayout()
         param_layout.addWidget(self.refresh_btn)
         param_layout.addWidget(self.add_btn)
-        param_layout.addWidget(self.modify_btn)
         param_group.setLayout(param_layout)
         right_panel.addWidget(param_group)
 
@@ -372,15 +367,8 @@ class PianiOperativiPanel(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, 'Errore', f'Procedura automatica fallita: {e}')
 
-    def open_modify_dialog(self):
-        QMessageBox.information(self, 'Modifica', 'Funzionalità Modifica da implementare')
-
     def _on_selection_changed(self, selected, deselected):
         has = self.table.selectionModel().hasSelection()
-        try:
-            self.modify_btn.setEnabled(bool(has))
-        except Exception:
-            pass
         try:
             self.details_btn.setEnabled(bool(has))
         except Exception:
