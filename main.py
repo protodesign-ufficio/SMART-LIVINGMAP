@@ -32,6 +32,45 @@ except Exception:
 	ConsumerAIS = None
 	ConsumerSimulation = None
 
+try:
+	from consumer_notification import ConsumerNotification
+except Exception:
+	print("[main] consumer_notification.ConsumerNotification not available", flush=True)
+	ConsumerNotification = None
+
+
+def handle_notification(msg):
+    """Gestisce le notifiche in arrivo dal consumer."""
+    try:
+        msg_type = msg.get("msg_type", "notification_base")
+        
+        if msg_type == "replanning":
+            motivo = msg.get("motivo", "Nessun motivo specificato")
+            # Mostra dialog con due bottoni
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle("Notifica Replanning")
+            msg_box.setText(f"Replanning necessario per il seguente motivo:\n{motivo}")
+            
+            btn_ignora = msg_box.addButton("Ignora", QMessageBox.RejectRole)
+            btn_avvia = msg_box.addButton("Avvia Replanning", QMessageBox.AcceptRole)
+            
+            msg_box.exec_()
+            
+            if msg_box.clickedButton() == btn_avvia:
+                print("L'utente ha scelto di avviare il replanning.", flush=True)
+                # TODO Qui andrebbe la logica per avviare il replanning
+            else:
+                print("L'utente ha ignorato la notifica di replanning.", flush=True)
+                
+        else:
+            # Comportamento di default: notification_base o altro
+            content = msg.get("message", str(msg))
+            QMessageBox.information(None, "Notifica", str(content))
+            
+    except Exception as e:
+        print(f"Errore nella gestione della notifica: {e}", flush=True)
+
 
 def main():
 	
@@ -56,15 +95,16 @@ def main():
 
 	# prepare queue and consumer thread
 	q = queue.Queue()
-	consumer = None
+	consumer_ais = None
 	consumer_sim = None
+	consumer_replanning = None
 
 	if ConsumerAIS is not None:
 		try:
-			consumer = ConsumerAIS(q)
-			consumer.start()
+			consumer_ais = ConsumerAIS(q)
+			consumer_ais.start()
 		except Exception:
-			consumer = None
+			consumer_ais = None
 
 	if ConsumerSimulation is not None:
 		try:
@@ -72,6 +112,15 @@ def main():
 			consumer_sim.start()
 		except Exception:
 			consumer_sim = None
+
+	if ConsumerNotification is not None:
+		try:
+			consumer_notification = ConsumerNotification()
+			# Connect signal to handle parsed messages
+			consumer_notification.notificationReceived.connect(handle_notification)
+			consumer_notification.start()
+		except Exception:
+			consumer_notification = None
 
 	app = QApplication(sys.argv)
 	w = MainWindow(queue=q)
@@ -81,15 +130,20 @@ def main():
 	finally:
 		# ensure consumers stopped cleanly
 		try:
-			if consumer is not None:
-				consumer.stop()
-				consumer.join(timeout=2)
+			if consumer_ais is not None:
+				consumer_ais.stop()
+				consumer_ais.join(timeout=2)
 		except Exception:
 			pass
 		try:
 			if consumer_sim is not None:
 				consumer_sim.stop()
 				consumer_sim.join(timeout=2)
+		except Exception:
+			pass
+		try:
+			if consumer_notification is not None:
+				consumer_notification.stop()
 		except Exception:
 			pass
 	sys.exit(rc)
