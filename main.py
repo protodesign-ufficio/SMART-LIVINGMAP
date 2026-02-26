@@ -16,9 +16,11 @@ os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox"
 import queue
 import requests
 import ApiClient
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from ApiClient import post_json
+from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog
 
 from main_window import MainWindow
+from subpanels.PianiOperativiPanel import AddPianoDialog, SolutionsSelectionDialog
 try:
 	from consumer_dashboards import start_dashboard
 except Exception:
@@ -59,7 +61,7 @@ def handle_notification(msg):
             
             if msg_box.clickedButton() == btn_avvia:
                 print("L'utente ha scelto di avviare il replanning.", flush=True)
-                # TODO Qui andrebbe la logica per avviare il replanning
+                avvia_replanning()
             else:
                 print("L'utente ha ignorato la notifica di replanning.", flush=True)
                 
@@ -70,6 +72,99 @@ def handle_notification(msg):
             
     except Exception as e:
         print(f"Errore nella gestione della notifica: {e}", flush=True)
+
+
+def avvia_replanning():
+    """Avvia la procedura di creazione di un nuovo piano operativo (manuale o automatico)."""
+    try:
+        dlg = AddPianoDialog()
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        mode, payload, search_params = dlg.get_data()
+
+        if mode == 'manual':
+            if payload is None:
+                QMessageBox.warning(None, 'Errore', 'Dati non validi')
+                return
+            try:
+                post_json('piano/crea', payload)
+                QMessageBox.information(None, 'Successo', 'Piano operativo creato')
+            except Exception as e:
+                QMessageBox.warning(None, 'Errore', f'Creazione piano fallita: {e}')
+
+        elif mode == 'auto':
+            # 1. Chiama scheduling/giorno
+            try:
+                resp = post_json('scheduling/giorno', search_params)
+                if not isinstance(resp, dict) or resp.get('status') != 'ok':
+                    msg = resp.get('message') if isinstance(resp, dict) else 'Risposta imprevista'
+                    raise ValueError(msg or 'Errore scheduling remoto')
+                
+                solutions = resp.get('solutions', [])
+                if not solutions:
+                    QMessageBox.information(None, 'Info', 'Nessuna soluzione trovata.')
+                    return
+
+                # 2. Mostra Dialog Selezione Soluzioni
+                sel_dlg = SolutionsSelectionDialog(None, solutions)
+                if sel_dlg.exec_() != QDialog.Accepted:
+                    return
+                
+                selected_sols = sel_dlg.get_selected_solutions()
+                if not selected_sols:
+                    return
+
+                # 3. Crea piani e assegnazioni per ogni soluzione selezionata
+                count_ok = 0
+                giorno_str = search_params.get('giorno')
+                data_rif = f"{giorno_str}T00:00:00.000Z"
+
+                for sol in selected_sols:
+                    try:
+                        # Crea Piano
+                        plan_payload = {
+                            "data_riferimento": data_rif,
+                            "stato": "CREATO"
+                        }
+                        plan_resp = post_json('piano/crea', plan_payload)
+                        if not plan_resp or 'id' not in plan_resp:
+                            print(f"Errore creazione piano per solution {sol.get('solution_id')}")
+                            continue
+                        
+                        pid = plan_resp['id']
+                        activities = sol.get('activities', [])
+                        
+                        # Crea Assegnazioni (Bulk)
+                        percorsi_list = []
+                        for act in activities:
+                            if act.get('route_id') is None:
+                                continue
+                            else:
+                                percorsi_list.append({
+                                    "percorso_id": act.get('route_id'),
+                                    "virtuale": False
+                                })
+
+                        if percorsi_list:
+                            bulk_payload = {
+                                "piano_id": pid,
+                                "percorsi": percorsi_list
+                            }
+                            post_json('assegnazione/bulk', bulk_payload)
+                        
+                        count_ok += 1
+                        
+                    except Exception as e:
+                        print(f"Errore salvataggio soluzione {sol.get('solution_id')}: {e}")
+
+                QMessageBox.information(None, 'Successo', f'Creati {count_ok} piani operativi.')
+
+            except Exception as e:
+                QMessageBox.warning(None, 'Errore', f'Procedura automatica fallita: {e}')
+                
+    except Exception as e:
+        QMessageBox.warning(None, 'Errore', f'Errore durante il replanning: {e}')
 
 
 def main():
