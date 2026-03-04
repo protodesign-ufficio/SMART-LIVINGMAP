@@ -68,7 +68,7 @@ class SimulazioniPanel(QWidget):
         # Right: Parameters Group
         right_panel = QVBoxLayout()
         
-        param_group = QGroupBox('Parametri')
+        param_group = QGroupBox('Anagrafica')
         param_layout = QVBoxLayout()
         
         self.btn_refresh = QPushButton("Aggiorna")

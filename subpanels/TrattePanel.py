@@ -171,8 +171,6 @@ class AddTrattaDialog(QDialog):
                 'porto_partenza_id': partenza_id,
                 'porto_arrivo_id': arrivo_id,
             }
-            print('Payload:')
-            print(payload)
             return 'tratta/crea', payload
         else:
             names = [self.selected_list.item(i).text() for i in range(self.selected_list.count())]
@@ -247,7 +245,7 @@ class TrattePanel(QWidget):
         self.refresh_btn = QPushButton('Aggiorna')
         self.refresh_btn.clicked.connect(self.load_data)
 
-        param_group = QGroupBox('Parametri')
+        param_group = QGroupBox('Anagrafica')
         param_layout = QVBoxLayout()
         param_layout.addWidget(self.refresh_btn)
         param_layout.addWidget(self.add_btn)

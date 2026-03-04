@@ -130,7 +130,7 @@ class PercorsiDialog(QDialog):
         # table of percorsi: checkbox, tempo, consumo, comfort, vascello and delete button
         self.table = QTableWidget(0, 6, self)
         self.table.setHorizontalHeaderLabels([
-            'Mostra',
+            'Mostra in mappa',
             'Tempo Percorrenza',
             'Consumo',
             'Comfort',
@@ -142,6 +142,18 @@ class PercorsiDialog(QDialog):
         # make cells non-editable
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         layout.addWidget(self.table)
+
+        # enable clickable headers for sorting on selected columns
+        hdr = self.table.horizontalHeader()
+        hdr.setSectionsClickable(True)
+        try:
+            hdr.setSortIndicatorShown(True)
+        except Exception:
+            pass
+        hdr.sectionClicked.connect(self._on_header_clicked)
+        # last sort state (column index and order)
+        self._last_sort_col = None
+        self._last_sort_order = Qt.AscendingOrder
 
         # flag to suppress itemChanged while populating
         self._suppress_item_changed = False
@@ -271,8 +283,24 @@ class PercorsiDialog(QDialog):
             it_check.setData(Qt.UserRole, p)
 
             it_tempo = QTableWidgetItem(str(tempo))
+            # provide numeric value for proper numeric sorting
+            try:
+                if tempo_val is not None:
+                    it_tempo.setData(Qt.EditRole, float(tempo_val))
+            except Exception:
+                pass
             it_consumo = QTableWidgetItem(str(consumo))
+            try:
+                if consumo is not None:
+                    it_consumo.setData(Qt.EditRole, float(consumo))
+            except Exception:
+                pass
             it_comfort = QTableWidgetItem(str(comfort))
+            try:
+                if comfort is not None:
+                    it_comfort.setData(Qt.EditRole, float(comfort))
+            except Exception:
+                pass
 
             # determine vascello name for this percorso
             vname = ''
@@ -510,6 +538,24 @@ class PercorsiDialog(QDialog):
                 self.load_percorsi(self._current_corsa_id, vascello_id=vid)
             except Exception:
                 pass
+        except Exception:
+            pass
+
+    def _on_header_clicked(self, index:int):
+        """Toggle sorting for allowed columns when header clicked."""
+        try:
+            # allowed columns: 1=Tempo,2=Consumo,3=Comfort,4=Vascello
+            if index not in (1, 2, 3, 4):
+                return
+            if self._last_sort_col == index:
+                # toggle order
+                order = Qt.DescendingOrder if self._last_sort_order == Qt.AscendingOrder else Qt.AscendingOrder
+            else:
+                order = Qt.AscendingOrder
+            # perform sort
+            self.table.sortItems(index, order)
+            self._last_sort_col = index
+            self._last_sort_order = order
         except Exception:
             pass
 

@@ -1,5 +1,5 @@
 // Costanti & Configurazione
-const API_ROOT = 'http://87.26.178.190:15080/';
+const API_ROOT = 'http://87.26.178.190:25080/';
 
 const ENDPOINTS = {
     VASCELLO_LISTA: API_ROOT + 'vascello/lista',

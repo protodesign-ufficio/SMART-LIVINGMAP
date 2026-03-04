@@ -321,7 +321,7 @@ class OptimizationDialog(QDialog):
         self.worker.start()
 
     def _on_opt_finished(self):
-        QMessageBox.information(self, 'Successo', 'Ottimizzazione inviata con successo')
+        QMessageBox.information(self, 'Successo', 'Ottimizzazione completata con successo')
         self.accept()
 
     def _on_opt_error(self, err_msg):
@@ -609,7 +609,7 @@ class CorsePanel(QWidget):
         right_panel_widget = QVBoxLayout()
 
         # Parametri group: Aggiorna, Aggiungi
-        param_group = QGroupBox('Parametri')
+        param_group = QGroupBox('Anagrafica')
         param_layout = QVBoxLayout()
         param_layout.addWidget(self.refresh_btn)
         param_layout.addWidget(self.add_btn)
