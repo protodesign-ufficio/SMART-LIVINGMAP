@@ -22,6 +22,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QGroupBox,
 )
+import random
 
 # Import get_json and post_json with fallback to support different import styles
 try:
@@ -526,6 +527,165 @@ class OptimizationDayDialog(QDialog):
         self.ve_min_edit.setEnabled(True)
 
 
+class PredictionWorker(QThread):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+    error = pyqtSignal(str)
+
+    def __init__(self, tasks):
+        super().__init__()
+        self.tasks = tasks
+
+    def run(self):
+        if post_json is None:
+            self.error.emit("Client API non disponibile")
+            return
+        
+        try:
+            for i, (endpoint, payload) in enumerate(self.tasks):
+                if self.isInterruptionRequested():
+                    break
+                post_json(endpoint, payload)
+                self.progress.emit(i + 1)
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class PrevisioneBigliettiDialog(QDialog):
+    def __init__(self, parent=None, date_obj=None, corse=None):
+        super().__init__(parent)
+        self.setWindowTitle('Previsione Biglietti Giornaliera')
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
+        self.resize(500, 400)
+        self.date_obj = date_obj or QDate.currentDate()
+        self.corse_list = corse or []
+        
+        curr_date = QDate.currentDate()
+        # diff in days. If date_obj is future, diff > 0.
+        self.diff_days = curr_date.daysTo(self.date_obj)
+        
+        layout = QVBoxLayout(self)
+        
+        info_label = QLabel(f"Giorni rimanenti alla data selezionata: {self.diff_days}")
+        layout.addWidget(info_label)
+        
+        self.table = QTableWidget(0, 2, self)
+        self.table.setHorizontalHeaderLabels([' ', 'Corsa'])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setColumnWidth(0, 30)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        layout.addWidget(self.table)
+        
+        toggle_btn = QPushButton("Seleziona/Deseleziona Tutti")
+        toggle_btn.clicked.connect(self._toggle_all)
+        layout.addWidget(toggle_btn)
+        
+        btn_layout = QHBoxLayout()
+        self.run_btn = QPushButton("Previsione Biglietti")
+        self.run_btn.clicked.connect(self.run_prediction)
+        
+        close_btn = QPushButton("Chiudi")
+        close_btn.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.run_btn)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+        
+        self.populate_table()
+        
+    def populate_table(self):
+        self.table.setRowCount(0)
+        for c in self.corse_list:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            
+            cid = str(c.get('id', ''))
+            cname = c.get('nome') or c.get('name') or cid
+            
+            chk = QTableWidgetItem()
+            chk.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            chk.setCheckState(Qt.Checked)
+            chk.setData(Qt.UserRole, cid)
+            
+            name_item = QTableWidgetItem(cname)
+            name_item.setFlags(Qt.ItemIsEnabled)
+            
+            self.table.setItem(row, 0, chk)
+            self.table.setItem(row, 1, name_item)
+            
+    def _toggle_all(self):
+        cnt = self.table.rowCount()
+        if cnt == 0: return
+        first = self.table.item(0, 0)
+        new_state = Qt.Unchecked if first.checkState() == Qt.Checked else Qt.Checked
+        for i in range(cnt):
+            item = self.table.item(i, 0)
+            item.setCheckState(new_state)
+            
+    def run_prediction(self):
+        selected_ids = []
+        for i in range(self.table.rowCount()):
+            item = self.table.item(i, 0)
+            if item.checkState() == Qt.Checked:
+                selected_ids.append(item.data(Qt.UserRole))
+        
+        if not selected_ids:
+            QMessageBox.warning(self, "Attenzione", "Nessuna corsa selezionata.")
+            return
+
+        # Prepare tasks
+        # x = 1 - (diff / 14)
+        x = 1.0 - (float(self.diff_days) / 14.0)
+        # 0 <= k <= 300 * x
+        max_val = 300.0 * x
+        if max_val < 0: max_val = 0
+        
+        tasks = []
+        for cid in selected_ids:
+            # k is random between 0 and max_val
+            k = random.uniform(0, max_val)
+            k_int = int(k)
+            
+            payload = {
+                "festivo": False,
+                "biglietti_venduti_al_sample": k_int
+            }
+            endpoint = f'corsa/{cid}/prevedi'
+            tasks.append((endpoint, payload))
+            
+        self.worker = PredictionWorker(tasks)
+        
+        self.progress_dlg = QProgressDialog("Elaborazione previsioni...", "Annulla", 0, len(tasks), self)
+        self.progress_dlg.setWindowModality(Qt.WindowModal)
+        self.progress_dlg.resize(300, 100)
+        self.progress_dlg.canceled.connect(self.worker.requestInterruption)
+        
+        self.worker.progress.connect(self.progress_dlg.setValue)
+        self.worker.finished.connect(self._on_finished)
+        self.worker.error.connect(self._on_error)
+        
+        # Disable UI
+        self.run_btn.setEnabled(False)
+        self.table.setEnabled(False)
+        
+        self.worker.start()
+        self.progress_dlg.exec_()
+        
+    def _on_finished(self):
+        self.progress_dlg.close()
+        QMessageBox.information(self, "Successo", "Previsioni completate con successo.")
+        self.accept()
+        
+    def _on_error(self, message):
+        self.progress_dlg.close()
+        QMessageBox.warning(self, "Errore", f"Si è verificato un errore: {message}")
+        # Re-enable UI
+        self.run_btn.setEnabled(True)
+        self.table.setEnabled(True)
+
+
 class CorsePanel(QWidget):
     """Panel that displays scheduled runs (corse).
 
@@ -557,14 +717,15 @@ class CorsePanel(QWidget):
         filter_layout.addStretch()
         layout.addLayout(filter_layout)
 
-        # columns: Nome, Tratta (nome), Orario Partenza, Previsione Passeggeri, Arrivo Max, ID
-        self.table = QTableWidget(0, 6, self)
+        # columns: Nome, Tratta (nome), Orario Partenza, Arrivo Max, Previsione Passeggeri, Percorsi, ID
+        self.table = QTableWidget(0, 7, self)
         self.table.setHorizontalHeaderLabels([
             "Nome",
             "Tratta",
             "Orario Partenza",
             "Arrivo Max",
             "Previsione Passeggeri",
+            "Percorsi",
             "ID",
         ])
 
@@ -622,13 +783,19 @@ class CorsePanel(QWidget):
         
         self.optimize_day_btn = QPushButton('Ottimizza Giorno')
         self.optimize_day_btn.clicked.connect(self.open_optimize_day_dialog)
+
+        self.previsione_btn = QPushButton('Previsione Biglietti')
+        self.previsione_btn.clicked.connect(self.open_previsione_biglietti_dialog)
+
         if post_json is None:
             self.optimize_day_btn.setEnabled(False)
+            self.previsione_btn.setEnabled(False)
             
         serv_layout.addWidget(self.show_dashboard_btn)
         serv_layout.addWidget(self.details_btn)
         serv_layout.addWidget(self.optimize_btn)
         serv_layout.addWidget(self.optimize_day_btn)
+        serv_layout.addWidget(self.previsione_btn)
         serv_group.setLayout(serv_layout)
         right_panel_widget.addWidget(serv_group)
 
@@ -778,26 +945,43 @@ class CorsePanel(QWidget):
             previsione = item.get('previsione') or {}
             pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
             pax_text = '' if pax is None else str(pax)
+            
+            # Fetch percorsi details
+            num_percorsi = "?"
+            if get_json:
+                try:
+                    # Request percorsi details using query param include=percorsi
+                    detail = get_json(f'corsa/{cid}?include=percorsi')
+                    if detail and isinstance(detail, dict):
+                        p = detail.get('percorsi', [])
+                        if isinstance(p, list):
+                            num_percorsi = str(len(p))
+                        else:
+                            num_percorsi = "0"
+                except Exception:
+                    num_percorsi = "Err"
 
             it_name = QTableWidgetItem(corsa_name)
             it_tratta = QTableWidgetItem(str(tratta_display))
             it_orario = QTableWidgetItem(orario)
             it_pax = QTableWidgetItem(pax_text)
             it_arrivo = QTableWidgetItem(arrivo_text)
+            it_percorsi = QTableWidgetItem(num_percorsi)
             # ID cell (last column) holds the full object in Qt.UserRole
             it_id = QTableWidgetItem(cid)
             it_id.setData(Qt.UserRole, item)
 
-            for it in (it_name, it_tratta, it_orario, it_pax, it_arrivo, it_id):
+            for it in (it_name, it_tratta, it_orario, it_pax, it_arrivo, it_percorsi, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
-            # Nome, Tratta, Orario, Arrivo, Previsione, ID
+            # Nome, Tratta, Orario, Arrivo, Previsione, Percorsi, ID
             self.table.setItem(row, 0, it_name)
             self.table.setItem(row, 1, it_tratta)
             self.table.setItem(row, 2, it_orario)
             self.table.setItem(row, 3, it_arrivo)
             self.table.setItem(row, 4, it_pax)
-            self.table.setItem(row, 5, it_id)
+            self.table.setItem(row, 5, it_percorsi)
+            self.table.setItem(row, 6, it_id)
 
         self.table.resizeColumnsToContents()
 
@@ -903,3 +1087,27 @@ class CorsePanel(QWidget):
         cur_date = self.date_filter.date()
         self._opt_day_dialog = OptimizationDayDialog(self, initial_date=cur_date)
         self._opt_day_dialog.show()
+
+    def open_previsione_biglietti_dialog(self):
+        sel_d = self.date_filter.date()
+        curr_d = QDate.currentDate()
+        diff = curr_d.daysTo(sel_d)
+        
+        if diff > 14:
+            QMessageBox.critical(self, "Errore", "La data selezionata è troppo lontana per effettuare una previsione")
+            return
+            
+        corse_list = []
+        rows = self.table.rowCount()
+        # ID is in the last column
+        col_id = self.table.columnCount() - 1
+        for i in range(rows):
+            item = self.table.item(i, col_id)
+            if item:
+                c_data = item.data(Qt.UserRole)
+                if c_data:
+                    corse_list.append(c_data)
+        
+        dlg = PrevisioneBigliettiDialog(self, date_obj=sel_d, corse=corse_list)
+        if dlg.exec_() == QDialog.Accepted:
+            self.load_data()
