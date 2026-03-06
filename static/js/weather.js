@@ -70,12 +70,7 @@ function selectWeatherLayer(type) {
         west: bounds.getWest()
     };
 
-    if (window.pyMain && window.pyMain.getWeatherDataT) {
-        console.log(`Fetching weather data for: ${type} at time: ${window.currentWeatherTime || 'Real-time'}`);
-        // Pass bounds as JSON string
-        fetchWeatherData(type, boundsObj);
-    } else if (window.pyMain && window.pyMain.getWeatherData) {
-         // Fallback if updated signature not deployed yet? No, we updated Python.
+    if (window.pyMain && window.pyMain.getWeatherData) {
          // Pass explicit timestamp or null
          window.pyMain.getWeatherData(type, JSON.stringify(boundsObj), window.currentWeatherTime, function(response) {
             
@@ -91,11 +86,27 @@ function selectWeatherLayer(type) {
             } else if (response && response.error) {
                 console.error("Weather error:", response.error);
                 return;
-            } else if (response && response.items) {
-                // Should match above, but just in case
-                data = response.items;
-                timestamp = response.timestamp;
-                if (response.range) range = response.range;
+            }
+
+            // Calculation of range if missing
+            if (!response.range && data && data.length > 0) {
+                let min = Infinity;
+                let max = -Infinity;
+                if (type === 'currents') {
+                    data.forEach(p => {
+                        let mag = Math.sqrt(p.u*p.u + p.v*p.v);
+                        if (mag < min) min = mag;
+                        if (mag > max) max = mag;
+                    });
+                } else if (type === 'waves') {
+                    data.forEach(p => {
+                        let h = p.height;
+                        if (h < min) min = h;
+                        if (h > max) max = h;
+                    });
+                }
+                if (min !== Infinity) range.min = min;
+                if (max !== -Infinity) range.max = max;
             }
 
             console.log("Weather data received:", data ? data.length : 0);
