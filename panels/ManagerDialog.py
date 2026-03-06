@@ -9,6 +9,7 @@ from subpanels.TrattePanel import TrattePanel
 from subpanels.CorsePanel import CorsePanel
 from subpanels.PianiOperativiPanel import PianiOperativiPanel
 from subpanels.SimulazioniPanel import SimulazioniPanel
+from subpanels.ComponentiPanel import ComponentiPanel
 
 
 class ManagerDialog(QDialog):
@@ -21,7 +22,7 @@ class ManagerDialog(QDialog):
         self.setWindowTitle('Manager')
         # make dialog a top-level window with minimize and maximize buttons
         self.setWindowFlags(Qt.Window | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(1100, 700)
 
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
@@ -33,9 +34,11 @@ class ManagerDialog(QDialog):
         self.corse = CorsePanel(self)
         self.piani = PianiOperativiPanel(self)
         self.simulazioni = SimulazioniPanel(self)
+        self.componenti = ComponentiPanel(self)
 
         self.tabs.addTab(self.porti, 'Porti')
         self.tabs.addTab(self.vascelli, 'Vascelli')
+        self.tabs.addTab(self.componenti, 'Componenti')
         self.tabs.addTab(self.tratte, 'Tratte')
         self.tabs.addTab(self.corse, 'Corse')
         self.tabs.addTab(self.piani, 'Piani Operativi')
