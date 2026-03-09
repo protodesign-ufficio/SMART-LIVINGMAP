@@ -133,7 +133,165 @@
                 </div>
             </div>
             
-            <!-- Card 5 Removed as requested -->
+            <!-- REPLANNING_CHECK_INTERVAL_SECONDS -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">5. REPLANNING_CHECK_INTERVAL_SECONDS</div>
+                <div class="description">
+                    Cadenza in secondi del job periodico che verifica automaticamente se il piano operativo necessita di replanning.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 300 secondi
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_check_interval_seconds" class="input-field flex-1" placeholder="300" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">sec</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_THETA_MIN -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">6. REPLANNING_THETA_MIN</div>
+                <div class="description">
+                    Soglia θ_min (min): ritardo oltre cui una corsa è considerata in ritardo. Alimenta il contatore M.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 10.0 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_theta_min" class="input-field flex-1" placeholder="10.0" step="0.1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_THETA_CRITICAL_MIN -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">7. REPLANNING_THETA_CRITICAL_MIN</div>
+                <div class="description">
+                    Soglia θ_critical (min): ritardo oltre cui una corsa è critica. Alimenta il contatore M_c. Deve essere > theta_min.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 30.0 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_theta_critical_min" class="input-field flex-1" placeholder="30.0" step="0.1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_MAX_LATE -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">8. REPLANNING_MAX_LATE</div>
+                <div class="description">
+                    Numero massimo di corse in ritardo (M > theta_min) tollerato nell'orizzonte prima di attivare il replanning.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 2
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_max_late" class="input-field flex-1" placeholder="2" step="1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">corse</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_MAX_CRITICAL -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">9. REPLANNING_MAX_CRITICAL</div>
+                <div class="description">
+                    Numero massimo di corse critiche (M_c > theta_critical_min) tollerato. Anche una singola corsa critica oltre soglia attiva il replanning.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 1
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_max_critical" class="input-field flex-1" placeholder="1" step="1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">corse</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_TOTAL_DELAY_MAX -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">10. REPLANNING_TOTAL_DELAY_MAX</div>
+                <div class="description">
+                    Ritardo cumulativo massimo (D_tot, min): somma di tutti i ritardi nell'orizzonte. Superato questo valore il replanning scatta indipendentemente da M e M_c.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 60.0 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_total_delay_max" class="input-field flex-1" placeholder="60.0" step="0.1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_SINGLE_DELAY_MAX -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">11. REPLANNING_SINGLE_DELAY_MAX</div>
+                <div class="description">
+                    Ritardo massimo su una singola corsa (D_max, min). Se anche solo una corsa supera questo valore il replanning scatta immediatamente.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 40.0 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_single_delay_max" class="input-field flex-1" placeholder="40.0" step="0.1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_HORIZON_MINUTES -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">12. REPLANNING_HORIZON_MINUTES</div>
+                <div class="description">
+                    Ampiezza in minuti della finestra temporale futura analizzata. Solo le corse con partenza/arrivo entro questo orizzonte vengono incluse nell'analisi.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 120 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_horizon_minutes" class="input-field flex-1" placeholder="120" step="1" min="1">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_COOLDOWN_MINUTES -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">13. REPLANNING_COOLDOWN_MINUTES</div>
+                <div class="description">
+                    Periodo di silenzio (min) dopo un trigger: nuovi trigger non vengono generati né notificati su Kafka per evitare oscillazioni.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 30 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_cooldown_minutes" class="input-field flex-1" placeholder="30" step="1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
+
+            <!-- REPLANNING_FREEZE_WINDOW_MINUTES -->
+            <div class="card p-6">
+                <div class="text-xs text-slate-400 uppercase font-bold mb-2">14. REPLANNING_FREEZE_WINDOW_MINUTES</div>
+                <div class="description">
+                    Finestra di freeze operativo (min) prima della partenza di una corsa. Le corse imminenti entro questa finestra sono escluse dal replanning.
+                    <br><br>
+                    <strong>Uso:</strong> Servizio di replanning automatico.
+                    <br>
+                    <strong>Default:</strong> 15 minuti
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <input type="number" id="replanning_freeze_window_minutes" class="input-field flex-1" placeholder="15" step="1" min="0">
+                    <span class="text-slate-400 text-sm self-center pl-2">min</span>
+                </div>
+            </div>
 
         </div>
 
@@ -193,7 +351,17 @@ const DEFAULT_VALUES = {
     window_future: "30",
     publish_interval: "30",
     publish_interval_sec: "30",
-    cache_delta_minutes: "120"
+    cache_delta_minutes: "120",
+    replanning_check_interval_seconds: "300",
+    replanning_theta_min: "10.0",
+    replanning_theta_critical_min: "30.0",
+    replanning_max_late: "2",
+    replanning_max_critical: "1",
+    replanning_total_delay_max: "60.0",
+    replanning_single_delay_max: "40.0",
+    replanning_horizon_minutes: "120",
+    replanning_cooldown_minutes: "30",
+    replanning_freeze_window_minutes: "15"
 };
 
 const API_ENDPOINT = "http://87.26.178.190:25080";
@@ -239,7 +407,7 @@ function updateLastSync() {
 // =====================================================
 // LOAD CURRENT VALUES
 // =====================================================
-async function loadCacheDelta() {
+async function loadConfigValues() {
     try {
         const response = await fetch(`${API_ENDPOINT}/config`, {
             method: "GET",
@@ -250,12 +418,35 @@ async function loadCacheDelta() {
 
         const data = await response.json();
 
+        // Cache delta
         document.getElementById("cache_delta_minutes").value =
-            data.cache_delta_minutes || DEFAULT_VALUES.cache_delta_minutes;
+            data.cache_delta_minutes ?? DEFAULT_VALUES.cache_delta_minutes;
+
+        // Replanning parameters
+        document.getElementById("replanning_check_interval_seconds").value =
+            data.replanning_check_interval_seconds ?? DEFAULT_VALUES.replanning_check_interval_seconds;
+        document.getElementById("replanning_theta_min").value =
+            data.replanning_theta_min ?? DEFAULT_VALUES.replanning_theta_min;
+        document.getElementById("replanning_theta_critical_min").value =
+            data.replanning_theta_critical_min ?? DEFAULT_VALUES.replanning_theta_critical_min;
+        document.getElementById("replanning_max_late").value =
+            data.replanning_max_late ?? DEFAULT_VALUES.replanning_max_late;
+        document.getElementById("replanning_max_critical").value =
+            data.replanning_max_critical ?? DEFAULT_VALUES.replanning_max_critical;
+        document.getElementById("replanning_total_delay_max").value =
+            data.replanning_total_delay_max ?? DEFAULT_VALUES.replanning_total_delay_max;
+        document.getElementById("replanning_single_delay_max").value =
+            data.replanning_single_delay_max ?? DEFAULT_VALUES.replanning_single_delay_max;
+        document.getElementById("replanning_horizon_minutes").value =
+            data.replanning_horizon_minutes ?? DEFAULT_VALUES.replanning_horizon_minutes;
+        document.getElementById("replanning_cooldown_minutes").value =
+            data.replanning_cooldown_minutes ?? DEFAULT_VALUES.replanning_cooldown_minutes;
+        document.getElementById("replanning_freeze_window_minutes").value =
+            data.replanning_freeze_window_minutes ?? DEFAULT_VALUES.replanning_freeze_window_minutes;
 
     } catch (error) {
-    console.error("Errore cache delta:", error);
-    showStatus("Errore nel caricamento Cache Delta", "error");
+        console.error("Errore caricamento config:", error);
+        showStatus("Errore nel caricamento configurazione", "error");
     }
 }
 
@@ -297,6 +488,16 @@ function loadDefaultValues() {
     document.getElementById("publish_interval").value = DEFAULT_VALUES.publish_interval;
     document.getElementById("publish_interval_sec").value = DEFAULT_VALUES.publish_interval_sec;
     document.getElementById("cache_delta_minutes").value = DEFAULT_VALUES.cache_delta_minutes;
+    document.getElementById("replanning_check_interval_seconds").value = DEFAULT_VALUES.replanning_check_interval_seconds;
+    document.getElementById("replanning_theta_min").value = DEFAULT_VALUES.replanning_theta_min;
+    document.getElementById("replanning_theta_critical_min").value = DEFAULT_VALUES.replanning_theta_critical_min;
+    document.getElementById("replanning_max_late").value = DEFAULT_VALUES.replanning_max_late;
+    document.getElementById("replanning_max_critical").value = DEFAULT_VALUES.replanning_max_critical;
+    document.getElementById("replanning_total_delay_max").value = DEFAULT_VALUES.replanning_total_delay_max;
+    document.getElementById("replanning_single_delay_max").value = DEFAULT_VALUES.replanning_single_delay_max;
+    document.getElementById("replanning_horizon_minutes").value = DEFAULT_VALUES.replanning_horizon_minutes;
+    document.getElementById("replanning_cooldown_minutes").value = DEFAULT_VALUES.replanning_cooldown_minutes;
+    document.getElementById("replanning_freeze_window_minutes").value = DEFAULT_VALUES.replanning_freeze_window_minutes;
     showStatus("Valori default caricati", "success");
 }
 
@@ -304,21 +505,76 @@ function loadDefaultValues() {
 // SAVE CONFIGURATION
 // =====================================================
 
-async function saveCacheDelta() {
-    const value = parseInt(
-        document.getElementById("cache_delta_minutes").value
-    );
+async function saveConfigValues() {
+    // Validate and collect all config values
+    const cache_delta_minutes = parseInt(document.getElementById("cache_delta_minutes").value);
+    const replanning_check_interval_seconds = parseInt(document.getElementById("replanning_check_interval_seconds").value);
+    const replanning_theta_min = parseFloat(document.getElementById("replanning_theta_min").value);
+    const replanning_theta_critical_min = parseFloat(document.getElementById("replanning_theta_critical_min").value);
+    const replanning_max_late = parseInt(document.getElementById("replanning_max_late").value);
+    const replanning_max_critical = parseInt(document.getElementById("replanning_max_critical").value);
+    const replanning_total_delay_max = parseFloat(document.getElementById("replanning_total_delay_max").value);
+    const replanning_single_delay_max = parseFloat(document.getElementById("replanning_single_delay_max").value);
+    const replanning_horizon_minutes = parseInt(document.getElementById("replanning_horizon_minutes").value);
+    const replanning_cooldown_minutes = parseInt(document.getElementById("replanning_cooldown_minutes").value);
+    const replanning_freeze_window_minutes = parseInt(document.getElementById("replanning_freeze_window_minutes").value);
 
-    if (!value || value < 1) {
+    // Validations
+    if (!cache_delta_minutes || cache_delta_minutes < 1) {
         throw new Error("CACHE_DELTA_MIN deve essere un numero > 0");
     }
+    if (!replanning_check_interval_seconds || replanning_check_interval_seconds < 1) {
+        throw new Error("REPLANNING_CHECK_INTERVAL_SECONDS deve essere un numero > 0");
+    }
+    if (isNaN(replanning_theta_min) || replanning_theta_min < 0) {
+        throw new Error("REPLANNING_THETA_MIN deve essere un numero >= 0");
+    }
+    if (isNaN(replanning_theta_critical_min) || replanning_theta_critical_min < 0) {
+        throw new Error("REPLANNING_THETA_CRITICAL_MIN deve essere un numero >= 0");
+    }
+    if (replanning_theta_critical_min <= replanning_theta_min) {
+        throw new Error("REPLANNING_THETA_CRITICAL_MIN deve essere > REPLANNING_THETA_MIN");
+    }
+    if (isNaN(replanning_max_late) || replanning_max_late < 0) {
+        throw new Error("REPLANNING_MAX_LATE deve essere un numero >= 0");
+    }
+    if (isNaN(replanning_max_critical) || replanning_max_critical < 0) {
+        throw new Error("REPLANNING_MAX_CRITICAL deve essere un numero >= 0");
+    }
+    if (isNaN(replanning_total_delay_max) || replanning_total_delay_max < 0) {
+        throw new Error("REPLANNING_TOTAL_DELAY_MAX deve essere un numero >= 0");
+    }
+    if (isNaN(replanning_single_delay_max) || replanning_single_delay_max < 0) {
+        throw new Error("REPLANNING_SINGLE_DELAY_MAX deve essere un numero >= 0");
+    }
+    if (!replanning_horizon_minutes || replanning_horizon_minutes < 1) {
+        throw new Error("REPLANNING_HORIZON_MINUTES deve essere un numero > 0");
+    }
+    if (isNaN(replanning_cooldown_minutes) || replanning_cooldown_minutes < 0) {
+        throw new Error("REPLANNING_COOLDOWN_MINUTES deve essere un numero >= 0");
+    }
+    if (isNaN(replanning_freeze_window_minutes) || replanning_freeze_window_minutes < 0) {
+        throw new Error("REPLANNING_FREEZE_WINDOW_MINUTES deve essere un numero >= 0");
+    }
+
+    const payload = {
+        cache_delta_minutes,
+        replanning_check_interval_seconds,
+        replanning_theta_min,
+        replanning_theta_critical_min,
+        replanning_max_late,
+        replanning_max_critical,
+        replanning_total_delay_max,
+        replanning_single_delay_max,
+        replanning_horizon_minutes,
+        replanning_cooldown_minutes,
+        replanning_freeze_window_minutes
+    };
 
     const response = await fetch(`${API_ENDPOINT}/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            cache_delta_minutes: value
-        })
+        body: JSON.stringify(payload)
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -328,7 +584,7 @@ async function saveCacheDelta() {
 async function saveConfiguration() {
     try {
         await saveKafkaConfig();
-        await saveCacheDelta();
+        await saveConfigValues();
 
         updateLastSync();
         showStatus(
@@ -422,7 +678,7 @@ document.getElementById("btn-reset").addEventListener("click", resetToDefaults);
 // =====================================================
 document.getElementById("btn-load").addEventListener("click", () => {
     loadCurrentValues();   // Kafka
-    loadCacheDelta();      // Cache
+    loadConfigValues();    // Config (cache + replanning)
 });
 </script>
 
