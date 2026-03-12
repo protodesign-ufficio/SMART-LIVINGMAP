@@ -127,14 +127,15 @@ class PercorsiDialog(QDialog):
         except Exception:
             pass
 
-        # table of percorsi: checkbox, tempo, consumo, comfort, vascello and delete button
-        self.table = QTableWidget(0, 6, self)
+        # table of percorsi: checkbox, tempo, consumo, comfort, vascello, scenario and delete button
+        self.table = QTableWidget(0, 7, self)
         self.table.setHorizontalHeaderLabels([
             'Mostra in mappa',
             'Tempo Percorrenza',
             'Consumo',
             'Comfort',
             'Vascello',
+            'Scenario',
             'Elimina',
         ])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -327,6 +328,14 @@ class PercorsiDialog(QDialog):
             it_vascello = QTableWidgetItem(str(vname))
             it_vascello.setFlags(it_vascello.flags() & ~Qt.ItemIsEditable)
 
+            # determine scenario label
+            scenario_label = 'Reale/Copernicus'
+            scenario_obj = p.get('scenario') if isinstance(p, dict) else None
+            if isinstance(scenario_obj, dict) and scenario_obj.get('scenario_nome'):
+                scenario_label = str(scenario_obj['scenario_nome'])
+            it_scenario = QTableWidgetItem(scenario_label)
+            it_scenario.setFlags(it_scenario.flags() & ~Qt.ItemIsEditable)
+
             # suppress itemChanged while inserting
             self._suppress_item_changed = True
             self.table.setItem(row, 0, it_check)
@@ -334,6 +343,7 @@ class PercorsiDialog(QDialog):
             self.table.setItem(row, 2, it_consumo)
             self.table.setItem(row, 3, it_comfort)
             self.table.setItem(row, 4, it_vascello)
+            self.table.setItem(row, 5, it_scenario)
             # delete button in last column
             try:
                 btn = QPushButton('🗑')
@@ -342,7 +352,7 @@ class PercorsiDialog(QDialog):
                 rid = p.get('id') if isinstance(p, dict) else None
                 btn.setProperty('route_id', str(rid) if rid is not None else '')
                 btn.clicked.connect(self._on_delete_clicked)
-                self.table.setCellWidget(row, 5, btn)
+                self.table.setCellWidget(row, 6, btn)
             except Exception:
                 pass
             self._suppress_item_changed = False
@@ -544,8 +554,8 @@ class PercorsiDialog(QDialog):
     def _on_header_clicked(self, index:int):
         """Toggle sorting for allowed columns when header clicked."""
         try:
-            # allowed columns: 1=Tempo,2=Consumo,3=Comfort,4=Vascello
-            if index not in (1, 2, 3, 4):
+            # allowed columns: 1=Tempo,2=Consumo,3=Comfort,4=Vascello,5=Scenario
+            if index not in (1, 2, 3, 4, 5):
                 return
             if self._last_sort_col == index:
                 # toggle order
@@ -590,6 +600,8 @@ class PercorsiDialog(QDialog):
                 # SINGLE SELECTION MODE:
                 # 1. Clear all routes on map
                 self._run_js("if(window.routesManager) window.routesManager.clearAll();")
+                # Clear previous weather layers
+                self._run_js("if(window.weatherManager) window.weatherManager.clearAllWeather();")
                 
                 # 2. Clear memory set
                 visible_set.clear()
@@ -606,6 +618,10 @@ class PercorsiDialog(QDialog):
                 visible_set.add(rid)
                 js = f"window.routesManager.loadAndDrawRoute('{rid}')"
                 self._run_js(js)
+
+                # 5. Load weather data for this route
+                js_weather = f"if(window.weatherManager) window.weatherManager.loadRouteWeather('{rid}')"
+                self._run_js(js_weather)
                 
 
             else:
@@ -614,6 +630,8 @@ class PercorsiDialog(QDialog):
                     visible_set.discard(rid)
                     js = f"window.routesManager.removeRoute('{rid}')"
                     self._run_js(js)
+                # Clear weather layers associated with the route
+                self._run_js("if(window.weatherManager) window.weatherManager.clearAllWeather()")
                     
 
         except Exception as e:

@@ -65,6 +65,11 @@ function refreshMap() {
     if (window.routesManager && window.routesManager.clearAll) {
         window.routesManager.clearAll();
     }
+    
+    // 3. Clear weather layers
+    if (window.weatherManager && window.weatherManager.clearAllWeather) {
+        window.weatherManager.clearAllWeather();
+    }
 }
 
 // OpenStreetMap base layer
