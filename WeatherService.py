@@ -1,6 +1,6 @@
 from ApiClient import post_json
 
-def get_weather_data_db(layer_type, bounds=None, timestamp=None, use_cache=True, save_cache=True, force_refresh=False, max_age_minutes=60, scenario=None, scenario_id=None):
+def get_weather_data_db(layer_type, bounds=None, timestamp=None, use_cache=False, save_cache=True, force_refresh=False, max_age_minutes=60, scenario=None, scenario_id=None):
     """
     Fetch weather data from the database via the /weather/layer endpoint.
     
