@@ -174,6 +174,10 @@ class OptimizationDialog(QDialog):
         self.eps_spin = QSpinBox()
         self.eps_spin.setRange(0, 3600)
         self.eps_spin.setValue(5)
+        
+        self.scenario_cb = QComboBox()
+        self.scenario_cb.setToolTip("Seleziona uno scenario meteo")
+
         self.optimize_all_cb = QCheckBox('Ottimizza per tutti i vascelli')
         self.optimize_all_cb.setToolTip("Esegue l'ottimizzazione per tutti i vascelli disponibili")
         self.optimize_all_cb.toggled.connect(self._on_optimize_all_toggled)
@@ -190,6 +194,7 @@ class OptimizationDialog(QDialog):
 
         form.addRow('Corsa Selezionata', self.corsa_label)
         form.addRow('Vascello', self.vascello_cb)
+        form.addRow('Scenario Meteo', self.scenario_cb)
         form.addRow('Eps Time', self.eps_spin)
         form.addRow('Tolerance', self.tolerance_edit)
         form.addRow('Ve Min', self.ve_min_edit)
@@ -231,6 +236,27 @@ class OptimizationDialog(QDialog):
                 name = vid
             self.vascello_cb.addItem(str(name), vid)
 
+        # Scenari meteo
+        try:
+            scenario_data = get_json('weather/scenarios') or {}
+            saved_scenarios = scenario_data.get('saved', [])
+            # preset_scenarios = scenario_data.get('presets', {})
+        except Exception:
+            saved_scenarios = []
+            # preset_scenarios = {}
+
+        self.scenario_cb.clear()
+        self.scenario_cb.addItem("Nessuno (Dati reali)", None)
+        
+        for s in saved_scenarios:
+            sid = s.get('id')
+            label = s.get('label') or s.get('name') or str(sid)
+            self.scenario_cb.addItem(f"{label}", sid)
+            
+        # for k, v in preset_scenarios.items():
+        #     label = v.get('label') or k
+        #     self.scenario_cb.addItem(f"[Preset] {label}", k)
+
     def _on_optimize_all_toggled(self, checked: bool):
         # when optimizing all, disable the vascello selector to avoid confusion
         try:
@@ -240,6 +266,7 @@ class OptimizationDialog(QDialog):
 
     def start_optimization(self):
         vascello_id = self.vascello_cb.currentData() or self.vascello_cb.currentText()
+        scenario_id = self.scenario_cb.currentData()
         corsa_id = self.corsa_id
         eps_time = int(self.eps_spin.value())
         fake_data = self.fake_data_cb.isChecked()
@@ -278,14 +305,17 @@ class OptimizationDialog(QDialog):
                 else:
                     vid = str(v)
 
-                items_payload.append({
+                item = {
                     'corsa_id': corsa_id,
                     'vascello_id': vid,
                     'eps_time': eps_time,
                     'fake_data': fake_data,
                     'tolerance': tolerance,
                     've_min': ve_min
-                })
+                }
+                if scenario_id is not None:
+                    item['scenario_id'] = scenario_id
+                items_payload.append(item)
             payload = {'items': items_payload}
         else:
             # single vascello flow
@@ -293,20 +323,24 @@ class OptimizationDialog(QDialog):
                 QMessageBox.warning(self, 'Errore', 'Seleziona un vascello')
                 return
 
-            payload = {'items': [{
+            item = {
                 'corsa_id': corsa_id,
                 'vascello_id': vascello_id,
                 'eps_time': eps_time,
                 'fake_data': fake_data,
                 'tolerance': tolerance,
                 've_min': ve_min
-            }]}
+            }
+            if scenario_id is not None:
+                item['scenario_id'] = scenario_id
+            payload = {'items': [item]}
 
         # Disable UI controls to prevent duplicate submits
         try:
             self.start_btn.setEnabled(False)
             self.start_btn.setText("Elaborazione...")
             self.vascello_cb.setEnabled(False)
+            self.scenario_cb.setEnabled(False)
             self.optimize_all_cb.setEnabled(False)
             self.eps_spin.setEnabled(False)
             self.fake_data_cb.setEnabled(False)
@@ -331,6 +365,7 @@ class OptimizationDialog(QDialog):
             self.start_btn.setEnabled(True)
             self.start_btn.setText("Avvia")
             self.vascello_cb.setEnabled(True)
+            self.scenario_cb.setEnabled(True)
             self.optimize_all_cb.setEnabled(True)
             self.eps_spin.setEnabled(True)
             self.fake_data_cb.setEnabled(True)
