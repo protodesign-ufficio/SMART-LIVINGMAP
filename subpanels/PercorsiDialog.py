@@ -607,11 +607,6 @@ class PercorsiDialog(QDialog):
                 js = f"window.routesManager.loadAndDrawRoute('{rid}')"
                 self._run_js(js)
                 
-                # 5. Set Weather Time to scheduled departure
-                # Uses self._corsa_full_timestamp stored in __init__
-                ts_val = getattr(self, '_corsa_full_timestamp', None)
-                ts_js = f"'{ts_val}'" if ts_val else "null"
-                self._run_js(f"if(window.setWeatherTime) window.setWeatherTime({ts_js});")
 
             else:
                 # If unchecked, just remove this specific route
@@ -620,10 +615,6 @@ class PercorsiDialog(QDialog):
                     js = f"window.routesManager.removeRoute('{rid}')"
                     self._run_js(js)
                     
-                    # Reset weather to real-time since no route is active (in this dialog's context)
-                    # Note: Ideally we should check if ANY route is visible, but since 
-                    # we enforce single selection, this is safe.
-                    self._run_js("if(window.setWeatherTime) window.setWeatherTime(null);")
 
         except Exception as e:
             print(f"Error in _on_item_changed: {e}")

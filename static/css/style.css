@@ -53,19 +53,11 @@ html, body, #map {
 .port-div-icon{ pointer-events:auto; }
 
 
-/* Weather control styles */
-#weather-control {
+#refresh-button {
     position: absolute;
     top: 90px;
     right: 10px;
     z-index: 1000;
-}
-
-#refresh-button {
-    position: absolute;
-    top: 135px;
-    right: 10px;
-    z-index: 1000;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -78,65 +70,4 @@ html, body, #map {
     padding: 0;
 }
 
-#weather-timestamp {
-    position: absolute;
-    bottom: 10px;
-    right: 10px; /* To the left of the button */
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
-    padding: 10px 15px;
-    border-radius: 4px;
-    font-family: Arial, sans-serif;
-    font-size: 13px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    height: 30px;
-    display: flex;
-    align-items: center;
-    z-index: 1000;
-    box-sizing: border-box;
-}
 
-#weather-timestamp.hidden {
-    display: none;
-}
-
-#weather-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 40px;
-    height: 40px;
-    background: rgba(0,0,0,0.6);
-    cursor: pointer;
-    border-radius: 4px;
-    border: none;
-    padding: 0;
-}
-
-#weather-menu {
-    position: absolute;
-    top: 0;
-    right: 45px;
-    background: white;
-    border-radius: 4px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    width: 150px;
-    overflow: hidden;
-    display: block;
-}
-
-#weather-menu.hidden {
-    display: none;
-}
-
-.menu-item {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    color: #333;
-}
-
-.menu-item:hover {
-    background-color: #f0f0f0;
-}

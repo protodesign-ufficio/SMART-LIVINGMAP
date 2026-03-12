@@ -28,11 +28,7 @@ except Exception:
     print("[main_window] ApiClient.get_json not available", flush=True)
     get_json = None
 
-try:
-    from WeatherService import get_weather_data_db
-except Exception:
-    print("[main_window] WeatherService not available", flush=True)
-    get_weather_data_db = None
+
 
 # Classe _webbridge: helper QObject exposed to the web page via QWebChannel
 class _WebBridge(QObject):
@@ -105,32 +101,6 @@ class _WebBridge(QObject):
             print(f"Error fetching route details for {route_id}: {e}")
             return {}
 
-
-    @pyqtSlot(str, str, str, result=QVariant)
-    def getWeatherData(self, layer_type, bounds_json=None, timestamp=None):
-        """Fetch weather data from DB (via API)."""
-        try:
-            if get_weather_data_db is None:
-                # If the new function is not available, try fallback or return empty
-                print("[_WebBridge] get_weather_data_db not available")
-                return []
-            
-            bounds = None
-            if bounds_json:
-                import json
-                try:
-                    bounds = json.loads(bounds_json)
-                except:
-                    pass
-            
-            # If timestamp is 'null' or empty, treat as None (real-time)
-            if not timestamp or timestamp == 'null':
-                timestamp = None
-
-            return get_weather_data_db(layer_type, bounds, timestamp=timestamp)
-        except Exception as e:
-            print(f"Error in getWeatherData: {e}")
-            return []
 
 
 

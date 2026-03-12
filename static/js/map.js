@@ -51,7 +51,7 @@ function returnToHome(){
   }
 }
 
-// Function to refresh the map: clear visible routes, reset weather, clear map
+// Function to refresh the map: clear visible routes, clear map
 function refreshMap() {
     console.log("Refreshing map...");
     // 1. Clear visible routes in Python
@@ -65,14 +65,6 @@ function refreshMap() {
     if (window.routesManager && window.routesManager.clearAll) {
         window.routesManager.clearAll();
     }
-    
-    // 3. Reset weather to real-time (and refresh if active)
-    if (window.setWeatherTime) {
-        window.setWeatherTime(null);
-    }
-    
-    // 4. Reset view to home (optional, maybe user wants to stay?)
-    // returnToHome(); 
 }
 
 // OpenStreetMap base layer
@@ -88,13 +80,6 @@ const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.pn
   attribution: '© OpenSeaMap',
   noWrap: true
 }).addTo(map);
-
-//Copernicus WMS layer for weather (example, can be toggled on/off in weather menu)
-const copernicusWMS = L.tileLayer.wms('https://services.sentinel-hub.com/ogc/wms/{instance_id}', {
-  maxZoom: 18,
-  attribution: '© Copernicus Sentinel data',
-  noWrap: true
-});
 
 L.control.attribution({
     position: 'bottomleft'
