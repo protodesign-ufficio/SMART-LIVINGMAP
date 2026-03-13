@@ -34,6 +34,48 @@
     currents: null
   };
 
+  // Label meteo
+  var weatherInfoControl = null;
+  var weatherInfoData = {
+    waves: null,
+    currents: null
+  };
+
+  if (typeof map !== 'undefined') {
+    weatherInfoControl = L.control({position: 'bottomright'});
+    weatherInfoControl.onAdd = function() {
+      this._div = L.DomUtil.create('div', 'weather-info-label');
+      this.update();
+      return this._div;
+    };
+    weatherInfoControl.update = function() {
+      if (!this._div) return;
+      var info = null;
+      var isRoute = false;
+      if (layerVisible.waves && weatherInfoData.waves) {
+          info = weatherInfoData.waves;
+          isRoute = (layerSource.waves === 'route');
+      } else if (layerVisible.currents && weatherInfoData.currents) {
+          info = weatherInfoData.currents;
+          isRoute = (layerSource.currents === 'route');
+      }
+
+      if (info) {
+        this._div.innerHTML = info;
+        this._div.style.display = 'block';
+        if (isRoute) {
+          this._div.style.backgroundColor = '#fff59dc0'; // Giallo canarino
+        } else {
+          this._div.style.backgroundColor = 'rgba(255,255,255,0.9)';
+        }
+      } else {
+        this._div.innerHTML = '';
+        this._div.style.display = 'none';
+      }
+    };
+    weatherInfoControl.addTo(map);
+  }
+
   // ---------- Utilità colori ----------
 
   function currentsMagnitude(u, v) {
@@ -42,7 +84,16 @@
 
   function currentsAngle(u, v) {
     // angolo in gradi (0=Nord, senso orario)
-    return (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    return (Math.atan2(u, v) * 180 / Math.PI + 360) % 360 ;
+  }
+
+  function formatLatLon(lat, lon) {
+    var latNum = Number(lat);
+    var lonNum = Number(lon);
+    if (!isFinite(latNum) || !isFinite(lonNum)) return '';
+    var latDir = latNum >= 0 ? 'N' : 'S';
+    var lonDir = lonNum >= 0 ? 'E' : 'W';
+    return Math.abs(latNum).toFixed(3) + '° ' + latDir + ' ' + Math.abs(lonNum).toFixed(3) + '° ' + lonDir;
   }
 
   function interpolateColor(t, colors) {
@@ -114,11 +165,12 @@
   }
 
   function createWavesIcon(angle, color, scale) {
+    real_angle = angle + 180; // Le onde puntano verso la direzione da cui arrivano, non verso dove vanno
     scale = scale || 1;
     var w = Math.round(WAVES_BASE_W * scale);
     var h = Math.round(WAVES_BASE_H * scale);
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h +
-      '" viewBox="0 0 14 24" style="transform:rotate(' + angle + 'deg)">' +
+      '" viewBox="0 0 14 24" style="transform:rotate(' + real_angle + 'deg)">' +
       '<path d="M0.554688 21.7205C2.55469 23.0538 4.55469 23.0538 6.55469 21.7205C8.55469 20.3871 10.5547 20.3871 12.5547 21.7205" ' +
       'stroke="' + color + '" stroke-width="2"/>' +
       '<path d="M6.55469 1.72046V21.7205M6.55469 1.72046L1.55469 8.72046M6.55469 1.72046L11.5547 8.72046" ' +
@@ -183,13 +235,16 @@
 
       // Popup con informazioni
       var popup;
+      var coordText = formatLatLon(lat, lon);
       if (layerType === 'currents') {
         popup = '<b>Corrente</b><br>' +
+          coordText + '<br>' +
           'Velocità: ' + magnitude.toFixed(3) + ' m/s<br>' +
           'Direzione: ' + angle.toFixed(1) + '°<br>' +
           'U: ' + it.u.toFixed(4) + '  V: ' + it.v.toFixed(4);
       } else {
         popup = '<b>Onda</b><br>' +
+          coordText + '<br>' +
           'Altezza: ' + magnitude.toFixed(3) + ' m<br>' +
           'Direzione: ' + angle.toFixed(1) + '°<br>' +
           'Periodo: ' + (it.period || 0).toFixed(2) + ' s';
@@ -202,6 +257,16 @@
     activeLayers[layerType] = group;
     layerVisible[layerType] = true;
 
+    // Aggiorna info label
+    var timestamp = weatherData.timestamp || 'N.D.';
+    if (layerSource[layerType] === 'route') {
+      var scenarioName = (weatherData.scenario && (weatherData.scenario.scenario_nome || weatherData.scenario.scenario_name)) || 'Sconosciuto';
+      weatherInfoData[layerType] = 'Dati meteo per scenario: ' + scenarioName + ' ' + timestamp ;
+    } else {
+      weatherInfoData[layerType] = 'Dati meteo in tempo reale: ' + timestamp ;
+    }
+    if (weatherInfoControl) weatherInfoControl.update();
+
     // Aggiorna stato bottone
     updateButtonState(layerType, true);
 
@@ -213,11 +278,7 @@
   function toggleWeatherLayer(layerType) {
     if (activeLayers[layerType]) {
       // Rimuovi
-      map.removeLayer(activeLayers[layerType]);
-      activeLayers[layerType] = null;
-      layerVisible[layerType] = false;
-      layerSource[layerType] = null;
-      updateButtonState(layerType, false);
+      clearWeatherLayer(layerType);
       console.log('weatherManager: rimosso layer', layerType);
     } else {
       // Se c'è un percorso attivo con cache keys, usa quelli
@@ -234,6 +295,18 @@
 
   function fetchWeatherLayer(layerType) {
     
+    // Funzione per formattare la data locale nel formato YYYY-MM-DDTHH:MM:SS richiesto
+    function getLocalTimestamp() {
+      var d = new Date();
+      var pad = function(n) { return n < 10 ? '0' + n : n; };
+      return d.getFullYear() + '-' +
+        pad(d.getMonth() + 1) + '-' +
+        pad(d.getDate()) + 'T' +
+        pad(d.getHours()) + ':' +
+        pad(d.getMinutes()) + ':' +
+        pad(d.getSeconds());
+    }
+
     var payload = {
       layer_type: layerType,
       bounds: {
@@ -242,14 +315,14 @@
         east: 14.90,
         west: 14.30,
       },
-      timestamp: new Date().toUTCString(),
-      use_cache: true,
+      timestamp: getLocalTimestamp(),
+      use_cache: false,
       save_cache: true,
-      force_refresh: false,
+      force_refresh: true,
       max_age_minutes: 15
     };
 
-    // console.error('weatherManager: playload per fetch', layerType, JSON.stringify(payload));
+    console.error('weatherManager: playload per fetch', layerType, JSON.stringify(payload));
 
     var url = BASE_URL + 'weather/layer/';
     console.log('weatherManager: fetching', layerType, 'from', url);
@@ -349,6 +422,8 @@
     }
     layerVisible[layerType] = false;
     layerSource[layerType] = null;
+    weatherInfoData[layerType] = null;
+    if (weatherInfoControl) weatherInfoControl.update();
     updateButtonState(layerType, false);
   }
 
