@@ -75,7 +75,7 @@ function refreshMap() {
 // OpenStreetMap base layer
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
-  attribution: '© OpenStreetMap contributors',
+  attribution: '© OpenStreetMap',
   noWrap: true
 }).addTo(map);
 
@@ -86,6 +86,7 @@ const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.pn
   noWrap: true
 }).addTo(map);
 
+
 L.control.attribution({
     position: 'bottomleft'
-}).addTo(map);
+}).addTo(map).addAttribution('© Copernicus Marine Service');
