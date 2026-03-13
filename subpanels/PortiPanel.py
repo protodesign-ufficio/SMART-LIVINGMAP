@@ -48,9 +48,9 @@ class PortiPanel(QWidget):
 
         self.table = QTableWidget(0, 4, self)
         self.table.setHorizontalHeaderLabels([
-            "Nome", 
-            "Lat", 
-            "Lon", 
+            "Nome Porto", 
+            "Latitudine", 
+            "Longitudine", 
             "ID",
         ])
         # select whole rows when clicked

@@ -51,8 +51,8 @@ class VascelliPanel(QWidget):
         self.table.setHorizontalHeaderLabels([
             "Nome",
             "MMSI",
-            "Capacità Pax.",
-            "Costo/Ora",
+            "Capacità Passeggeri",
+            "Costo Orario",
             "Velocità Max (nodi)",
             "ID",
         ])

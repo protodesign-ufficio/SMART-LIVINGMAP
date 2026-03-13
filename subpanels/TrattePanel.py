@@ -220,9 +220,9 @@ class TrattePanel(QWidget):
         # columns: Nome, Partenza, Arrivo, Intermedi, ID
         self.table = QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels([
-            "Nome",
-            "Partenza",
-            "Arrivo",
+            "Nome Tratta",
+            "Porto di Partenza",
+            "Porto di Arrivo",
             "Intermedi",
             "ID",
         ])
