@@ -20,15 +20,17 @@ except Exception:
     except Exception:
         get_json = None
 
-def _format_datetime(s: str) -> str:
+from datetime import datetime, timedelta
+
+def _format_datetime(s) -> str:
     if not s:
         return ''
+    if isinstance(s, datetime):
+        return s.strftime('%d/%m/%Y %H:%M:%S')
     try:
-        # Handle ISO format with potential timezone
-        from datetime import datetime
         # Replace 'Z' with '+00:00' for fromisoformat compatibility if needed
-        s = s.replace('Z', '+00:00')
-        dt = datetime.fromisoformat(str(s))
+        s_str = str(s).replace('Z', '+00:00')
+        dt = datetime.fromisoformat(s_str)
         return dt.strftime('%d/%m/%Y %H:%M:%S')
     except Exception:
         return str(s)
@@ -46,11 +48,12 @@ class SimulazioniPanel(QWidget):
         # Left: Table and status label
         left_col = QVBoxLayout()
         
-        self.table = QTableWidget(0, 4, self)
+        self.table = QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels([
             'Vascello',
             'Corsa',
-            'Orario Simulazione',
+            'Orario Inizio Simulazione',
+            'Orario Fine Simulazione',
             'Stato Esecuzione'
         ])
         self.table.setSelectionBehavior(self.table.SelectRows)
@@ -92,7 +95,21 @@ class SimulazioniPanel(QWidget):
             return
 
         try:
-            # 1. Get scheduled simulations
+            # 1. Get Simulation Settings (Speed Factor)
+            try:
+                sim_config = get_json('/api/config/kafka-settings')
+                if isinstance(sim_config, dict):
+                    sim_speed_factor = float(sim_config.get('sim_speed_factor', 1))
+                else:
+                    sim_speed_factor = 1.0
+            except Exception:
+                sim_speed_factor = 1.0
+            
+            # Avoid division by zero
+            if sim_speed_factor <= 0:
+                sim_speed_factor = 1.0
+
+            # 2. Get scheduling info
             groups = get_json('/simulation/schedulate')
             
             # Gestione errore 404 o risposta dizionario con dettaglio
@@ -126,7 +143,7 @@ class SimulazioniPanel(QWidget):
                     if not ass_id:
                         continue
                         
-                    # 2. Fetch assignment details for each simulation
+                    # 3. Fetch assignment details for each simulation
                     # Warning: This N+1 fetching might be slow if there are many simulations.
                     # Ideally the backend should return this info or support bulk fetch.
                     try:
@@ -138,15 +155,38 @@ class SimulazioniPanel(QWidget):
 
                     vascello = ass_data.get('vascello', {})
                     corsa = ass_data.get('corsa', {})
+                    percorso = ass_data.get('percorso', {})
                     
                     nome_vascello = vascello.get('nome', 'N/D') if vascello else 'N/D'
                     nome_corsa = corsa.get('nome', 'N/D') if corsa else 'N/D'
                     stato_exec = ass_data.get('stato_esecuzione', 'N/D')
 
+                    orario_fine = None
+                    # Calculate end time if we have start time and duration
+                    if orario_sim and percorso:
+                        try:
+                            # Parse duration in minutes
+                            durata_min = float(percorso.get('tempo_percorrenza', 0) or 0)
+                            if durata_min > 0:
+                                # Parse start time
+                                s_start = str(orario_sim).replace('Z', '+00:00')
+                                dt_start = datetime.fromisoformat(s_start)
+                                
+                                # Scale duration by speed factor
+                                durata_scalata = durata_min / sim_speed_factor
+                                
+                                # Add duration
+                                result_dt = dt_start + timedelta(minutes=durata_scalata)
+                                orario_fine = result_dt
+                        except Exception:
+                            # In case of parsing errors, just leave as None/empty
+                            pass
+
                     rows_data.append({
                         'vascello': nome_vascello,
                         'corsa': nome_corsa,
                         'orario_sim': orario_sim,
+                        'orario_fine': orario_fine,
                         'stato': stato_exec,
                         'raw_res': res,
                         'raw_ass': ass_data
@@ -168,17 +208,19 @@ class SimulazioniPanel(QWidget):
             
             t_vascello = QTableWidgetItem(str(item['vascello']))
             t_corsa = QTableWidgetItem(str(item['corsa']))
-            t_orario = QTableWidgetItem(_format_datetime(item['orario_sim']))
+            t_orario_inizio = QTableWidgetItem(_format_datetime(item['orario_sim']))
+            t_orario_fine = QTableWidgetItem(_format_datetime(item['orario_fine']) if item['orario_fine'] else "")
             t_stato = QTableWidgetItem(str(item['stato']))
             
             # Make read only
-            for t in (t_vascello, t_corsa, t_orario, t_stato):
+            for t in (t_vascello, t_corsa, t_orario_inizio, t_orario_fine, t_stato):
                 t.setFlags(t.flags() ^ Qt.ItemIsEditable)
 
             self.table.setItem(row, 0, t_vascello)
             self.table.setItem(row, 1, t_corsa)
-            self.table.setItem(row, 2, t_orario)
-            self.table.setItem(row, 3, t_stato)
+            self.table.setItem(row, 2, t_orario_inizio)
+            self.table.setItem(row, 3, t_orario_fine)
+            self.table.setItem(row, 4, t_stato)
 
         self.table.resizeColumnsToContents()
 
