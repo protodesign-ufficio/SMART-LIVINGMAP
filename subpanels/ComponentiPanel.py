@@ -74,7 +74,7 @@ class ComponentiPanel(QWidget):
         vbox_ana = QVBoxLayout()
         
         self.btn_aggiorna = QPushButton("Aggiorna")
-        self.btn_aggiorna.clicked.connect(self.on_vascello_changed) # Reload current
+        self.btn_aggiorna.clicked.connect(self.on_vascello_changed and self.load_vascelli) # Reload current
         vbox_ana.addWidget(self.btn_aggiorna)
 
         self.btn_add = QPushButton("Aggiungi")
