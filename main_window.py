@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowIcon(QIcon("static/icon/settings_icon.ico")) # RICCARDO
         self._ais_queue = queue
-        self.setWindowTitle("NavalViewer - Chart Viewer")
+        self.setWindowTitle("PROJECT SMART - Living Map")
         self.resize(1000, 700)
         
         # public visible routes set (string IDs)
