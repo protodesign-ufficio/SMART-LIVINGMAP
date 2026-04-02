@@ -4,7 +4,7 @@ const map = L.map('map', {
   attributionControl: false,
   worldCopyJump: false, 
   maxBoundsViscosity: 1, 
-  minZoom: 3, 
+  minZoom: 12, 
   maxZoom: 18 
 }).setView([40.63, 14.6], 12);
 
@@ -73,17 +73,19 @@ function refreshMap() {
 }
 
 // OpenStreetMap base layer
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
-  attribution: '© OpenStreetMap',
-  noWrap: true
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  noWrap: true,
+  referrerPolicy: 'no-referrer-when-downgrade'
 }).addTo(map);
 
 // OpenSeaMap seamark overlay
 const seamark = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
   maxZoom: 18,
   attribution: '© OpenSeaMap',
-  noWrap: true
+  noWrap: true,
+  referrerPolicy: 'no-referrer-when-downgrade'
 }).addTo(map);
 
 
