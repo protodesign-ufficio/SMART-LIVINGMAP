@@ -5,10 +5,6 @@ Espone la classe `ConsumerAIS` che può essere avviata in un thread
 e pubblica i messaggi su una `queue.Queue` passata dal chiamante.
 
 Gli item messi in coda sono i dizionari già deserializzati (`msg.value`).
-
-FIX: Sostituito consumer_timeout_ms + sleep loop con poll() continuo.
-Questo elimina il gap di ~1s che causava scatti sulla living map
-quando il flusso di messaggi rallentava (es. una nave finisce il percorso).
 """
 import os
 import json
@@ -32,73 +28,55 @@ class ConsumerAIS(threading.Thread):
         self.is_simulation = is_simulation
         self._stop = threading.Event()
         self.bootstrap = bootstrap or os.getenv("KAFKA_BOOTSTRAP", BOOTSTRAP_SERVERS)
-
-        # Contatori diagnostici
-        self._msg_count = 0
-        self._drop_count = 0
-        self._last_diag = time.time()
+        # self.group_id = group_id or os.getenv("KAFKA_GROUP", "navalviewer_ais")
 
     def stop(self):
         self._stop.set()
-
-    def _log_diagnostics(self):
-        """Logga statistiche ogni 30 secondi."""
-        now = time.time()
-        if now - self._last_diag >= 30:
-            print(f"[ConsumerAIS:{self.topic}] DIAG: received={self._msg_count} "
-                  f"queue_size={self.out_queue.qsize()} "
-                  f"drops={self._drop_count}", flush=True)
-            self._msg_count = 0
-            self._drop_count = 0
-            self._last_diag = now
 
     def run(self):
         try:
             consumer = KafkaConsumer(
                 self.topic,
                 bootstrap_servers=self.bootstrap,
+                # group_id=self.group_id,
                 key_deserializer=lambda k: k.decode("utf-8") if k else None,
                 value_deserializer=lambda v: json.loads(v.decode("utf-8")) if v else None,
                 auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET", "latest"),
-                # RIMOSSO consumer_timeout_ms: usava 1000ms che causava gap
-                # nel flusso dati quando il rate di messaggi calava.
-                # Ora usiamo poll() con timeout breve (200ms) che non esce
-                # mai dal loop e mantiene il flusso costante.
+                consumer_timeout_ms=1000,
             )
+            # connected
             print(f"[ConsumerAIS] Connected to Kafka at {self.bootstrap} for topic '{self.topic}'", flush=True)
         except Exception:
+            # failed to create consumer
             print(f"[ConsumerAIS] Failed to connect to Kafka at {self.bootstrap} for topic '{self.topic}': {traceback.format_exc()}", flush=True)
             return
 
         try:
             while not self._stop.is_set():
                 try:
-                    # poll() con timeout 200ms: ritorna immediatamente se ci sono
-                    # messaggi, altrimenti attende max 200ms. Non causa mai un gap
-                    # di 1s come il vecchio consumer_timeout_ms + sleep pattern.
-                    records = consumer.poll(timeout_ms=200, max_records=100)
-
-                    for tp, messages in records.items():
-                        for msg in messages:
-                            if self._stop.is_set():
-                                break
+                    for msg in consumer:
+                        if self._stop.is_set():
+                            break
+                        try:
                             if msg is None:
                                 continue
-
                             value = msg.value
                             if self.is_simulation:
                                 value['is_simulation'] = True
-
-                            self._msg_count += 1
+                            
+                            # push to queue for main thread processing
                             try:
                                 self.out_queue.put_nowait(value)
                             except Exception:
-                                self._drop_count += 1
-
-                    # Diagnostica periodica
-                    self._log_diagnostics()
-
+                                # fallback blocking put
+                                self.out_queue.put(value)
+                        except Exception:
+                            # error processing message
+                            pass
+                    # small sleep to avoid tight loop on timeout
+                    time.sleep(0.01)
                 except Exception:
+                    # consumer loop error
                     time.sleep(1)
         finally:
             try:
@@ -115,7 +93,6 @@ class ConsumerSimulation(ConsumerAIS):
 
 if __name__ == '__main__':
     # run standalone for debug: print incoming values
-    import logging
     q = Queue()
     c = ConsumerAIS(q)
     c.start()
@@ -129,3 +106,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         c.stop()
         c.join()
+
