@@ -1,0 +1,442 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --color-background-page: #0f172a;
+  --color-background-primary: #1e293b;
+  --color-background-secondary: #0f172a;
+  --color-border-secondary: #334155;
+  --color-border-tertiary: #334155;
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary: #64748b;
+  --color-text-info: #60a5fa;
+  --border-radius-md: 0.5rem;
+  --border-radius-lg: 0.75rem;
+  --font-mono: Consolas, 'Courier New', monospace;
+}
+html, body {
+  background: var(--color-background-page);
+  color: var(--color-text-primary);
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100%;
+}
+.page-shell {
+  min-height: 100vh;
+  padding: 24px;
+}
+.page-main {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+}
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+.card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 16px; }
+.metric-block { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:10px 12px; cursor:help; border:1px solid transparent; transition:border 0.15s; }
+.metric-block:hover { border-color:var(--color-border-secondary); }
+.metric-label { font-size:14px; color:var(--color-text-tertiary); margin-bottom:3px; }
+.metric-value { font-size:26px; font-weight:600; color:var(--color-text-primary); line-height:1.2; }
+.metric-unit { font-size:16px; color:var(--color-text-secondary); margin-left:3px; }
+.metric-sub { font-size:13px; color:var(--color-text-tertiary); margin-top:2px; }
+.slider-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.slider-row label { font-size:16px; color:var(--color-text-secondary); white-space:nowrap; }
+.slider-val { font-size:24px; font-weight:600; color:var(--color-text-primary); min-width:100px; text-align:right; }
+.mode-tabs { display:flex; gap:0; background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:2px; margin-bottom:14px; }
+.mode-tab { flex:1; padding:8px 10px; font-size:14px; text-align:center; border-radius:calc(var(--border-radius-md) - 2px); cursor:pointer; color:var(--color-text-secondary); border:none; background:transparent; transition:all 0.15s; }
+.mode-tab.active { background:var(--color-background-primary); color:var(--color-text-primary); font-weight:500; }
+
+.tree-node { user-select:none; }
+.tree-row {
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  border-radius:var(--border-radius-md); cursor:pointer;
+  transition:background 0.1s; margin-bottom:2px; position:relative;
+}
+.tree-row:hover { background:var(--color-background-secondary); }
+.tree-children { padding-left:24px; border-left:0.5px solid var(--color-border-tertiary); margin-left:16px; display:none; }
+.tree-children.open { display:block; }
+.toggle-icon { font-size:13px; color:var(--color-text-tertiary); width:14px; flex-shrink:0; text-align:center; transition:transform 0.15s; display:inline-block; }
+.toggle-icon.open { transform:rotate(90deg); }
+.node-name { font-size:15px; color:var(--color-text-primary); flex:1; }
+.node-level { font-size:13px; font-family:var(--font-mono); color:var(--color-text-tertiary); background:var(--color-background-secondary); padding:1px 6px; border-radius:4px; }
+.node-interval { font-size:13px; font-family:var(--font-mono); color:var(--color-text-tertiary); min-width:52px; text-align:right; }
+.node-topo { font-size:12px; color:var(--color-text-tertiary); padding:2px 7px; border-radius:10px; border:0.5px solid var(--color-border-tertiary); white-space:nowrap; }
+.progress-wrap { width:60px; height:5px; background:var(--color-border-tertiary); border-radius:3px; overflow:hidden; flex-shrink:0; }
+.progress-fill { height:100%; border-radius:3px; transition:width 0.25s, background 0.25s; }
+.status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.dot-ok   { background:#1D9E75; }
+.dot-soon { background:#BA7517; }
+.dot-due  { background:#C25151; }
+.row-soon { background:rgba(186,117,23,0.05); }
+.row-due  { background:rgba(194,81,81,0.05); }
+
+.tooltip-box {
+  position:fixed; z-index:9999; background:var(--color-background-primary);
+  border:0.5px solid var(--color-border-secondary); border-radius:var(--border-radius-md);
+  padding:10px 13px; max-width:280px; pointer-events:none; display:none;
+  font-size:14px; line-height:1.5; color:var(--color-text-secondary);
+}
+.tooltip-box strong { display:block; font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:4px; }
+
+.gloss-panel { position:fixed; top:0; right:-360px; width:340px; height:100%; background:var(--color-background-primary); border-left:0.5px solid var(--color-border-secondary); overflow-y:auto; z-index:10000; transition:right 0.25s ease; padding:20px 18px; }
+.gloss-panel.open { right:0; }
+.gloss-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.15); z-index:9999; display:none; }
+.gloss-backdrop.open { display:block; }
+.gloss-entry { margin-bottom:14px; padding-bottom:14px; border-bottom:0.5px solid var(--color-border-tertiary); }
+.gloss-entry:last-child { border-bottom:none; }
+.gloss-term { font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:3px; }
+.gloss-acronym { font-size:13px; color:var(--color-text-tertiary); margin-bottom:4px; font-family:var(--font-mono); }
+.gloss-def { font-size:14px; color:var(--color-text-secondary); line-height:1.55; }
+
+.legend-row { display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--color-text-tertiary); margin-bottom:0; }
+.summary-bar { display:flex; height:6px; border-radius:4px; overflow:hidden; margin:6px 0 2px; }
+.seg-ok   { background:#1D9E75; }
+.seg-soon { background:#BA7517; }
+.seg-due  { background:#C25151; }
+@media (max-width: 1024px) {
+  .page-shell {
+    padding: 12px;
+  }
+}
+</style>
+
+<h2 class="sr-only">Albero RBD componenti MAN D2862 LE4XX con soglie di manutenzione e drill-down interattivo</h2>
+<div id="tooltipBox" class="tooltip-box"></div>
+<div class="gloss-backdrop" id="glossBackdrop"></div>
+<div class="gloss-panel" id="glossPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <span style="font-size:17px;font-weight:500;color:var(--color-text-primary);">Glossario manutenzione</span>
+    <button onclick="closeGloss()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--color-text-tertiary);" aria-label="Chiudi">×</button>
+  </div>
+  <div id="glossContent"></div>
+</div>
+
+<div class="page-shell">
+<div class="page-main" style="padding:0 0 2rem;">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-text-tertiary);">RBD · MAN D2862 / D2868 LE4XX</div>
+    <button onclick="openGloss()" style="font-size:14px;color:var(--color-text-info);background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;">
+      <i class="ti ti-book-2" aria-hidden="true" style="font-size:15px;margin-right:3px;"></i>Glossario
+    </button>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <div class="slider-row">
+      <label><i class="ti ti-clock-hour-4" aria-hidden="true"></i> Ore motore</label>
+      <input type="range" id="hSlider" min="0" max="20000" step="50" value="3500">
+      <div class="slider-val"><span id="hOut">3.500</span> <span style="font-size:14px;color:var(--color-text-tertiary);">h</span></div>
+    </div>
+    <div class="mode-tabs">
+      <button class="mode-tab" data-mode="LD">Ridotto (LD)</button>
+      <button class="mode-tab active" data-mode="MD">Medio (MD)</button>
+      <button class="mode-tab" data-mode="HD">Estremo (HD)</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+      <div class="metric-block" data-tip="status_ok"><div class="metric-label">OK</div><div class="metric-value" style="color:#1D9E75;"><span id="cntOk">0</span></div><div class="metric-sub">&gt;25% residua</div></div>
+      <div class="metric-block" data-tip="status_soon"><div class="metric-label">In avvicinamento</div><div class="metric-value" style="color:#BA7517;"><span id="cntSoon">0</span></div><div class="metric-sub">≤25% residua</div></div>
+      <div class="metric-block" data-tip="status_due"><div class="metric-label">Da intervenire</div><div class="metric-value" style="color:#C25151;"><span id="cntDue">0</span></div><div class="metric-sub">soglia superata</div></div>
+      <div class="metric-block" data-tip="tbo"><div class="metric-label">Vita residua TBO</div><div class="metric-value"><span id="tboLeft">0</span><span class="metric-unit">h</span></div><div class="metric-sub" id="tboNote">revisione generale</div></div>
+    </div>
+    <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:3px;">distribuzione componenti</div>
+    <div class="summary-bar" id="summaryBar"></div>
+    <div class="legend-row" style="margin-top:6px;">
+      <span><span class="status-dot dot-ok" style="display:inline-block;margin-right:4px;vertical-align:middle;"></span>OK</span>
+      <span><span class="status-dot dot-soon" style="display:inline-block;margin-right:4px;vertical-align:middle;"></span>In avvicinamento</span>
+      <span><span class="status-dot dot-due" style="display:inline-block;margin-right:4px;vertical-align:middle;"></span>Da intervenire</span>
+      <span style="margin-left:auto;font-style:italic;">▶ clicca per espandere</span>
+    </div>
+  </div>
+
+  <div style="font-size:14px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:10px;padding-bottom:6px;border-bottom:0.5px solid var(--color-border-tertiary);">Albero RBD — espandi per drill-down</div>
+
+  <div class="card" style="padding:10px 12px;">
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:13px;color:var(--color-text-tertiary);border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:6px;">
+      <span style="width:14px;"></span>
+      <span style="flex:1;font-weight:500;">Catena / Componente</span>
+      <span style="width:36px;text-align:center;">Livello</span>
+      <span style="width:60px;text-align:right;">Soglia</span>
+      <span style="width:60px;text-align:right;">Avanzamento</span>
+      <span style="width:8px;"></span>
+    </div>
+    <div id="treeRoot"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+const INTERVALS = {
+  LD: { M1:400,  M2:800,  M3:1600, M4:3200, M5:null,  M6:12000 },
+  MD: { M1:500,  M2:1000, M3:2000, M4:3000, M5:6000,  M6:12000 },
+  HD: { M1:600,  M2:1200, M3:2400, M4:3000, M5:6000,  M6:18000 },
+};
+
+const TIPS = {
+  status_ok:   { term:'Componenti OK', def:'Vita residua nell\'intervallo corrente superiore al 25%.' },
+  status_soon: { term:'In avvicinamento', def:'Consumato più del 75% dell\'intervallo. Pianificare l\'intervento.' },
+  status_due:  { term:'Da intervenire', def:'Soglia MAN superata. Intervento dovuto.' },
+  tbo:         { term:'TBO — Time Between Overhauls', def:'Ore mancanti alla revisione generale M6. MD: 12.000 h; HD: 18.000 h.' },
+  m1: { term:'M1 — Routine', acronym:'M1 · ogni 400–600 h (LD/MD/HD) · max 1 anno', def:'Cambio olio e filtri olio, filtro aria, filtro e prefiltro carburante. Controllo tenuta circuiti, cinghia, impeller, supporti elastici. Lettura/cancellazione memoria EDC. Giro di prova a pieno carico.' },
+  m2: { term:'M2 — Gioco valvole', acronym:'M2 · ogni 800–1.200 h · max 1 anno', def:'Controllo e regolazione del gioco delle valvole di aspirazione e scarico su tutti i 12 cilindri. Intervento da personale qualificato.' },
+  m3: { term:'M3 — Diagnosi', acronym:'M3 · ogni 1.600–2.400 h · max 1 anno', def:'Test di compressione (TCOM) e test a regime elevato (TRUP) tramite MAN-cats®. Verifica equalità tra i cilindri.' },
+  m4: { term:'M4 — Sovralimentazione e raffreddamento', acronym:'M4 · ogni 3.000–3.200 h · ogni 4 anni', def:'Controllo visivo turbocompressore, pulizia intercooler (depositi sale), pulizia scambiatore di calore, sostituzione liquido raffreddamento e tutti i tubi flessibili.' },
+  m5: { term:'M5 — Revisione parziale', acronym:'M5 · 6.000 h · solo MD/HD', def:'Sostituzione preventiva: iniettori, pompa LR, termostati, piastre scambiatore, intercooler, turbocompressore, supporti elastici, cinghia trapezoidale e tendicinghia.' },
+  m6: { term:'M6 — Revisione generale (TBO)', acronym:'M6 · 12.000 h (MD) / 18.000 h (HD)', def:'Smontaggio completo. Sostituzione: iniettori e tubi AP, pompe AP, pompa LR, termostati, scambiatori, smorzatore vibrazioni, radiatore olio, pompe olio, iniettori olio, intercooler, turbocompressore, testate+valvole, bilancieri+camme, pistoni+segmenti, bielle, canne cilindro, cinghia, supporti, motorino avviamento, alternatore.' },
+  serie:  { term:'Topologia: serie', def:'Tutti i componenti devono funzionare perché la catena funzioni. Il guasto di un singolo componente blocca l\'intera catena.' },
+  par:    { term:'Topologia: parallelo', def:'Il sistema funziona anche se un componente è guasto. Riduzione di potenza/prestazioni, ma non blocco totale.' },
+  mista:  { term:'Topologia: mista', def:'Combinazione serie e parallelo. Alcune componenti sono critiche (serie), altre ridondanti (parallelo).' },
+};
+
+const GLOSS_ORDER = ['m1','m2','m3','m4','m5','m6','tbo','status_ok','status_soon','status_due','serie','par','mista'];
+
+const TREE = [
+  { id:'fuel', name:'Alimentazione carburante', topo:'serie', icon:'ti-droplet', children:[
+    { id:'prefilter',   name:'Prefiltro carburante + separatore condensa', level:'M1', tip:'m1' },
+    { id:'fuel_filter', name:'Filtro carburante fine',                     level:'M1', tip:'m1' },
+    { id:'hp_pump',     name:'Pompa alta pressione (common rail)',          level:'M6', tip:'m6' },
+    { id:'hp_lines',    name:'Tubazioni AP + tubi di mandata',             level:'M6', tip:'m6' },
+    { id:'injectors',   name:'Iniettori common rail (×12)',                level:'M5', tip:'m5' },
+  ]},
+  { id:'combustion', name:'Combustione + manovellismi', topo:'parallelo', icon:'ti-flame', children:[
+    { id:'cylinders',  name:'Canne cilindro (×12)',         level:'M6', tip:'m6' },
+    { id:'pistons',    name:'Pistoni + segmenti (×12)',     level:'M6', tip:'m6' },
+    { id:'conrods',    name:'Bielle (×12)',                 level:'M6', tip:'m6' },
+    { id:'crankshaft', name:'Albero motore + cuscinetti',   level:'M6', tip:'m6' },
+    { id:'damper',     name:'Smorzatore di vibrazioni',     level:'M6', tip:'m6' },
+  ]},
+  { id:'lube', name:'Lubrificazione', topo:'serie', icon:'ti-oil', children:[
+    { id:'engine_oil',   name:'Olio motore',                  level:'M1', tip:'m1' },
+    { id:'oil_filter',   name:'Filtro olio',                  level:'M1', tip:'m1' },
+    { id:'oil_pump',     name:'Pompe olio',                   level:'M6', tip:'m6' },
+    { id:'oil_radiator', name:'Radiatore olio',               level:'M6', tip:'m6' },
+    { id:'oil_injectors',name:'Iniettori olio (raffr. pist.)',level:'M6', tip:'m6' },
+  ]},
+  { id:'cooling', name:'Raffreddamento', topo:'mista', icon:'ti-snowflake', children:[
+    { id:'impeller',       name:'Impeller pompa acqua mare',        level:'M1', tip:'m1' },
+    { id:'lr_pump',        name:'Pompa liquido raffreddamento',     level:'M5', tip:'m5' },
+    { id:'thermostats',    name:'Termostati',                       level:'M5', tip:'m5' },
+    { id:'heat_exchanger', name:'Piastre scambiatore di calore',    level:'M4', tip:'m4' },
+    { id:'intercooler',    name:'Intercooler',                      level:'M4', tip:'m4' },
+    { id:'coolant',        name:'Liquido raffreddamento',           level:'M4', tip:'m4' },
+    { id:'coolant_hoses',  name:'Tubi flessibili LR + acqua mare',  level:'M4', tip:'m4' },
+  ]},
+  { id:'air', name:'Aspirazione + scarico', topo:'serie', icon:'ti-wind', children:[
+    { id:'air_filter', name:'Filtro dell\'aria',  level:'M1', tip:'m1' },
+    { id:'turbo',      name:'Turbocompressore',    level:'M5', tip:'m5' },
+  ]},
+  { id:'dist', name:'Distribuzione (valve train)', topo:'serie', icon:'ti-rotate-clockwise', children:[
+    { id:'valves',         name:'Valvole + molle (×24 asp. + ×24 scar.)', level:'M2', tip:'m2' },
+    { id:'valve_train',    name:'Bilancieri + punterie + albero a camme',   level:'M6', tip:'m6' },
+    { id:'belt',           name:'Cinghia trapezoidale dentata',             level:'M5', tip:'m5' },
+    { id:'belt_tensioner', name:'Tendicinghia + rulli di rinvio',           level:'M5', tip:'m5' },
+  ]},
+  { id:'aux', name:'Ausiliari elettrici + diagnostica', topo:'parallelo', icon:'ti-bolt', children:[
+    { id:'edc',       name:'Centralina EDC + memoria diagnosi', level:'M1', tip:'m1' },
+    { id:'starter',   name:'Motorino di avviamento',            level:'M6', tip:'m6' },
+    { id:'alternator',name:'Alternatore trifase',               level:'M6', tip:'m6' },
+    { id:'mounts',    name:'Supporti elastici motore + cambio', level:'M5', tip:'m5' },
+  ]},
+];
+
+const TOPO_TIP = { serie:'serie', parallelo:'par', mista:'mista' };
+const TOPO_LABEL = { serie:'serie', parallelo:'parallelo', mista:'mista' };
+
+let mode = 'MD', hours = 3500;
+
+function interval(level, m) {
+  return INTERVALS[m][level] || null;
+}
+function status(level, m, h) {
+  const iv = interval(level, m);
+  if(!iv) return { s:'ok', pct:0, res:0, iv:0, cyc:0 };
+  const cyc = Math.floor(h / iv);
+  const inf = h - cyc * iv;
+  const pct = (inf / iv) * 100;
+  const res = iv - inf;
+  let s = 'ok';
+  if(pct >= 100) s = 'due';
+  else if(pct >= 75) s = 'soon';
+  return { s, pct, res, iv, cyc };
+}
+
+function chainStatus(chain, m, h) {
+  let worst = 'ok';
+  chain.children.forEach(c => {
+    const st = status(c.level, m, h).s;
+    if(st === 'due') worst = 'due';
+    else if(st === 'soon' && worst !== 'due') worst = 'soon';
+  });
+  return worst;
+}
+
+const tooltip = document.getElementById('tooltipBox');
+function showTipKey(e, key) {
+  const d = TIPS[key]; if(!d) return;
+  let html = `<strong>${d.term}</strong>`;
+  if(d.acronym) html += `<div style="font-family:var(--font-mono);font-size:13px;color:var(--color-text-tertiary);margin-bottom:5px;">${d.acronym}</div>`;
+  html += `<div>${d.def}</div>`;
+  tooltip.innerHTML = html; tooltip.style.display = 'block'; moveTip(e);
+}
+function showCompTip(e, comp, m, h) {
+  const st = status(comp.level, m, h);
+  const d = TIPS[comp.tip] || {};
+  let html = `<strong>${comp.name}</strong>`;
+  if(d.acronym) html += `<div style="font-family:var(--font-mono);font-size:13px;color:var(--color-text-tertiary);margin-bottom:5px;">${d.acronym}</div>`;
+  const col = st.s==='due'?'#C25151':st.s==='soon'?'#BA7517':'#1D9E75';
+  const lbl = st.s==='due'?'Da intervenire':st.s==='soon'?'In avvicinamento':'OK';
+  html += `<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:0.5px solid var(--color-border-tertiary);margin-top:4px;">
+    <span style="color:var(--color-text-tertiary);">Stato</span>
+    <strong style="color:${col};">${lbl}</strong></div>`;
+  html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px;">
+    <span style="color:var(--color-text-tertiary);">Soglia (${m})</span>
+    <span style="font-family:var(--font-mono);">${st.iv ? st.iv+' h' : '—'}</span></div>`;
+  if(st.s==='due') {
+    html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;">
+      <span style="color:var(--color-text-tertiary);">Superamento</span>
+      <span style="font-family:var(--font-mono);color:#C25151;">+${Math.round(st.pct-100)}%</span></div>`;
+  } else if(st.iv) {
+    html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;">
+      <span style="color:var(--color-text-tertiary);">Residua</span>
+      <span style="font-family:var(--font-mono);">${Math.round(st.res)} h (${Math.round(100-st.pct)}%)</span></div>`;
+  }
+  if(st.cyc>0) html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;">
+    <span style="color:var(--color-text-tertiary);">Cicli completati</span>
+    <span style="font-family:var(--font-mono);">${st.cyc}</span></div>`;
+  if(d.def) html += `<div style="margin-top:6px;padding-top:6px;border-top:0.5px solid var(--color-border-tertiary);font-size:13px;color:var(--color-text-tertiary);">${d.def}</div>`;
+  tooltip.innerHTML = html; tooltip.style.display = 'block'; moveTip(e);
+}
+function moveTip(e) {
+  const x=e.clientX+14, y=e.clientY-10;
+  const w=tooltip.offsetWidth, h=tooltip.offsetHeight;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  tooltip.style.left=(x+w>vw?x-w-28:x)+'px';
+  tooltip.style.top=(y+h>vh?y-h:y)+'px';
+}
+function hideTip() { tooltip.style.display='none'; }
+
+function buildTree() {
+  const root = document.getElementById('treeRoot');
+  root.innerHTML = '';
+  let okC=0, soonC=0, dueC=0;
+
+  TREE.forEach(chain => {
+    const chainSt = chainStatus(chain, mode, hours);
+    if(chainSt==='ok') okC++;
+    else if(chainSt==='soon') soonC++;
+    else dueC++;
+
+    const node = document.createElement('div');
+    node.className = 'tree-node';
+
+    const row = document.createElement('div');
+    const dotCls = chainSt==='due'?'dot-due':chainSt==='soon'?'dot-soon':'dot-ok';
+    row.className = `tree-row row-${chainSt}`;
+
+    const topoKey = TOPO_TIP[chain.topo] || 'serie';
+    row.innerHTML = `
+      <span class="toggle-icon" aria-hidden="true">▶</span>
+      <span class="status-dot ${dotCls}" style="margin-left:2px;"></span>
+      <i class="ti ${chain.icon}" aria-hidden="true" style="font-size:16px;color:var(--color-text-secondary);flex-shrink:0;"></i>
+      <span class="node-name" style="font-weight:500;">${chain.name}</span>
+      <span class="node-topo" data-tip="${topoKey}" style="cursor:help;">${chain.topo}</span>
+      <span class="node-interval" style="color:var(--color-text-tertiary);font-size:13px;">${chain.children.length} comp.</span>
+      <span style="width:60px;"></span>
+      <span style="width:8px;"></span>
+    `;
+
+    const children = document.createElement('div');
+    children.className = 'tree-children';
+
+    chain.children.forEach(comp => {
+      const st = status(comp.level, mode, hours);
+      const dCls = st.s==='due'?'dot-due':st.s==='soon'?'dot-soon':'dot-ok';
+      const pctDisplay = Math.min(100, Math.round(st.pct));
+      const fillColor = st.s==='due'?'#C25151':st.s==='soon'?'#BA7517':'#1D9E75';
+      const ivLabel = st.iv ? st.iv.toLocaleString('it-IT')+' h' : '—';
+
+      const crow = document.createElement('div');
+      crow.className = `tree-row row-${st.s}`;
+      crow.style.paddingLeft = '4px';
+      crow.innerHTML = `
+        <span style="width:14px;flex-shrink:0;"></span>
+        <span class="status-dot ${dCls}"></span>
+        <span class="node-name">${comp.name}</span>
+        <span class="node-level">${comp.level}</span>
+        <span class="node-interval">${ivLabel}</span>
+        <div class="progress-wrap"><div class="progress-fill" style="width:${pctDisplay}%;background:${fillColor};"></div></div>
+        <span style="width:8px;flex-shrink:0;"></span>
+      `;
+      crow.addEventListener('mouseenter', e => showCompTip(e, comp, mode, hours));
+      crow.addEventListener('mousemove', moveTip);
+      crow.addEventListener('mouseleave', hideTip);
+      children.appendChild(crow);
+    });
+
+    row.addEventListener('click', () => {
+      const icon = row.querySelector('.toggle-icon');
+      const open = children.classList.toggle('open');
+      icon.classList.toggle('open', open);
+    });
+    row.querySelector('[data-tip]')?.addEventListener('mouseenter', e => { e.stopPropagation(); showTipKey(e, e.currentTarget.dataset.tip); });
+    row.querySelector('[data-tip]')?.addEventListener('mousemove', moveTip);
+    row.querySelector('[data-tip]')?.addEventListener('mouseleave', hideTip);
+
+    node.appendChild(row);
+    node.appendChild(children);
+    root.appendChild(node);
+  });
+
+  const total = okC+soonC+dueC;
+  document.getElementById('cntOk').textContent = okC;
+  document.getElementById('cntSoon').textContent = soonC;
+  document.getElementById('cntDue').textContent = dueC;
+
+  const bar = document.getElementById('summaryBar');
+  bar.innerHTML = `
+    <div class="seg-ok" style="flex-basis:${(okC/total*100).toFixed(1)}%"></div>
+    <div class="seg-soon" style="flex-basis:${(soonC/total*100).toFixed(1)}%"></div>
+    <div class="seg-due" style="flex-basis:${(dueC/total*100).toFixed(1)}%"></div>
+  `;
+
+  const tbo = INTERVALS[mode].M6 || 12000;
+  document.getElementById('tboLeft').textContent = Math.max(0, tbo-hours).toLocaleString('it-IT');
+  document.getElementById('tboNote').textContent = `M6 ogni ${tbo.toLocaleString('it-IT')} h · ${mode}`;
+}
+
+document.getElementById('hSlider').addEventListener('input', e => {
+  hours = parseInt(e.target.value);
+  document.getElementById('hOut').textContent = hours.toLocaleString('it-IT');
+  buildTree();
+});
+
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    mode = tab.dataset.mode;
+    buildTree();
+  });
+});
+
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', e => showTipKey(e, el.dataset.tip));
+  el.addEventListener('mousemove', moveTip);
+  el.addEventListener('mouseleave', hideTip);
+});
+
+function buildGloss() {
+  const el = document.getElementById('glossContent');
+  GLOSS_ORDER.filter(k=>TIPS[k]).forEach(k => {
+    const d = TIPS[k];
+    let h = `<div class="gloss-entry"><div class="gloss-term">${d.term}</div>`;
+    if(d.acronym) h += `<div class="gloss-acronym">${d.acronym}</div>`;
+    h += `<div class="gloss-def">${d.def}</div></div>`;
+    el.innerHTML += h;
+  });
+}
+function openGloss()  { document.getElementById('glossPanel').classList.add('open');  document.getElementById('glossBackdrop').classList.add('open'); }
+function closeGloss() { document.getElementById('glossPanel').classList.remove('open'); document.getElementById('glossBackdrop').classList.remove('open'); }
+document.getElementById('glossBackdrop').addEventListener('click', closeGloss);
+
+buildGloss();
+buildTree();
+</script>
