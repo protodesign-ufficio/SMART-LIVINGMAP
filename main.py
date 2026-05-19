@@ -18,6 +18,8 @@ import requests
 import ApiClient
 from ApiClient import post_json
 from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog
+from PyQt5.QtCore import QCoreApplication, Qt
+from PyQt5.QtGui import QFont
 
 from main_window import MainWindow
 from subpanels.PianiOperativiPanel import AddPianoDialog, SolutionsSelectionDialog
@@ -217,7 +219,20 @@ def main():
 		except Exception:
 			consumer_notification = None
 
+	# Enable High DPI scaling (helps on high-DPI / scaled displays)
+	try:
+		QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+		QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+	except Exception:
+		pass
+
 	app = QApplication(sys.argv)
+	# Set a global application font so all widgets inherit a consistent size
+	try:
+		app.setFont(QFont('Segoe UI', 12))
+	except Exception:
+		pass
+
 	w = MainWindow(queue=q)
 	w.showMaximized()
 	try:

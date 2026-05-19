@@ -28,6 +28,8 @@ except Exception:
         get_json = None
         post_json = None
 
+from subpanels.ui_texts import make_description_label
+
 
 class AddTrattaDialog(QDialog):
     def __init__(self, parent=None, port_names=None, port_items=None):
@@ -216,6 +218,7 @@ class TrattePanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('tratte', self))
 
         # columns: Nome, Partenza, Arrivo, Intermedi, ID
         self.table = QTableWidget(0, 5, self)

@@ -13,6 +13,8 @@ from PyQt5.QtWidgets import (
     QAbstractItemView,
 )
 
+from subpanels.ui_texts import make_description_label
+
 # Import get_json and post_json with fallback like other modules
 try:
     from ApiClient import get_json, post_json
@@ -41,6 +43,8 @@ class PercorsiDialog(QDialog):
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
         # main layout
         layout = QVBoxLayout(self)
+
+        layout.addWidget(make_description_label('percorsi', self))
 
         # determine corsa id (corsa may be dict or plain id)
         corsa_id = None

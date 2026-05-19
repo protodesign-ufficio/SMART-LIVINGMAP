@@ -34,6 +34,8 @@ except Exception:
         get_json = None
         post_json = None
 
+from subpanels.ui_texts import make_description_label
+
 # import the PercorsiDialog from separate module
 try:
     from .PercorsiDialog import PercorsiDialog
@@ -152,11 +154,15 @@ class OptimizationDialog(QDialog):
 
     def __init__(self, parent=None, corsa_id=None):
         super().__init__(parent)
-        self.setWindowTitle('Ottimizza Percorsi')
+        self.setWindowTitle('Genera Percorsi')
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
         self.corsa_id = str(corsa_id) if corsa_id is not None else ''
+        self.resize(450, 300)
 
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('corse_ottimizza_percorso', self))
+
+
         form = QFormLayout()
 
         # show selected corsa name (non editabile). If available, resolve via API.
@@ -378,12 +384,13 @@ class OptimizationDialog(QDialog):
 class OptimizationDayDialog(QDialog):
     def __init__(self, parent=None, initial_date=None):
         super().__init__(parent)
-        self.setWindowTitle('Ottimizza Giorno')
+        self.setWindowTitle('Genera Percorsi Giorno')
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint)
         self.resize(450, 400)
         
         layout = QVBoxLayout(self)
-        
+        layout.addWidget(make_description_label('corse_ottimizza_giorno', self))
+
         # Main Horizontal Layout
         h_layout = QHBoxLayout()
 
@@ -601,7 +608,8 @@ class PrevisioneBigliettiDialog(QDialog):
         self.diff_days = curr_date.daysTo(self.date_obj)
         
         layout = QVBoxLayout(self)
-        
+        layout.addWidget(make_description_label('corse_previsione_biglietti', self))
+
         info_label = QLabel(f"Giorni rimanenti alla data selezionata: {self.diff_days}")
         layout.addWidget(info_label)
         
@@ -738,6 +746,7 @@ class CorsePanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('corse', self))
 
         # Row filtri (Data)
         filter_layout = QHBoxLayout()
@@ -759,7 +768,7 @@ class CorsePanel(QWidget):
             "Tratta",
             "Orario Partenza",
             "Arrivo Max",
-            "Previsione Passeggeri",
+            "Previsione Passeggeri (95% c.i.)",
             "Percorsi",
             "ID",
         ])
@@ -787,7 +796,7 @@ class CorsePanel(QWidget):
         self.show_dashboard_btn.clicked.connect(self._open_dashboard)
 
         # optimize button to start optimization for selected corsa
-        self.optimize_btn = QPushButton('Ottimizza Percorsi')
+        self.optimize_btn = QPushButton('Genera Percorsi')
         self.optimize_btn.setEnabled(False)
         self.optimize_btn.clicked.connect(self.open_optimization_dialog)
         if post_json is None:
@@ -816,7 +825,7 @@ class CorsePanel(QWidget):
         serv_group = QGroupBox('Servizi')
         serv_layout = QVBoxLayout()
         
-        self.optimize_day_btn = QPushButton('Ottimizza Giorno')
+        self.optimize_day_btn = QPushButton('Genera Percorsi Giorno')
         self.optimize_day_btn.clicked.connect(self.open_optimize_day_dialog)
 
         self.previsione_btn = QPushButton('Previsione Biglietti')
@@ -978,8 +987,15 @@ class CorsePanel(QWidget):
                      arrivo_text = str(arrivo_max)
 
             previsione = item.get('previsione') or {}
-            pax = previsione.get('passeggeri_stimati') if isinstance(previsione, dict) else ''
-            pax_text = '' if pax is None else str(pax)
+            if isinstance(previsione, dict):
+                conf_min = previsione.get('confidenza_min')
+                conf_max = previsione.get('confidenza_max')
+                if conf_min is not None and conf_max is not None:
+                    pax_text = f"{conf_min} - {conf_max}"
+                else:
+                    pax_text = ''
+            else:
+                pax_text = ''
             
             # Fetch percorsi details
             num_percorsi = "?"

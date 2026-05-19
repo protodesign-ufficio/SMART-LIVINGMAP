@@ -1,6 +1,7 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget,
+    QLabel,
     QVBoxLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -18,6 +19,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QUrl
 import os
 import webbrowser
+
+from subpanels.ui_texts import make_description_label
 
 # Try to import QWebEngineView for embedded HTML preview; fallback to external browser
 try:
@@ -46,13 +49,13 @@ class VascelliPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('vascelli', self))
 
-        self.table = QTableWidget(0, 6, self)
+        self.table = QTableWidget(0, 5, self)
         self.table.setHorizontalHeaderLabels([
             "Nome",
             "MMSI",
             "Capacità Passeggeri",
-            "Costo Orario",
             "Velocità Max (nodi)",
             "ID",
         ])
@@ -125,14 +128,12 @@ class VascelliPanel(QWidget):
             nome = str(item.get('nome', '-'))
             mmsi = str(item.get('mmsi', ''))
             pax = str(item.get('capacita_passeggeri', ''))
-            costo = str(item.get('costo_orario_esercizio', ''))
             vel = str(item.get('velocita_max_nodi', ''))
             pid = str(item.get('id', ''))
 
             it_nome = QTableWidgetItem(nome)
             it_mmsi = QTableWidgetItem(mmsi)
             it_pax = QTableWidgetItem(pax)
-            it_costo = QTableWidgetItem(costo)
             it_vel = QTableWidgetItem(vel)
             it_id = QTableWidgetItem(pid)
 
@@ -140,15 +141,14 @@ class VascelliPanel(QWidget):
             it_nome.setData(Qt.UserRole, item)
 
             # make items read-only
-            for it in (it_nome, it_mmsi, it_pax, it_costo, it_vel, it_id):
+            for it in (it_nome, it_mmsi, it_pax, it_vel, it_id):
                 it.setFlags(it.flags() & ~Qt.ItemIsEditable)
 
             self.table.setItem(row, 0, it_nome)
             self.table.setItem(row, 1, it_mmsi)
             self.table.setItem(row, 2, it_pax)
-            self.table.setItem(row, 3, it_costo)
-            self.table.setItem(row, 4, it_vel)
-            self.table.setItem(row, 5, it_id)
+            self.table.setItem(row, 3, it_vel)
+            self.table.setItem(row, 4, it_id)
 
         self.table.resizeColumnsToContents()
 
@@ -270,12 +270,10 @@ class VascelloDialog(QDialog):
         self.mmsi_input = QLineEdit()
         self.nome_input = QLineEdit()
         self.pax_input = QLineEdit()
-        self.costo_input = QLineEdit()
         self.vel_input = QLineEdit()
         form.addRow('MMSI:', self.mmsi_input)
         form.addRow('Nome:', self.nome_input)
         form.addRow('Capacità Pax:', self.pax_input)
-        form.addRow('Costo/Ora:', self.costo_input)
         form.addRow('Velocità Max (nodi):', self.vel_input)
         layout.addLayout(form)
 
@@ -294,7 +292,6 @@ class VascelloDialog(QDialog):
             self.mmsi_input.setText(str(initial.get('mmsi', '')))
             self.nome_input.setText(str(initial.get('nome', '')))
             self.pax_input.setText(str(initial.get('capacita_passeggeri', '') or ''))
-            self.costo_input.setText(str(initial.get('costo_orario_esercizio', '') or ''))
             self.vel_input.setText(str(initial.get('velocita_max_nodi', '') or ''))
             self._initial_id = initial.get('id')
 
@@ -302,7 +299,6 @@ class VascelloDialog(QDialog):
         mmsi = self.mmsi_input.text().strip()
         nome = self.nome_input.text().strip()
         pax_s = self.pax_input.text().strip()
-        costo_s = self.costo_input.text().strip()
         vel_s = self.vel_input.text().strip()
         if not mmsi or not nome:
             QMessageBox.warning(self, 'Errore', 'Inserire almeno MMSI e Nome')
@@ -311,11 +307,6 @@ class VascelloDialog(QDialog):
             pax = int(pax_s) if pax_s else 0
         except Exception:
             QMessageBox.warning(self, 'Errore', 'Capacità deve essere un numero intero')
-            return
-        try:
-            costo = float(costo_s) if costo_s else 0
-        except Exception:
-            QMessageBox.warning(self, 'Errore', 'Costo/Ora deve essere numerico')
             return
         try:
             vel = float(vel_s) if vel_s else 0
@@ -327,7 +318,6 @@ class VascelloDialog(QDialog):
             'mmsi': mmsi,
             'nome': nome,
             'capacita_passeggeri': pax,
-            'costo_orario_esercizio': costo,
             'velocita_max_nodi': vel,
         }
         if self._initial_id:

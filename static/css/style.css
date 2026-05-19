@@ -79,6 +79,24 @@ html, body, #map {
     box-shadow: 0 0 6px rgba(30,120,220,0.6);
 }
 
+.weather-btn.loading {
+    background: rgba(220,50,50,0.85);
+    box-shadow: 0 0 6px rgba(220,50,50,0.6);
+    animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 6px rgba(220,50,50,0.6);
+    }
+    50% {
+        box-shadow: 0 0 10px rgba(220,50,50,0.9);
+    }
+    100% {
+        box-shadow: 0 0 6px rgba(220,50,50,0.6);
+    }
+}
+
 #btn-weather-waves {
     top: 135px;
 }
@@ -120,6 +138,43 @@ html, body, #map {
     font-weight: normal;
     color: #333;
     display: none;
+}
+
+.weather-info-header {
+    display: flex;
+    align-items: center;
+}
+
+.weather-info-text {
+    line-height: 1.35;
+}
+
+.weather-info-help {
+    width: 22px;
+    height: 22px;
+    margin-left: 10px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(30,120,220,0.9);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    flex: 0 0 auto;
+    padding: 0;
+    line-height: 22px;
+}
+
+.weather-info-help:hover {
+    background: rgba(25,100,190,0.95);
+}
+
+.weather-info-details {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(0,0,0,0.15);
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-word;
 }
 
 

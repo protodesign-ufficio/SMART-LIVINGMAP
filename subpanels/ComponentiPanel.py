@@ -1,6 +1,7 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget,
+    QLabel,
     QVBoxLayout,
     QTableWidget,
     QTableWidgetItem,
@@ -18,6 +19,8 @@ from PyQt5.QtWidgets import (
     QTextEdit
 )
 import json
+
+from subpanels.ui_texts import make_description_label
 
 try:
     from ApiClient import get_json, post_json, BASE_URL
@@ -38,6 +41,8 @@ class ComponentiPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('componenti', self))
+
 
         # -- Filtro Vascello --
         filter_layout = QHBoxLayout()

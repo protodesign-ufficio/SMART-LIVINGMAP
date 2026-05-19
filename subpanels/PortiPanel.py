@@ -2,6 +2,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QLabel,
     QTableWidget,
     QTableWidgetItem,
     QPushButton,
@@ -18,6 +19,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QUrl
 import os
 import webbrowser
+
+from subpanels.ui_texts import make_description_label
 
 # Try to import QWebEngineView for embedded HTML preview; fallback to external browser
 try:
@@ -45,6 +48,7 @@ class PortiPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
+        layout.addWidget(make_description_label('porti', self))
 
         self.table = QTableWidget(0, 4, self)
         self.table.setHorizontalHeaderLabels([

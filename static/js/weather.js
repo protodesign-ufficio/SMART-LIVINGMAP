@@ -40,37 +40,71 @@
     waves: null,
     currents: null
   };
+  var weatherInfoMeta = {
+    waves: null,
+    currents: null
+  };
+  var weatherInfoExpanded = false;
 
   if (typeof map !== 'undefined') {
     weatherInfoControl = L.control({position: 'bottomright'});
     weatherInfoControl.onAdd = function() {
       this._div = L.DomUtil.create('div', 'weather-info-label');
+      L.DomEvent.disableClickPropagation(this._div);
+      L.DomEvent.disableScrollPropagation(this._div);
       this.update();
       return this._div;
     };
     weatherInfoControl.update = function() {
       if (!this._div) return;
       var info = null;
+      var meta = null;
       var isRoute = false;
       if (layerVisible.waves && weatherInfoData.waves) {
           info = weatherInfoData.waves;
+          meta = weatherInfoMeta.waves;
           isRoute = (layerSource.waves === 'route');
       } else if (layerVisible.currents && weatherInfoData.currents) {
           info = weatherInfoData.currents;
+          meta = weatherInfoMeta.currents;
           isRoute = (layerSource.currents === 'route');
       }
 
       if (info) {
-        this._div.innerHTML = info;
+        var detailsHtml = '';
+        if (weatherInfoExpanded && meta) {
+          detailsHtml = '<div class="weather-info-details">' +
+            '<div><b>Dataset:</b> ' + (meta.dataset || 'N.D.') + '</div>' +
+            '<div><b>Sorgente:</b> ' + (meta.source || 'N.D.') + '</div>' +
+            '<div><b>Timestamp:</b> ' + (meta.timestamp || 'N.D.') + '</div>' +
+            (meta.scenarioName ? '<div><b>Scenario:</b> ' + meta.scenarioName + '</div>' : '') +
+          '</div>';
+        }
+
+        this._div.innerHTML =
+          '<div class="weather-info-header">' +
+            '<span class="weather-info-text">' + info + '</span>' + 
+            '<button type="button" class="weather-info-help" aria-label="Mostra dettagli meteo" title="Mostra dettagli meteo">?</button>' +
+          '</div>' +
+          detailsHtml;
         this._div.style.display = 'block';
         if (isRoute) {
           this._div.style.backgroundColor = '#fff59dc0'; // Giallo canarino
         } else {
           this._div.style.backgroundColor = 'rgba(255,255,255,0.9)';
         }
+        var helpBtn = this._div.querySelector('.weather-info-help');
+        if (helpBtn) {
+          L.DomEvent.on(helpBtn, 'click', function(e) {
+            L.DomEvent.stop(e);
+            weatherInfoExpanded = !weatherInfoExpanded;
+            weatherInfoControl.update();
+          });
+        }
       } else {
         this._div.innerHTML = '';
         this._div.style.display = 'none';
+        weatherInfoExpanded = false;
       }
     };
     weatherInfoControl.addTo(map);
@@ -259,12 +293,21 @@
 
     // Aggiorna info label
     var timestamp = weatherData.timestamp || 'N.D.';
+    var dataset = weatherData.dataset || 'N.D.';
+    var scenarioName = (weatherData.scenario && (weatherData.scenario.scenario_nome || weatherData.scenario.scenario_name)) || '';
     if (layerSource[layerType] === 'route') {
-      var scenarioName = (weatherData.scenario && (weatherData.scenario.scenario_nome || weatherData.scenario.scenario_name)) || 'Sconosciuto';
-      weatherInfoData[layerType] = 'Dati meteo per scenario: ' + scenarioName + ' ' + timestamp ;
+      weatherInfoData[layerType] = 'Dati meteo per scenario: ' + (scenarioName || 'Sconosciuto') + ' ' + timestamp;
     } else {
-      weatherInfoData[layerType] = 'Dati meteo in tempo reale: ' + timestamp ;
+      weatherInfoData[layerType] = 'Dati meteo in tempo reale: ' + timestamp;
     }
+    weatherInfoMeta[layerType] = {
+      dataset: dataset,
+      source: weatherData.source || (layerSource[layerType] === 'route' ? 'cache/percorso' : 'live'),
+      timestamp: timestamp,
+      scenarioName: scenarioName || null,
+      cacheKey: weatherData.cache_key || null
+    };
+    weatherInfoExpanded = false;
     if (weatherInfoControl) weatherInfoControl.update();
 
     // Aggiorna stato bottone
@@ -276,12 +319,20 @@
   // ---------- Toggle ----------
 
   function toggleWeatherLayer(layerType) {
+    const otherType = layerType === 'waves' ? 'currents' : 'waves';
+    
     if (activeLayers[layerType]) {
-      // Rimuovi
+      // Se è già attivo, disattivalo
       clearWeatherLayer(layerType);
       console.log('weatherManager: rimosso layer', layerType);
     } else {
-      // Se c'è un percorso attivo con cache keys, usa quelli
+      // Disattiva l'altro layer se è attivo (esclusione reciproca)
+      if (activeLayers[otherType]) {
+        clearWeatherLayer(otherType);
+        console.log('weatherManager: rimosso layer', otherType);
+      }
+      
+      // Attiva il layer richiesto
       if (routeCacheKeys[layerType]) {
         fetchWeatherLayerFromCache(routeCacheKeys[layerType], layerType);
       } else {
@@ -316,7 +367,7 @@
         west: 14.30,
       },
       timestamp: getLocalTimestamp(),
-      use_cache: false,
+      use_cache: true,
       save_cache: true,
       force_refresh: true,
       max_age_minutes: 15
@@ -326,6 +377,9 @@
 
     var url = BASE_URL + 'weather/layer/';
     console.log('weatherManager: fetching', layerType, 'from', url);
+
+    // Colora il bottone di rosso durante il caricamento
+    setButtonLoading(layerType, true);
 
     fetch(url, {
       method: 'POST',
@@ -339,6 +393,8 @@
     .then(function(data) {
       layerSource[layerType] = 'live';
       drawWeatherLayer(layerType, data);
+      // Aggiorna stato bottone quando fetch è completata
+      updateButtonState(layerType, true);
     })
     .catch(function(err) {
       console.error('weatherManager: errore fetch', layerType, err);
@@ -351,6 +407,11 @@
   function fetchWeatherLayerFromCache(cacheKey, layerType) {
     var url = BASE_URL + 'weather/cache/layer/' + encodeURIComponent(cacheKey);
     console.log('weatherManager: fetching cache', layerType || 'auto', 'key:', cacheKey);
+
+    // Determina il tipo per il bottone (se non specificato, usa 'currents' come default per loading)
+    var btnLayerType = layerType || 'currents';
+    // Colora il bottone di rosso durante il caricamento
+    setButtonLoading(btnLayerType, true);
 
     fetch(url, {
       method: 'GET',
@@ -372,9 +433,12 @@
       }
       layerSource[type] = 'route';
       drawWeatherLayer(type, data);
+      // Aggiorna stato bottone quando fetch è completata
+      updateButtonState(type, true);
     })
     .catch(function(err) {
       console.error('weatherManager: errore fetch cache', cacheKey, err);
+      updateButtonState(btnLayerType, false);
     });
   }
 
@@ -423,6 +487,8 @@
     layerVisible[layerType] = false;
     layerSource[layerType] = null;
     weatherInfoData[layerType] = null;
+    weatherInfoMeta[layerType] = null;
+    weatherInfoExpanded = false;
     if (weatherInfoControl) weatherInfoControl.update();
     updateButtonState(layerType, false);
   }
@@ -436,10 +502,23 @@
 
   // ---------- UI bottoni ----------
 
+  function setButtonLoading(layerType, isLoading) {
+    var btnId = layerType === 'waves' ? 'btn-weather-waves' : 'btn-weather-currents';
+    var btn = document.getElementById(btnId);
+    if (btn) {
+      if (isLoading) {
+        btn.classList.add('loading');
+      } else {
+        btn.classList.remove('loading');
+      }
+    }
+  }
+
   function updateButtonState(layerType, active) {
     var btnId = layerType === 'waves' ? 'btn-weather-waves' : 'btn-weather-currents';
     var btn = document.getElementById(btnId);
     if (btn) {
+      btn.classList.remove('loading');
       if (active) {
         btn.classList.add('active');
       } else {
