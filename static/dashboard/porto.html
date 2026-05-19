@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>AIS Berth Monitor</title>
+    <title>Monitor Porto AIS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -32,14 +32,14 @@
 
     <!-- HEADER -->
     <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">AIS Berth Monitor</span>
+        <span class="text-blue-400">Monitor Porto AIS</span>
     </div>
 
     <div class="flex flex-1 gap-6 overflow-hidden">
 
         <!-- SIDEBAR PORTS -->
         <div class="w-64 card p-4 flex flex-col overflow-y-auto flex-shrink-0">
-            <div class="text-xs text-slate-400 uppercase mb-2">Ports</div>
+            <div class="text-xs text-slate-400 uppercase mb-2">Porti</div>
             <div id="port-list" class="space-y-2"></div>
         </div>
 
@@ -50,41 +50,41 @@
             <div class="card p-6 grid grid-cols-[auto_1fr_auto_1fr] gap-x-8 gap-y-6 items-center flex-shrink-0">
 
                 <!-- ROW 1: Details -->
-                <div class="text-xs text-slate-400 uppercase">Selected Port</div>
+                <div class="text-xs text-slate-400 uppercase">Porto Selezionato</div>
                 <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
 
-                <div class="text-xs text-slate-400 uppercase">Latitude</div>
+                <div class="text-xs text-slate-400 uppercase">Latitudine</div>
                 <div id="port-lat" class="text-lg font-bold text-green-400">--</div>
 
-                <div class="text-xs text-slate-400 uppercase">Longitude</div>
+                <div class="text-xs text-slate-400 uppercase">Longitudine</div>
                 <div id="port-lon" class="text-lg font-bold text-green-400">--</div>
 
-                <div class="text-xs text-slate-400 uppercase">Window (min)</div>
+                <div class="text-xs text-slate-400 uppercase">Finestra Temporale (min)</div>
                 <div id="window-min" class="text-lg font-bold text-purple-300">--</div>
 
-                <div class="text-xs text-slate-400 uppercase">Status</div>
-                <div id="port-status" class="text-lg font-bold text-blue-200">ACTIVE</div>
+                <div class="text-xs text-slate-400 uppercase">Stato </div>
+                <div id="port-status" class="text-lg font-bold text-blue-200">ATTIVO</div>
 
                 <!-- ROW 2: COUNTERS (REAL / SIM / TOTAL) -->
                 <div class="col-span-4 mt-2 border-t border-slate-700 pt-4">
-                    <div class="text-xs text-slate-400 uppercase text-center mb-3">Incoming Vessels Count</div>
+                    <div class="text-xs text-slate-400 uppercase text-center mb-3">Vascelli in arrivo</div>
                     
                     <div class="grid grid-cols-3 gap-4">
                         <!-- REAL COUNTER -->
                         <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 text-center">
-                            <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">REAL VESSELS</div>
+                            <div class="text-[10px] text-blue-400 font-bold uppercase mb-1">VASCELLI REALI</div>
                             <div id="incoming-real" class="text-3xl font-black text-blue-400">--</div>
                         </div>
 
                         <!-- SIMULATION COUNTER -->
                         <div class="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3 text-center">
-                            <div class="text-[10px] text-purple-400 font-bold uppercase mb-1">SIMULATION VESSELS</div>
+                            <div class="text-[10px] text-purple-400 font-bold uppercase mb-1">VASCELLI SIMULATI</div>
                             <div id="incoming-sim" class="text-3xl font-black text-purple-400">--</div>
                         </div>
 
                         <!-- TOTAL COUNTER -->
                         <div class="bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-3 text-center relative overflow-hidden">
-                            <div class="text-[10px] text-cyan-400 font-bold uppercase mb-1">TOTAL VESSELS</div>
+                            <div class="text-[10px] text-cyan-400 font-bold uppercase mb-1">VASCELLI TOTALI</div>
                             <div id="incoming-total" class="text-3xl font-black text-cyan-400">--</div>
                         </div>
                     </div>
@@ -97,7 +97,7 @@
 
                 <!-- CHART -->
                 <div class="card p-4 flex-1 flex flex-col min-h-0">
-                    <div class="text-xs text-slate-400 uppercase mb-2">Traffic History</div>
+                    <div class="text-xs text-slate-400 uppercase mb-2">Monitoraggio Traffico</div>
                     <div class="flex-1 min-h-0 relative">
                         <canvas id="portChart"></canvas>
                     </div>
@@ -106,11 +106,11 @@
                 <!-- INCOMING LIST -->
                 <div class="card p-4 w-96 flex flex-col overflow-hidden min-h-0 flex-shrink-0">
                     <div class="text-xs text-slate-400 uppercase mb-2 flex justify-between items-center">
-                        <span>Incoming Details</span>
-                        <span class="text-[10px] text-slate-600">(Sorted by ETA)</span>
+                        <span>Dettagli Vascelli in Arrivo</span>
+                        <span class="text-[10px] text-slate-600">(Ordinati per ETA)</span>
                     </div>
                     <div id="incoming-ranking" class="flex-1 overflow-y-auto space-y-2 text-sm pr-1">
-                        <div class="text-slate-500 italic text-center mt-4">No data</div>
+                        <div class="text-slate-500 italic text-center mt-4">Nessun dato disponibile</div>
                     </div>
                 </div>
 
@@ -253,7 +253,7 @@ function renderList() {
                 <div class="text-xs text-slate-400">WIN: ${p.window}m</div>
             </div>
             <div class="flex justify-between items-center text-xs">
-                 <span class="text-slate-500">Incoming</span>
+                 <span class="text-slate-500">In arrivo:</span>
                  <span class="font-bold text-lg" style="color:${p.color}">${p.last_total}</span>
             </div>
         `;
@@ -295,7 +295,7 @@ function updateChart() {
     chart.data.datasets = [
         // NOTA: Ho rimosso l'oggetto { label: 'Total', ... }
         {
-            label: 'Real',
+            label: 'Reali',
             data: p.history_real,
             borderColor: '#3b82f6', // Blue
             backgroundColor: '#3b82f611',
@@ -306,7 +306,7 @@ function updateChart() {
             fill: false
         },
         {
-            label: 'Simulation',
+            label: 'Simulazioni',
             data: p.history_sim,
             borderColor: '#a855f7', // Purple
             backgroundColor: '#a855f711',
@@ -327,7 +327,7 @@ function updateIncomingRanking() {
 
     const list = ports[selectedPort].incoming_list || [];
     if (!list.length) {
-        box.innerHTML = `<div class="text-slate-500 text-center py-4">No incoming vessels</div>`;
+        box.innerHTML = `<div class="text-slate-500 text-center py-4">Nessun vascello in arrivo</div>`;
         return;
     }
 

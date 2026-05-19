@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Component Usage Monitor</title>
+    <title>Monitor Utilizzo Componenti</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -39,7 +39,7 @@
 
     <!-- HEADER -->
     <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">Component Usage Monitor</span>
+        <span class="text-blue-400">Monitor Utilizzo Componenti</span>
     </div>
 
     <div class="flex flex-1 gap-6 overflow-hidden">
@@ -51,7 +51,7 @@
             <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
                     <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • REAL SOURCE
+                        • Sorgente dati reali
                     </div>
                     <span id="count-real" class="text-xs text-slate-500">0</span>
                 </div>
@@ -64,7 +64,7 @@
             <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
                     <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • SIMULATION
+                        • Sorgente dati simulati
                     </div>
                     <span id="count-sim" class="text-xs text-slate-500">0</span>
                 </div>
@@ -81,7 +81,7 @@
             <!-- CURRENT DATA HEADER -->
             <div class="card p-6 flex-shrink-0 flex items-center justify-between">
                 <div>
-                    <div class="text-xs text-slate-400 uppercase">Selected Vessel</div>
+                    <div class="text-xs text-slate-400 uppercase">Imbarcazione Selezionata</div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span id="vessel-name-display" class="text-2xl font-bold text-white">--</span>
                         <span id="mmsi-display" class="text-lg text-slate-500 font-mono">(--)</span>
@@ -96,23 +96,23 @@
 
             <!-- COMPONENTS TABLE -->
             <div class="card p-6 flex-1 overflow-y-auto flex flex-col min-h-0">
-                <div class="text-xs text-slate-400 uppercase mb-4 sticky top-0 bg-[#1e293b] py-2 z-10">Components Status</div>
+                <div class="text-xs text-slate-400 uppercase mb-4 sticky top-0 bg-[#1e293b] py-2 z-10">Stato Componenti</div>
 
                 <div class="flex-1 overflow-auto">
                     <table class="w-full text-sm">
                         <thead class="text-slate-400 border-b border-slate-600 sticky top-0 bg-[#1e293b]">
                             <tr>
-                                <th class="text-left py-2 font-semibold">Component</th>
-                                <th class="text-left py-2 font-semibold">Usage (h)</th>
-                                <th class="text-left py-2 font-semibold">Usage (min)</th>
-                                <th class="text-left py-2 font-semibold">Status</th>
+                                <th class="text-left py-2 font-semibold">Componenti</th>
+                                <th class="text-left py-2 font-semibold">Utilizzo (h)</th>
+                                <th class="text-left py-2 font-semibold">Utilizzo (min)</th>
+                                <th class="text-left py-2 font-semibold">Stato</th>
                             </tr>
                         </thead>
                         <tbody id="component-table" class="divide-y divide-slate-800">
                             <!-- Rows injected here -->
                         </tbody>
                     </table>
-                    <div id="empty-state" class="text-center text-slate-500 mt-10 italic hidden">Select a vessel to view components</div>
+                    <div id="empty-state" class="text-center text-slate-500 mt-10 italic hidden">Seleziona un vascello per visualizzare i componenti</div>
                 </div>
             </div>
         </div>
@@ -321,7 +321,7 @@ function updateComponentTable() {
     const componentNames = Object.keys(comps).sort();
 
     if (componentNames.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">No component data received yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">Nessun dato sui componenti ricevuto.</td></tr>`;
         return;
     }
 

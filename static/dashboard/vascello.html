@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>AIS Delta Monitor</title>
+    <title>Monitor Vascello AIS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -45,7 +45,7 @@
 
     <!-- HEADER -->
     <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">AIS Delta Monitor</span>
+        <span class="text-blue-400">Monitor Vascello AIS</span>
     </div>
 
     <div class="space-x-6 flex flex-1 gap-6 overflow-hidden">
@@ -57,7 +57,7 @@
             <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
                     <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • REAL SOURCE
+                        • VASCELLI REALI
                     </div>
                     <span id="count-real" class="text-xs text-slate-500">0</span>
                 </div>
@@ -70,7 +70,7 @@
             <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
                 <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
                     <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • SIMULATION
+                        • VASCELLI SIMULATI
                     </div>
                     <span id="count-sim" class="text-xs text-slate-500">0</span>
                 </div>
@@ -90,7 +90,7 @@
                 <!-- HEADER -->
                 <div class="flex items-center justify-between px-4 py-2 border-b border-slate-700">
                     <div class="space-x-2 flex items-center gap-3">
-                        <div class="text-xs text-slate-400 uppercase">Vessel Details</div>
+                        <div class="text-xs text-slate-400 uppercase">Dettagli Vascello</div>
                         <!-- Source Badge in Header -->
                         <span id="source-badge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                             --
@@ -108,40 +108,40 @@
 
                     <!-- LEFT DATA COL -->
                     <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
-                        <div class="text-xs text-slate-400 uppercase">Selected MMSI</div>
+                        <div class="text-xs text-slate-400 uppercase">MMSI Selezionato</div>
                         <div id="mmsi" class="text-lg font-bold text-blue-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Vessel Name</div>
+                        <div class="text-xs text-slate-400 uppercase">Nome Vascello</div>
                         <div id="vessel-name" class="text-lg font-bold text-blue-200">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Hourly Cost (€)</div>
+                        <div class="text-xs text-slate-400 uppercase">Costo orario (€)</div>
                         <div id="vessel-cost" class="text-lg font-bold text-red-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Departure (sched.)</div>
+                        <div class="text-xs text-slate-400 uppercase">Partenza (sched.)</div>
                         <div id="route-departure" class="text-lg font-bold text-green-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Fuel Consumption</div>
+                        <div class="text-xs text-slate-400 uppercase">Consumo carburante</div>
                         <div id="route-consumption" class="text-lg font-bold text-red-300">--</div>
                     </div>
 
                     <!-- RIGHT DATA COL -->
                     <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4">
-                        <div class="text-xs text-slate-400 uppercase">Destination</div>
+                        <div class="text-xs text-slate-400 uppercase">Destinazione</div>
                         <div id="destination" class="text-lg font-bold text-yellow-400">--</div>
 
                         <div class="text-xs text-slate-400 uppercase">ETA</div>
                         <div id="eta" class="text-lg font-bold text-green-400">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Passenger Capacity</div>
+                        <div class="text-xs text-slate-400 uppercase">Capacità passeggeri</div>
                         <div id="vessel-capacity" class="text-lg font-bold text-purple-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Max Speed (kn)</div>
+                        <div class="text-xs text-slate-400 uppercase">Velocità massima (kn)</div>
                         <div id="vessel-speed" class="text-lg font-bold text-orange-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Route ID</div>
+                        <div class="text-xs text-slate-400 uppercase">ID Rotta</div>
                         <div id="route-id" class="text-lg font-bold text-cyan-300">--</div>
 
-                        <div class="text-xs text-slate-400 uppercase">Travel Time (min)</div>
+                        <div class="text-xs text-slate-400 uppercase">Tempo di viaggio (min)</div>
                         <div id="route-time" class="text-lg font-bold text-purple-300">--</div>
                     </div>
 
@@ -162,7 +162,7 @@
             <div class="card p-4 flex-1 flex flex-col min-h-0">
                 <div class="flex justify-between items-center mb-2">
                     <div class="text-xs text-slate-400 uppercase">Delta History (Minutes)</div>
-                    <div id="chart-source-indicator" class="text-xs font-mono text-slate-500">Waiting for selection...</div>
+                    <div id="chart-source-indicator" class="text-xs font-mono text-slate-500">In attesa di selezione...</div>
                 </div>
                 <div class="flex-1 min-h-0 relative">
                     <canvas id="deltaChart"></canvas>
