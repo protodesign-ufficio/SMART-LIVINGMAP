@@ -97,13 +97,11 @@ body { display: flex; overflow: hidden; }
   overflow-y: auto;
   min-height: 0;
 }
-.page-shell {
-  padding: 24px;
-}
+
 .page-main {
   width: 100%;
   max-width: 1500px;
-  margin: 0;
+  margin-top: 10px;
 }
 .section-label {
   font-size: 20px; font-weight: 600; letter-spacing: 0.0em; 
@@ -253,14 +251,7 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
   .tag-trans { background: #1e3a8a; color: #bfdbfe; }
   .tag-plan { background: #064e3b; color: #99f6e4; }
 }
-@media (max-width: 1024px) {
-  .page-shell {
-    padding: 12px;
-  }
-  .page-main {
-    padding: 0 12px 1rem;
-  }
-}
+
 </style>
 
 <script src="https://cdn.tailwindcss.com"></script>
@@ -278,9 +269,12 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
   <div id="glossContent"></div>
 </div>
 
+
+<!-- Pagina completa -->
+
 <div class="flex flex-col gap-6 w-full h-full">
 
-  <!-- HEADER -->
+  <!-- Titolo -->
   <div class="dashboard-title-stack shrink-0">
     <div class="text-xl font-bold tracking-tight flex items-center gap-2">
       <span class="text-blue-400 dashboard-page-title">Monitor Consumi</span>
@@ -326,7 +320,7 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
         </div>
       </div>
 
-      <div class="content-scroll">
+      <div class="content-scroll" style="flex:1; margin:0;">
 
         <div id="unavailableState" class="unavailable-state" aria-live="polite">
           <div class="unavailable-card mx-auto">
@@ -335,9 +329,10 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
           </div>
         </div>
 
-        <div id="dashboardContent" class="page-inner" style="width:100%;">
+        <div id="pageShell" class="page-shell">
         <div class="page-main" style="width:100%;">
 
+          <!-- Parametri statici di targa -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
             <div class="section-label" style="margin-bottom:0; border:none;">Parametri statici di targa</div>
           </div>
@@ -372,163 +367,174 @@ input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; backgroun
             </div>
           </div>
 
+          <!-- Parametri cinematici -->
           <div class="section-label">Cinematica interattiva — muovi la velocità</div>
-          <div class="card" style="margin-bottom:20px;">
-            <div class="slider-row">
-              <label><i class="ti ti-gauge" aria-hidden="true"></i> Velocità STW</label>
-              <input type="range" id="velSlider" min="8" max="19.5" step="0.1" value="13">
-              <div class="slider-val"><span id="velOut">13.0</span> <span style="font-size:13px;color:var(--color-text-tertiary);">kn</span></div>
+          
+            <div class="card" style="margin-bottom:20px;">
+              <div class="slider-row">
+                <label><i class="ti ti-gauge" aria-hidden="true"></i> Velocità STW</label>
+                <input type="range" id="velSlider" min="8" max="19.5" step="0.1" value="13">
+                <div class="slider-val"><span id="velOut">13.0</span> <span style="font-size:13px;color:var(--color-text-tertiary);">kn</span></div>
+              </div>
+
+              <div style="margin-bottom:16px;" data-tip="fn">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;">
+                  <span style="font-size:13px; color:var(--color-text-tertiary);">Numero di Froude — Fn = V / √(g · L<sub>WL</sub>)</span>
+                  <span style="font-size:20px; font-weight:500; color:var(--color-text-primary);" id="fnBig">0.400</span>
+                </div>
+                <div class="fn-scale" id="fnScale">
+                  <div class="fn-zone" style="width:40%; background:#334155; color:#cbd5e1;">dislocante &lt;0.40</div>
+                  <div class="fn-zone" style="width:33%; background:#1e3a8a; color:#bfdbfe;">transitional 0.40–0.70</div>
+                  <div class="fn-zone" style="width:27%; background:#064e3b; color:#99f6e4;">planante &gt;0.70</div>
+                  <div class="fn-needle" id="fnNeedle"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:2px;">
+                  <span>Fn 0.20</span><span>0.40</span><span>0.70</span><span>1.00</span>
+                </div>
+                <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:14px; color:var(--color-text-tertiary);">Regime attuale:</span>
+                  <span class="tag" id="fnTag">transitional</span>
+                  <span style="font-size:13px; color:var(--color-text-tertiary);" id="fnNote"></span>
+                </div>
+              </div>
+
+              <!-- Blocchi metrici 1 riga -->
+              <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px;">
+
+                <div class="metric-block" data-tip="power">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Potenza richiesta</div>
+                  <div class="metric-value"><span id="powerOut">320</span><span class="metric-unit">kW</span></div>
+                  <div class="metric-sub" id="mcrOut">21.4 % MCR</div>
+                </div>
+                <div class="metric-block" data-tip="sfc">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">SFC operativo</div>
+                  <div class="metric-value"><span id="sfcOut">222</span><span class="metric-unit">g/kWh</span></div>
+                  <div class="metric-sub" id="sfcNote">carico parziale</div>
+                </div>
+                <div class="metric-block" data-tip="cons"> 
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Consumo gasolio</div>
+                  <div class="metric-value"><span id="consOut">84.6</span><span class="metric-unit">L/h</span></div>
+                  <div class="metric-sub" id="consNote">all'ora</div>
+                </div>
+                <div class="metric-block" data-tip="costo">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Costo orario</div>
+                  <div class="metric-value"><span id="costoOut">101.5</span><span class="metric-unit">€/h</span></div>
+                  <div class="metric-sub">gasolio 1.20 €/L</div>
+                </div>
+
+              </div>
+
+              <!-- Blocchi metrici 2 riga -->
+              <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;">
+
+                <div class="metric-block" data-tip="rt">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Resistenza totale R<sub>T</sub></div>
+                  <div class="metric-value"><span id="rtOut">22.4</span><span class="metric-unit">kN</span></div>
+                  <div class="metric-sub">acque calme, Δ=115 t</div>
+                </div>
+                <div class="metric-block" data-tip="rpm">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Regime motore (stima)</div>
+                  <div class="metric-value"><span id="rpmOut">1148</span><span class="metric-unit">rpm</span></div>
+                  <div class="metric-sub">su rated 2100 rpm</div>
+                </div>
+                <div class="metric-block" data-tip="mcr">
+                  <div class="metric-help">?</div>
+                  <div class="metric-label">Carico motore</div>
+                  <div class="metric-value"><span id="mcrBig">21</span><span class="metric-unit">% MCR</span></div>
+                  <div class="metric-sub" id="mcrZone">sotto zona ottimale</div>
+                </div>
+
+              </div>
+
+              <!-- Blocchi metrici 3 riga -->
+              <div data-tip="mcr">
+                <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--color-text-tertiary); margin-bottom:3px;">
+                  <span>% MCR — carico motore</span><span id="mcrBarLabel">21%</span>
+                </div>
+                <div class="regime-bar-wrap">
+                  <div class="regime-bar-fill" id="mcrBar" style="width:21%; background:#378ADD;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:3px;">
+                  <span>0% — minimo</span><span>SFC ottimale ~70%</span><span>100% — rated</span>
+                </div>
+              </div>
+
             </div>
 
-            <div style="margin-bottom:16px;" data-tip="fn">
-              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;">
-                <span style="font-size:13px; color:var(--color-text-tertiary);">Numero di Froude — Fn = V / √(g · L<sub>WL</sub>)</span>
-                <span style="font-size:20px; font-weight:500; color:var(--color-text-primary);" id="fnBig">0.400</span>
+
+          <!-- Curve prestazionali -->
+          <div class="section-label">Curve prestazionali</div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+            <div class="card">
+              <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="rt">
+                Resistenza totale R<sub>T</sub> vs velocità
               </div>
-              <div class="fn-scale" id="fnScale">
-                <div class="fn-zone" style="width:40%; background:#334155; color:#cbd5e1;">dislocante &lt;0.40</div>
-                <div class="fn-zone" style="width:33%; background:#1e3a8a; color:#bfdbfe;">transitional 0.40–0.70</div>
-                <div class="fn-zone" style="width:27%; background:#064e3b; color:#99f6e4;">planante &gt;0.70</div>
-                <div class="fn-needle" id="fnNeedle"></div>
-              </div>
-              <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:2px;">
-                <span>Fn 0.20</span><span>0.40</span><span>0.70</span><span>1.00</span>
-              </div>
-              <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
-                <span style="font-size:14px; color:var(--color-text-tertiary);">Regime attuale:</span>
-                <span class="tag" id="fnTag">transitional</span>
-                <span style="font-size:13px; color:var(--color-text-tertiary);" id="fnNote"></span>
+              <div class="chart-wrap" style="height:240px;">
+                <canvas id="rtChart" role="img" aria-label="Curva della resistenza totale RT in kN in funzione della velocità da 8 a 19.5 nodi.">RT vs velocità Sirius.</canvas>
               </div>
             </div>
-
-            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px;">
-              <div class="metric-block" data-tip="power">
-                <div class="metric-help">?</div>
-                <div class="metric-label">Potenza richiesta</div>
-                <div class="metric-value"><span id="powerOut">320</span><span class="metric-unit">kW</span></div>
-                <div class="metric-sub" id="mcrOut">21.4 % MCR</div>
+            <div class="card">
+              <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="cons">
+                Consumo gasolio vs velocità (L/h)
               </div>
-              <div class="metric-block" data-tip="sfc">
-                <div class="metric-help">?</div>
-                <div class="metric-label">SFC operativo</div>
-                <div class="metric-value"><span id="sfcOut">222</span><span class="metric-unit">g/kWh</span></div>
-                <div class="metric-sub" id="sfcNote">carico parziale</div>
+              <div class="chart-wrap" style="height:240px;">
+                <canvas id="consChart" role="img" aria-label="Consumo gasolio in L/h in funzione della velocità.">Consumo vs velocità Sirius.</canvas>
               </div>
-              <div class="metric-block" data-tip="cons"> 
-        <div class="metric-help">?</div>
-        <div class="metric-label">Consumo gasolio</div>
-        <div class="metric-value"><span id="consOut">84.6</span><span class="metric-unit">L/h</span></div>
-        <div class="metric-sub" id="consNote">all'ora</div>
-      </div>
-      
-      <div class="metric-block" data-tip="costo">
-        <div class="metric-help">?</div>
-        <div class="metric-label">Costo orario</div>
-        <div class="metric-value"><span id="costoOut">101.5</span><span class="metric-unit">€/h</span></div>
-        <div class="metric-sub">gasolio 1.20 €/L</div>
-      </div>
+            </div>
+            <div class="card">
+              <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="sfc">
+                SFC vs % MCR — curva elica MAN
+              </div>
+              <div class="chart-wrap" style="height:240px;">
+                <canvas id="sfcChart" role="img" aria-label="SFC in g/kWh vs percentuale MCR, curva a U con minimo a circa 70%.">SFC vs MCR MAN D2862 LE428.</canvas>
+              </div>
+            </div>
+            <div class="card">
+              <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="comp">
+                Scomposizione R<sub>T</sub> per componente
+              </div>
+              <div class="chart-wrap" style="height:240px;">
+                <canvas id="compChart" role="img" aria-label="Barre impilate delle componenti RF RW RAA della resistenza totale a velocità selezionate.">Componenti RT vs velocità.</canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assetti operativi -->
+          <div class="section-label">Assetti operativi — Trim & Stability Booklet RINA</div>
+          <div class="card">
+        <div style="overflow-x:auto;">
+          <table style="width:100%; font-size:14px; border-collapse:collapse; table-layout:fixed;">
+            <colgroup>
+              <col style="width:27%"><col style="width:11%"><col style="width:11%">
+              <col style="width:11%"><col style="width:11%"><col style="width:16%"><col style="width:13%">
+            </colgroup>
+            <thead>
+              <tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+                <th style="text-align:left;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lc">Caso</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="delta">Δ (t)</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lcg">LCG (m)</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tfp">T_FP (m)</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tap">T_AP (m)</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="trim">Trim (m, +app.)</th>
+                <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="gmt">GM<sub>t</sub> (m)</th>
+              </tr>
+            </thead>
+            <tbody id="trimTable"></tbody>
+          </table>
+        </div>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;">
-      <div class="metric-block" data-tip="rt">
-        <div class="metric-help">?</div>
-        <div class="metric-label">Resistenza totale R<sub>T</sub></div>
-        <div class="metric-value"><span id="rtOut">22.4</span><span class="metric-unit">kN</span></div>
-        <div class="metric-sub">acque calme, Δ=115 t</div>
-      </div>
-      <div class="metric-block" data-tip="rpm">
-        <div class="metric-help">?</div>
-        <div class="metric-label">Regime motore (stima)</div>
-        <div class="metric-value"><span id="rpmOut">1148</span><span class="metric-unit">rpm</span></div>
-        <div class="metric-sub">su rated 2100 rpm</div>
-      </div>
-      <div class="metric-block" data-tip="mcr">
-        <div class="metric-help">?</div>
-        <div class="metric-label">Carico motore</div>
-        <div class="metric-value"><span id="mcrBig">21</span><span class="metric-unit">% MCR</span></div>
-        <div class="metric-sub" id="mcrZone">sotto zona ottimale</div>
-      </div>
-    </div>
-
-    <div data-tip="mcr">
-      <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--color-text-tertiary); margin-bottom:3px;">
-        <span>% MCR — carico motore</span><span id="mcrBarLabel">21%</span>
-      </div>
-      <div class="regime-bar-wrap">
-        <div class="regime-bar-fill" id="mcrBar" style="width:21%; background:#378ADD;"></div>
-      </div>
-      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:3px;">
-        <span>0% — minimo</span><span>SFC ottimale ~70%</span><span>100% — rated</span>
-      </div>
-    </div>
-
-
-    <div class="section-label">Curve prestazionali</div>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
-      <div class="card">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="rt">
-          Resistenza totale R<sub>T</sub> vs velocità
-        </div>
-        <div class="chart-wrap" style="height:240px;">
-          <canvas id="rtChart" role="img" aria-label="Curva della resistenza totale RT in kN in funzione della velocità da 8 a 19.5 nodi.">RT vs velocità Sirius.</canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="cons">
-          Consumo gasolio vs velocità (L/h)
-        </div>
-        <div class="chart-wrap" style="height:240px;">
-          <canvas id="consChart" role="img" aria-label="Consumo gasolio in L/h in funzione della velocità.">Consumo vs velocità Sirius.</canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="sfc">
-          SFC vs % MCR — curva elica MAN
-        </div>
-        <div class="chart-wrap" style="height:240px;">
-          <canvas id="sfcChart" role="img" aria-label="SFC in g/kWh vs percentuale MCR, curva a U con minimo a circa 70%.">SFC vs MCR MAN D2862 LE428.</canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="comp">
-          Scomposizione R<sub>T</sub> per componente
-        </div>
-        <div class="chart-wrap" style="height:240px;">
-          <canvas id="compChart" role="img" aria-label="Barre impilate delle componenti RF RW RAA della resistenza totale a velocità selezionate.">Componenti RT vs velocità.</canvas>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-label">Assetti operativi — Trim & Stability Booklet RINA</div>
-    <div class="card">
-      <div style="overflow-x:auto;">
-        <table style="width:100%; font-size:14px; border-collapse:collapse; table-layout:fixed;">
-          <colgroup>
-            <col style="width:27%"><col style="width:11%"><col style="width:11%">
-            <col style="width:11%"><col style="width:11%"><col style="width:16%"><col style="width:13%">
-          </colgroup>
-          <thead>
-            <tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
-              <th style="text-align:left;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lc">Caso</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="delta">Δ (t)</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lcg">LCG (m)</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tfp">T_FP (m)</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tap">T_AP (m)</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="trim">Trim (m, +app.)</th>
-              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="gmt">GM<sub>t</sub> (m)</th>
-            </tr>
-          </thead>
-          <tbody id="trimTable"></tbody>
-        </table>
-      </div>
-    </div>
-
-  </div>
 
 </div>
 </div>
-  </div>
-  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
