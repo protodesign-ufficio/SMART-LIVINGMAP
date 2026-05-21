@@ -1,418 +1,796 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <title>Monitor Utilizzo Componenti</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <title>RBD Componenti – Monitor Componenti</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-background-page: #0f172a;
+      --color-background-primary: #1e293b;
+      --color-background-secondary: #0f172a;
+      --color-border-secondary: #334155;
+      --color-border-tertiary: #334155;
+      --color-text-primary: #e2e8f0;
+      --color-text-secondary: #94a3b8;
+      --color-text-tertiary: #64748b;
+      --color-text-info: #60a5fa;
+      --border-radius-md: 0.5rem;
+      --border-radius-lg: 0.75rem;
+      --font-mono: Consolas, 'Courier New', monospace;
+    }
+    html, body {
+      background: var(--color-background-page);
+      color: var(--color-text-primary);
+      font-family: 'Segoe UI', sans-serif;
+      height: 100%;
+    }
+    body { display: flex; overflow: hidden; }
 
-    <style>
-        body { background-color:#0f172a; color:#e2e8f0; }
-        html, body { font-family: 'Segoe UI', sans-serif; } 
-        .card{
-            background:#1e293b;
-            border:1px solid #334155;
-            border-radius:0.75rem;
-            box-shadow: 0 6px 18px rgba(0,0,0,.25);
-        }
-        
-        /* Scrollbar styling */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
 
-        /* Badges */
-        .badge-real { background-color: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
-        .badge-sim { background-color: #581c87; color: #e9d5ff; border: 1px solid #a855f7; }
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: #0a1120;
+      border-right: 0.5px solid #334155;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 12px;
+      border-bottom: 0.5px solid #334155;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+    }
+    .sidebar-section {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .sidebar-section + .sidebar-section { border-top: 0.5px solid #334155; }
+    .sidebar-section-head {
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 0.5px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .sidebar-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .ship-item {
+      padding: 7px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #334155;
+      background: #1e293b;
+      margin-bottom: 4px;
+      transition: all 0.15s;
+    }
+    .ship-item:hover { background: #263348; }
+    .ship-item.sel-real  { background: rgba(30,58,138,0.45); border-color: #3b82f6; }
+    .ship-item.sel-sim   { background: rgba(88,28,135,0.45); border-color: #a855f7; }
 
-        /* List Item styles */
-        .ship-item { transition: all 0.2s; }
-        .ship-item:hover { transform: translateX(2px); }
-    </style>
+    /* ── Main ── */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .vessel-bar {
+      flex-shrink: 0;
+      background: #1e293b;
+      border-bottom: 0.5px solid #334155;
+      padding: 9px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .content-scroll { flex: 1; overflow-y: auto; padding: 20px; min-height: 0; }
+    .page-inner { width: min(1400px, 100%); margin: 0 auto; }
+
+    /* ── RBD styles ── */
+    .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+    .card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 16px; }
+    .metric-block { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:10px 12px; cursor:help; border:1px solid transparent; transition:border 0.15s; }
+    .metric-block:hover { border-color:var(--color-border-secondary); }
+    .metric-label { font-size:13px; color:var(--color-text-tertiary); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .metric-value { font-size:26px; font-weight:600; color:var(--color-text-primary); line-height:1.2; }
+    .metric-unit  { font-size:16px; color:var(--color-text-secondary); margin-left:3px; }
+    .metric-sub   { font-size:13px; color:var(--color-text-tertiary); margin-top:2px; }
+    .slider-row { display:flex; align-items:center; gap:18px; margin-bottom:10px; flex-wrap:nowrap; }
+    .slider-row label { min-width:150px; font-size:15px; color:var(--color-text-secondary); white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:10px; }
+    .slider-row label i { width:18px; flex-shrink:0; text-align:center; font-size:17px; }
+    .slider-val { font-size:22px; font-weight:600; color:var(--color-text-primary); min-width:90px; text-align:right; flex-shrink:0; }
+    input[type=range] {
+      flex:1; min-width:0;
+      -webkit-appearance:none; appearance:none;
+      height:4px; border-radius:2px;
+      background:#334155; outline:none; cursor:pointer;
+    }
+    input[type=range]:disabled { cursor:not-allowed; opacity:0.62; }
+    input[type=range]::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:#334155; }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance:none; width:16px; height:16px;
+      border-radius:50%; background:#3b82f6; cursor:pointer;
+      margin-top:-6px;
+      box-shadow:0 0 0 2px rgba(59,130,246,0.25); transition:box-shadow 0.15s;
+    }
+    input[type=range]:disabled::-webkit-slider-thumb { cursor:not-allowed; background:#64748b; box-shadow:none; }
+    input[type=range]::-webkit-slider-thumb:hover { box-shadow:0 0 0 5px rgba(59,130,246,0.25); }
+    input[type=range]::-moz-range-thumb {
+      width:16px; height:16px; border-radius:50%;
+      background:#3b82f6; cursor:pointer; border:none;
+    }
+    input[type=range]:disabled::-moz-range-thumb { cursor:not-allowed; background:#64748b; }
+    input[type=range]::-moz-range-track { height:4px; border-radius:2px; background:#334155; }
+    .mode-tabs { display:flex; gap:0; background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:2px; margin-bottom:14px; }
+    .mode-tab { flex:1; padding:8px 10px; font-size:14px; text-align:center; border-radius:calc(var(--border-radius-md) - 2px); cursor:pointer; color:var(--color-text-secondary); border:none; background:transparent; transition:all 0.15s; }
+    .mode-tab.active { background:var(--color-background-primary); color:var(--color-text-primary); font-weight:500; }
+    .tree-node { user-select:none; }
+    .tree-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--border-radius-md); cursor:pointer; transition:background 0.1s; margin-bottom:3px; min-height:34px; }
+    .tree-row:hover { background:var(--color-background-secondary); }
+    .tree-children { padding-left:34px; border-left:0.5px solid var(--color-border-tertiary); margin-left:22px; display:none; }
+    .tree-children.open { display:block; }
+    .node-icons { width:58px; flex-shrink:0; display:grid; grid-template-columns:16px 12px 20px; align-items:center; column-gap:5px; }
+    .child-icons { width:54px; flex-shrink:0; display:grid; grid-template-columns:28px 12px; align-items:center; column-gap:14px; }
+    .toggle-icon { font-size:13px; color:var(--color-text-tertiary); width:16px; flex-shrink:0; text-align:center; transition:transform 0.15s; display:inline-block; }
+    .toggle-icon.open { transform:rotate(90deg); }
+    .node-system-icon { width:20px; text-align:center; font-size:16px; color:var(--color-text-secondary); flex-shrink:0; }
+    .node-name     { font-size:15px; color:var(--color-text-primary); flex:1; min-width:0; }
+    .child-name    { margin-left:16px; }
+    .node-level    { font-size:13px; font-family:var(--font-mono); color:var(--color-text-tertiary); background:var(--color-background-secondary); padding:1px 6px; border-radius:4px; }
+    .node-interval { font-size:13px; font-family:var(--font-mono); color:var(--color-text-tertiary); min-width:52px; text-align:right; }
+    .node-topo     { font-size:12px; color:var(--color-text-tertiary); padding:2px 7px; border-radius:10px; border:0.5px solid var(--color-border-tertiary); white-space:nowrap; }
+    .progress-wrap { width:60px; height:5px; background:var(--color-border-tertiary); border-radius:3px; overflow:hidden; flex-shrink:0; }
+    .progress-fill { height:100%; border-radius:3px; transition:width 0.25s, background 0.25s; }
+    .status-dot    { width:8px; height:8px; border-radius:50%; flex-shrink:0; justify-self:center; }
+    .dot-ok   { background:#1D9E75; }
+    .dot-soon { background:#BA7517; }
+    .dot-due  { background:#C25151; }
+    .row-soon { background:rgba(186,117,23,0.22); }
+    .row-soon:hover { background:rgba(186,117,23,0.30); }
+    .row-due  { background:rgba(194,81,81,0.05); }
+    .legend-row { display:flex; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--color-text-tertiary); }
+    .legend-item { display:inline-flex; align-items:center; white-space:nowrap; margin-right:34px; }
+    .legend-item .status-dot { display:inline-block; margin-right:12px !important; }
+    .legend-hint { margin-left:auto; font-style:italic; font-size:12px; }
+    .summary-bar { display:flex; height:6px; border-radius:4px; overflow:hidden; margin:6px 0 2px; }
+    .seg-ok   { background:#1D9E75; }
+    .seg-soon { background:#BA7517; }
+    .seg-due  { background:#C25151; }
+    .tooltip-box {
+      position:fixed; z-index:9999; background:var(--color-background-primary);
+      border:0.5px solid var(--color-border-secondary); border-radius:var(--border-radius-md);
+      padding:10px 13px; max-width:280px; pointer-events:none; display:none;
+      font-size:14px; line-height:1.5; color:var(--color-text-secondary);
+    }
+    .tooltip-box strong { display:block; font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:4px; }
+    .gloss-panel { position:fixed; top:0; right:-360px; width:340px; height:100%; background:var(--color-background-primary); border-left:0.5px solid var(--color-border-secondary); overflow-y:auto; z-index:10000; transition:right 0.25s ease; padding:20px 18px; }
+    .gloss-panel.open { right:0; }
+    .gloss-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.15); z-index:9999; display:none; }
+    .gloss-backdrop.open { display:block; }
+    .gloss-entry { margin-bottom:14px; padding-bottom:14px; border-bottom:0.5px solid var(--color-border-tertiary); }
+    .gloss-entry:last-child { border-bottom:none; }
+    .gloss-term    { font-size:15px; font-weight:500; color:var(--color-text-primary); margin-bottom:3px; }
+    .gloss-acronym { font-size:13px; color:var(--color-text-tertiary); margin-bottom:4px; font-family:var(--font-mono); }
+    .gloss-def     { font-size:14px; color:var(--color-text-secondary); line-height:1.55; }
+    .badge-real { background:#1e3a8a; color:#93c5fd; border:1px solid #3b82f6; font-size:11px; font-weight:700; padding:3px 9px; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; }
+    .badge-sim  { background:#581c87; color:#e9d5ff; border:1px solid #a855f7; font-size:11px; font-weight:700; padding:3px 9px; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; }
+    .unavailable-state {
+      min-height: calc(100vh - 54px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .unavailable-card {
+      width: min(520px, 100%);
+      background: var(--color-background-primary);
+      border: 0.5px solid var(--color-border-tertiary);
+      border-radius: var(--border-radius-lg);
+      padding: 28px;
+      text-align: center;
+    }
+    .unavailable-card i {
+      display: block;
+      font-size: 34px;
+      color: var(--color-text-tertiary);
+      margin-bottom: 12px;
+    }
+    .unavailable-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: 6px;
+    }
+    .unavailable-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+    }
+  </style>
 </head>
+<body>
 
-<body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
-
-<div class="flex flex-col gap-6 w-full h-full">
-
-    <!-- HEADER -->
-    <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">Monitor Utilizzo Componenti</span>
-    </div>
-
-    <div class="flex flex-1 gap-6 overflow-hidden">
-
-        <!-- SIDEBAR (Split View) -->
-        <div class="space-y-4 flex flex-col gap-4 shrink-0">
-            
-            <!-- REAL VESSELS LIST -->
-            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
-                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
-                    <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • Sorgente dati reali
-                    </div>
-                    <span id="count-real" class="text-xs text-slate-500">0</span>
-                </div>
-                <div id="list-real" class="space-y-2 overflow-y-auto pr-1">
-                    <!-- Items injected here -->
-                </div>
-            </div>
-
-            <!-- SIMULATION VESSELS LIST -->
-            <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2">
-                <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
-                    <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                        • Sorgente dati simulati
-                    </div>
-                    <span id="count-sim" class="text-xs text-slate-500">0</span>
-                </div>
-                <div id="list-sim" class="space-y-2 overflow-y-auto pr-1">
-                    <!-- Items injected here -->
-                </div>
-            </div>
-
-        </div>
-
-        <!-- MAIN PANEL -->
-        <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0 " style="padding-left: 20px;">
-
-            <!-- CURRENT DATA HEADER -->
-            <div class="card p-6 flex-shrink-0 flex items-center justify-between">
-                <div>
-                    <div class="text-xs text-slate-400 uppercase">Imbarcazione Selezionata</div>
-                    <div class="flex items-baseline gap-2 mt-1">
-                        <span id="vessel-name-display" class="text-2xl font-bold text-white">--</span>
-                        <span id="mmsi-display" class="text-lg text-slate-500 font-mono">(--)</span>
-                    </div>
-                </div>
-                
-                <!-- Source Badge -->
-                <span id="source-badge" class="hidden text-sm font-bold px-3 py-1 rounded uppercase tracking-wider">
-                    --
-                </span>
-            </div>
-
-            <!-- COMPONENTS TABLE -->
-            <div class="card p-6 flex-1 overflow-y-auto flex flex-col min-h-0">
-                <div class="text-xs text-slate-400 uppercase mb-4 sticky top-0 bg-[#1e293b] py-2 z-10">Stato Componenti</div>
-
-                <div class="flex-1 overflow-auto">
-                    <table class="w-full text-sm">
-                        <thead class="text-slate-400 border-b border-slate-600 sticky top-0 bg-[#1e293b]">
-                            <tr>
-                                <th class="text-left py-2 font-semibold">Componenti</th>
-                                <th class="text-left py-2 font-semibold">Utilizzo (h)</th>
-                                <th class="text-left py-2 font-semibold">Utilizzo (min)</th>
-                                <th class="text-left py-2 font-semibold">Stato</th>
-                            </tr>
-                        </thead>
-                        <tbody id="component-table" class="divide-y divide-slate-800">
-                            <!-- Rows injected here -->
-                        </tbody>
-                    </table>
-                    <div id="empty-state" class="text-center text-slate-500 mt-10 italic hidden">Seleziona un vascello per visualizzare i componenti</div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div id="tooltipBox" class="tooltip-box"></div>
+<div class="gloss-backdrop" id="glossBackdrop"></div>
+<div class="gloss-panel" id="glossPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <span style="font-size:17px;font-weight:500;color:var(--color-text-primary);">Glossario manutenzione</span>
+    <button onclick="closeGloss()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--color-text-tertiary);">×</button>
+  </div>
+  <div id="glossContent"></div>
 </div>
 
-<!-- SOCKET.IO -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="sidebar-header">Imbarcazione</div>
 
+  <div class="sidebar-section">
+    <div class="sidebar-section-head">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#60a5fa;">● Dati reali</span>
+      <span id="count-real" style="font-size:11px;color:#64748b;">0</span>
+    </div>
+    <div id="list-real" class="sidebar-list"></div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-head">
+      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#c084fc;">● Simulati</span>
+      <span id="count-sim" style="font-size:11px;color:#64748b;">0</span>
+    </div>
+    <div id="list-sim" class="sidebar-list"></div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main-area">
+
+  <!-- Vessel header bar -->
+  <div class="vessel-bar">
+    <div style="display:flex;align-items:baseline;gap:10px;">
+      <span id="vessel-name-display" style="font-size:17px;font-weight:600;color:#e2e8f0;">—</span>
+      <span id="mmsi-display"        style="font-size:13px;color:#64748b;font-family:var(--font-mono);"></span>
+      <span id="live-indicator"      style="display:none;font-size:11px;color:#4ade80;font-family:var(--font-mono);">● LIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span id="source-badge" style="display:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;"></span>
+      <button onclick="openGloss()" style="font-size:13px;color:var(--color-text-info);background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;">
+        <i class="ti ti-book-2" style="font-size:14px;margin-right:3px;"></i>Glossario
+      </button>
+    </div>
+  </div>
+
+  <div class="content-scroll">
+  <div id="unavailableState" class="unavailable-state" aria-live="polite">
+    <div class="unavailable-card">
+      <i class="ti ti-database-off" aria-hidden="true"></i>
+      <div class="unavailable-title">Dati al momento non disponibili</div>
+      <div class="unavailable-text">Questa dashboard componenti è attualmente disponibile solo per la nave SIRIUS.</div>
+    </div>
+  </div>
+  <div id="dashboardContent" class="page-inner">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);">RBD · MAN D2862 / D2868 LE4XX</div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="slider-row">
+        <label><i class="ti ti-clock-hour-4"></i> Ore motore</label>
+        <input type="range" id="hSlider" min="0" max="20000" step="50" value="3500">
+        <div class="slider-val"><span id="hOut">3.500</span> <span style="font-size:13px;color:var(--color-text-tertiary);">h</span></div>
+      </div>
+      <div id="live-note" style="display:none;font-size:12px;color:#4ade80;font-family:var(--font-mono);margin-bottom:10px;padding:4px 8px;background:rgba(74,222,128,0.06);border-radius:4px;border-left:2px solid #4ade80;"></div>
+      <div class="mode-tabs">
+        <button class="mode-tab" data-mode="LD">Ridotto (LD)</button>
+        <button class="mode-tab active" data-mode="MD">Medio (MD)</button>
+        <button class="mode-tab" data-mode="HD">Estremo (HD)</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+        <div class="metric-block" data-tip="status_ok"><div class="metric-label">OK</div><div class="metric-value" style="color:#1D9E75;"><span id="cntOk">0</span></div><div class="metric-sub">&gt;25% residua</div></div>
+        <div class="metric-block" data-tip="status_soon"><div class="metric-label">In avvicinamento</div><div class="metric-value" style="color:#BA7517;"><span id="cntSoon">0</span></div><div class="metric-sub">≤25% residua</div></div>
+        <div class="metric-block" data-tip="status_due"><div class="metric-label">Da intervenire</div><div class="metric-value" style="color:#C25151;"><span id="cntDue">0</span></div><div class="metric-sub">soglia superata</div></div>
+        <div class="metric-block" data-tip="tbo"><div class="metric-label">Vita residua TBO</div><div class="metric-value"><span id="tboLeft">0</span><span class="metric-unit">h</span></div><div class="metric-sub" id="tboNote">revisione generale</div></div>
+      </div>
+      <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:3px;">distribuzione componenti</div>
+      <div class="summary-bar" id="summaryBar"></div>
+      <div class="legend-row" style="margin-top:6px;">
+        <span class="legend-item"><span class="status-dot dot-ok"></span><span>OK</span></span>
+        <span class="legend-item"><span class="status-dot dot-soon"></span><span>In avvicinamento</span></span>
+        <span class="legend-item"><span class="status-dot dot-due"></span><span>Da intervenire</span></span>
+        <span style="margin-left:auto;font-style:italic;font-size:12px;">▶ clicca per espandere</span>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:10px;padding-bottom:6px;border-bottom:0.5px solid var(--color-border-tertiary);">Albero RBD — espandi per drill-down</div>
+
+    <div class="card" style="padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;font-size:13px;color:var(--color-text-tertiary);border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:6px;">
+        <span style="width:14px;"></span>
+        <span style="flex:1;font-weight:500;">Catena / Componente</span>
+        <span style="width:36px;text-align:center;">Livello</span>
+        <span style="width:60px;text-align:right;">Soglia</span>
+        <span style="width:60px;text-align:right;">Avanzamento</span>
+        <span style="width:8px;"></span>
+      </div>
+      <div id="treeRoot"></div>
+    </div>
+
+  </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-/* =====================================================
-   CONFIG & HELPERS
-===================================================== */
+/* ── RBD DATA ── */
+const INTERVALS = {
+  LD: { M1:400,  M2:800,  M3:1600, M4:3200, M5:null,  M6:12000 },
+  MD: { M1:500,  M2:1000, M3:2000, M4:3000, M5:6000,  M6:12000 },
+  HD: { M1:600,  M2:1200, M3:2400, M4:3000, M5:6000,  M6:18000 },
+};
+const TIPS = {
+  status_ok:   { term:'Componenti OK', def:'Vita residua nell\'intervallo corrente superiore al 25%.' },
+  status_soon: { term:'In avvicinamento', def:'Consumato più del 75% dell\'intervallo. Pianificare l\'intervento.' },
+  status_due:  { term:'Da intervenire', def:'Soglia MAN superata. Intervento dovuto.' },
+  tbo:         { term:'TBO — Time Between Overhauls', def:'Ore mancanti alla revisione generale M6. MD: 12.000 h; HD: 18.000 h.' },
+  m1: { term:'M1 — Routine', acronym:'M1 · ogni 400–600 h (LD/MD/HD) · max 1 anno', def:'Cambio olio e filtri olio, filtro aria, filtro e prefiltro carburante. Controllo tenuta circuiti, cinghia, impeller, supporti elastici. Lettura/cancellazione memoria EDC. Giro di prova a pieno carico.' },
+  m2: { term:'M2 — Gioco valvole', acronym:'M2 · ogni 800–1.200 h · max 1 anno', def:'Controllo e regolazione del gioco delle valvole di aspirazione e scarico su tutti i 12 cilindri. Intervento da personale qualificato.' },
+  m3: { term:'M3 — Diagnosi', acronym:'M3 · ogni 1.600–2.400 h · max 1 anno', def:'Test di compressione (TCOM) e test a regime elevato (TRUP) tramite MAN-cats®. Verifica equalità tra i cilindri.' },
+  m4: { term:'M4 — Sovralimentazione e raffreddamento', acronym:'M4 · ogni 3.000–3.200 h · ogni 4 anni', def:'Controllo visivo turbocompressore, pulizia intercooler (depositi sale), pulizia scambiatore di calore, sostituzione liquido raffreddamento e tutti i tubi flessibili.' },
+  m5: { term:'M5 — Revisione parziale', acronym:'M5 · 6.000 h · solo MD/HD', def:'Sostituzione preventiva: iniettori, pompa LR, termostati, piastre scambiatore, intercooler, turbocompressore, supporti elastici, cinghia trapezoidale e tendicinghia.' },
+  m6: { term:'M6 — Revisione generale (TBO)', acronym:'M6 · 12.000 h (MD) / 18.000 h (HD)', def:'Smontaggio completo. Sostituzione: iniettori e tubi AP, pompe AP, pompa LR, termostati, scambiatori, smorzatore vibrazioni, radiatore olio, pompe olio, iniettori olio, intercooler, turbocompressore, testate+valvole, bilancieri+camme, pistoni+segmenti, bielle, canne cilindro, cinghia, supporti, motorino avviamento, alternatore.' },
+  serie: { term:'Topologia: serie', def:'Tutti i componenti devono funzionare perché la catena funzioni. Il guasto di un singolo componente blocca l\'intera catena.' },
+  par:   { term:'Topologia: parallelo', def:'Il sistema funziona anche se un componente è guasto. Riduzione di potenza/prestazioni, ma non blocco totale.' },
+  mista: { term:'Topologia: mista', def:'Combinazione serie e parallelo. Alcune componenti sono critiche (serie), altre ridondanti (parallelo).' },
+};
+const GLOSS_ORDER = ['m1','m2','m3','m4','m5','m6','tbo','status_ok','status_soon','status_due','serie','par','mista'];
+const TREE = [
+  { id:'fuel', name:'Alimentazione carburante', topo:'serie', icon:'ti-droplet', children:[
+    { id:'prefilter',   name:'Prefiltro carburante + separatore condensa', level:'M1', tip:'m1' },
+    { id:'fuel_filter', name:'Filtro carburante fine',                     level:'M1', tip:'m1' },
+    { id:'hp_pump',     name:'Pompa alta pressione (common rail)',          level:'M6', tip:'m6' },
+    { id:'hp_lines',    name:'Tubazioni AP + tubi di mandata',             level:'M6', tip:'m6' },
+    { id:'injectors',   name:'Iniettori common rail (×12)',                level:'M5', tip:'m5' },
+  ]},
+  { id:'combustion', name:'Combustione + manovellismi', topo:'parallelo', icon:'ti-flame', children:[
+    { id:'cylinders',  name:'Canne cilindro (×12)',        level:'M6', tip:'m6' },
+    { id:'pistons',    name:'Pistoni + segmenti (×12)',    level:'M6', tip:'m6' },
+    { id:'conrods',    name:'Bielle (×12)',                level:'M6', tip:'m6' },
+    { id:'crankshaft', name:'Albero motore + cuscinetti',  level:'M6', tip:'m6' },
+    { id:'damper',     name:'Smorzatore di vibrazioni',    level:'M6', tip:'m6' },
+  ]},
+  { id:'lube', name:'Lubrificazione', topo:'serie', icon:'ti-settings', children:[
+    { id:'engine_oil',    name:'Olio motore',                   level:'M1', tip:'m1' },
+    { id:'oil_filter',    name:'Filtro olio',                   level:'M1', tip:'m1' },
+    { id:'oil_pump',      name:'Pompe olio',                    level:'M6', tip:'m6' },
+    { id:'oil_radiator',  name:'Radiatore olio',                level:'M6', tip:'m6' },
+    { id:'oil_injectors', name:'Iniettori olio (raffr. pist.)', level:'M6', tip:'m6' },
+  ]},
+  { id:'cooling', name:'Raffreddamento', topo:'mista', icon:'ti-snowflake', children:[
+    { id:'impeller',       name:'Impeller pompa acqua mare',       level:'M1', tip:'m1' },
+    { id:'lr_pump',        name:'Pompa liquido raffreddamento',    level:'M5', tip:'m5' },
+    { id:'thermostats',    name:'Termostati',                      level:'M5', tip:'m5' },
+    { id:'heat_exchanger', name:'Piastre scambiatore di calore',   level:'M4', tip:'m4' },
+    { id:'intercooler',    name:'Intercooler',                     level:'M4', tip:'m4' },
+    { id:'coolant',        name:'Liquido raffreddamento',          level:'M4', tip:'m4' },
+    { id:'coolant_hoses',  name:'Tubi flessibili LR + acqua mare', level:'M4', tip:'m4' },
+  ]},
+  { id:'air', name:'Aspirazione + scarico', topo:'serie', icon:'ti-wind', children:[
+    { id:'air_filter', name:'Filtro dell\'aria', level:'M1', tip:'m1' },
+    { id:'turbo',      name:'Turbocompressore',  level:'M5', tip:'m5' },
+  ]},
+  { id:'dist', name:'Distribuzione (valve train)', topo:'serie', icon:'ti-rotate-clockwise', children:[
+    { id:'valves',         name:'Valvole + molle (×24 asp. + ×24 scar.)', level:'M2', tip:'m2' },
+    { id:'valve_train',    name:'Bilancieri + punterie + albero a camme',  level:'M6', tip:'m6' },
+    { id:'belt',           name:'Cinghia trapezoidale dentata',            level:'M5', tip:'m5' },
+    { id:'belt_tensioner', name:'Tendicinghia + rulli di rinvio',          level:'M5', tip:'m5' },
+  ]},
+  { id:'aux', name:'Ausiliari elettrici + diagnostica', topo:'parallelo', icon:'ti-bolt', children:[
+    { id:'edc',        name:'Centralina EDC + memoria diagnosi', level:'M1', tip:'m1' },
+    { id:'starter',    name:'Motorino di avviamento',            level:'M6', tip:'m6' },
+    { id:'alternator', name:'Alternatore trifase',               level:'M6', tip:'m6' },
+    { id:'mounts',     name:'Supporti elastici motore + cambio', level:'M5', tip:'m5' },
+  ]},
+];
+const TOPO_TIP = { serie:'serie', parallelo:'par', mista:'mista' };
+
+let mode = 'MD', hours = 3500;
+
+function interval(level, m) { return INTERVALS[m][level] || null; }
+function status(level, m, h) {
+  const iv = interval(level, m);
+  if(!iv) return { s:'ok', pct:0, res:0, iv:0, cyc:0 };
+  const cyc = Math.floor(h / iv);
+  const inf = h - cyc * iv;
+  const pct = (inf / iv) * 100;
+  return { s: pct>=100?'due':pct>=75?'soon':'ok', pct, res:iv-inf, iv, cyc };
+}
+function chainStatus(chain, m, h) {
+  let worst = 'ok';
+  chain.children.forEach(c => {
+    const s = status(c.level, m, h).s;
+    if(s==='due') worst='due'; else if(s==='soon'&&worst!=='due') worst='soon';
+  });
+  return worst;
+}
+
+/* Tooltip */
+const tooltip = document.getElementById('tooltipBox');
+function showTipKey(e, key) {
+  const d = TIPS[key]; if(!d) return;
+  let html = `<strong>${d.term}</strong>`;
+  if(d.acronym) html += `<div style="font-family:var(--font-mono);font-size:13px;color:var(--color-text-tertiary);margin-bottom:5px;">${d.acronym}</div>`;
+  html += `<div>${d.def}</div>`;
+  tooltip.innerHTML = html; tooltip.style.display='block'; moveTip(e);
+}
+function showCompTip(e, comp, m, h) {
+  const st = status(comp.level, m, h);
+  const d  = TIPS[comp.tip] || {};
+  let html = `<strong>${comp.name}</strong>`;
+  if(d.acronym) html += `<div style="font-family:var(--font-mono);font-size:13px;color:var(--color-text-tertiary);margin-bottom:5px;">${d.acronym}</div>`;
+  const col = st.s==='due'?'#C25151':st.s==='soon'?'#BA7517':'#1D9E75';
+  const lbl = st.s==='due'?'Da intervenire':st.s==='soon'?'In avvicinamento':'OK';
+  html += `<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:0.5px solid var(--color-border-tertiary);margin-top:4px;"><span style="color:var(--color-text-tertiary);">Stato</span><strong style="color:${col};">${lbl}</strong></div>`;
+  html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:3px;"><span style="color:var(--color-text-tertiary);">Soglia (${m})</span><span style="font-family:var(--font-mono);">${st.iv?st.iv+' h':'—'}</span></div>`;
+  if(st.s==='due') {
+    html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;"><span style="color:var(--color-text-tertiary);">Superamento</span><span style="font-family:var(--font-mono);color:#C25151;">+${Math.round(st.pct-100)}%</span></div>`;
+  } else if(st.iv) {
+    html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;"><span style="color:var(--color-text-tertiary);">Residua</span><span style="font-family:var(--font-mono);">${Math.round(st.res)} h (${Math.round(100-st.pct)}%)</span></div>`;
+  }
+  if(st.cyc>0) html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-top:2px;"><span style="color:var(--color-text-tertiary);">Cicli completati</span><span style="font-family:var(--font-mono);">${st.cyc}</span></div>`;
+  if(d.def) html += `<div style="margin-top:6px;padding-top:6px;border-top:0.5px solid var(--color-border-tertiary);font-size:13px;color:var(--color-text-tertiary);">${d.def}</div>`;
+  tooltip.innerHTML = html; tooltip.style.display='block'; moveTip(e);
+}
+function moveTip(e) {
+  const x=e.clientX+14, y=e.clientY-10, w=tooltip.offsetWidth, h=tooltip.offsetHeight;
+  tooltip.style.left=(x+w>window.innerWidth?x-w-28:x)+'px';
+  tooltip.style.top=(y+h>window.innerHeight?y-h:y)+'px';
+}
+function hideTip() { tooltip.style.display='none'; }
+
+/* Tree */
+function buildTree() {
+  const root = document.getElementById('treeRoot');
+  root.innerHTML = '';
+  let okC=0, soonC=0, dueC=0;
+  TREE.forEach(chain => {
+    const chainSt = chainStatus(chain, mode, hours);
+    if(chainSt==='ok') okC++; else if(chainSt==='soon') soonC++; else dueC++;
+    const node = document.createElement('div'); node.className='tree-node';
+    const row  = document.createElement('div');
+    row.className = `tree-row row-${chainSt}`;
+    const topoKey = TOPO_TIP[chain.topo]||'serie';
+    row.innerHTML = `
+      <span class="toggle-icon">▶</span>
+      <span class="status-dot dot-${chainSt}"></span>
+      <i class="ti ${chain.icon} node-system-icon"></i>
+      <span class="node-name" style="font-weight:500;">${chain.name}</span>
+      <span class="node-topo" data-tip="${topoKey}" style="cursor:help;">${chain.topo}</span>
+      <span class="node-interval" style="color:var(--color-text-tertiary);font-size:13px;">${chain.children.length} comp.</span>
+      <span style="width:60px;"></span><span style="width:8px;"></span>`;
+    const children = document.createElement('div'); children.className='tree-children';
+    chain.children.forEach(comp => {
+      const st = status(comp.level, mode, hours);
+      const fillColor = st.s==='due'?'#C25151':st.s==='soon'?'#BA7517':'#1D9E75';
+      const crow = document.createElement('div');
+      crow.className=`tree-row row-${st.s}`; crow.style.paddingLeft='4px';
+      crow.innerHTML=`
+        <span style="width:28px;flex-shrink:0;"></span>
+        <span class="status-dot dot-${st.s}"></span>
+        <span class="node-name child-name">${comp.name}</span>
+        <span class="node-level">${comp.level}</span>
+        <span class="node-interval">${st.iv?st.iv.toLocaleString('it-IT')+' h':'—'}</span>
+        <div class="progress-wrap"><div class="progress-fill" style="width:${Math.min(100,Math.round(st.pct))}%;background:${fillColor};"></div></div>
+        <span style="width:8px;flex-shrink:0;"></span>`;
+      crow.addEventListener('mouseenter', e=>showCompTip(e,comp,mode,hours));
+      crow.addEventListener('mousemove', moveTip);
+      crow.addEventListener('mouseleave', hideTip);
+      children.appendChild(crow);
+    });
+    row.addEventListener('click', ()=>{ const open=children.classList.toggle('open'); row.querySelector('.toggle-icon').classList.toggle('open',open); });
+    row.querySelector('[data-tip]')?.addEventListener('mouseenter', e=>{ e.stopPropagation(); showTipKey(e, e.currentTarget.dataset.tip); });
+    row.querySelector('[data-tip]')?.addEventListener('mousemove', moveTip);
+    row.querySelector('[data-tip]')?.addEventListener('mouseleave', hideTip);
+    node.appendChild(row); node.appendChild(children); root.appendChild(node);
+  });
+  const total = okC+soonC+dueC;
+  document.getElementById('cntOk').textContent   = okC;
+  document.getElementById('cntSoon').textContent = soonC;
+  document.getElementById('cntDue').textContent  = dueC;
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="seg-ok"   style="flex-basis:${(okC/total*100).toFixed(1)}%"></div>
+    <div class="seg-soon" style="flex-basis:${(soonC/total*100).toFixed(1)}%"></div>
+    <div class="seg-due"  style="flex-basis:${(dueC/total*100).toFixed(1)}%"></div>`;
+  const tbo = INTERVALS[mode].M6||12000;
+  document.getElementById('tboLeft').textContent = Math.max(0,tbo-hours).toLocaleString('it-IT');
+  document.getElementById('tboNote').textContent = `M6 ogni ${tbo.toLocaleString('it-IT')} h · ${mode}`;
+}
+
+document.getElementById('hSlider').addEventListener('input', e => {
+  if(e.target.disabled) return;
+  hours = parseInt(e.target.value);
+  document.getElementById('hOut').textContent = hours.toLocaleString('it-IT');
+  document.getElementById('live-note').style.display = 'none';
+  document.getElementById('live-indicator').style.display = 'none';
+  buildTree();
+});
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active'); mode=tab.dataset.mode; buildTree();
+  });
+});
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', e=>showTipKey(e, el.dataset.tip));
+  el.addEventListener('mousemove', moveTip);
+  el.addEventListener('mouseleave', hideTip);
+});
+
+/* Glossary */
+function buildGloss() {
+  const el = document.getElementById('glossContent');
+  GLOSS_ORDER.filter(k=>TIPS[k]).forEach(k => {
+    const d=TIPS[k];
+    let h=`<div class="gloss-entry"><div class="gloss-term">${d.term}</div>`;
+    if(d.acronym) h+=`<div class="gloss-acronym">${d.acronym}</div>`;
+    h+=`<div class="gloss-def">${d.def}</div></div>`;
+    el.innerHTML+=h;
+  });
+}
+function openGloss()  { document.getElementById('glossPanel').classList.add('open');    document.getElementById('glossBackdrop').classList.add('open'); }
+function closeGloss() { document.getElementById('glossPanel').classList.remove('open'); document.getElementById('glossBackdrop').classList.remove('open'); }
+document.getElementById('glossBackdrop').addEventListener('click', closeGloss);
+
+buildGloss();
+buildTree();
+
+/* ── LIVE DATA (socket.io) ── */
 const API_BASE_URL = "http://87.26.178.190:25080";
 const SOCKET_URL   = "http://localhost:5000";
+const SIM_CACHE_TTL_MS = 60 * 1000;
+const CLEANUP_INTERVAL_MS = 10 * 1000;
 
-function safeNumber(v) {
-    return (typeof v === "number" && isFinite(v)) ? v : null;
-}
+function safeNumber(v) { return (typeof v==="number"&&isFinite(v))?v:null; }
 
-/* =====================================================
-   URL FILTER (MMSI)
-===================================================== */
-const urlParams = new URLSearchParams(window.location.search);
-const allowedMMSI = new Set();
-
-if (urlParams.has("mmsi")) {
-    urlParams.getAll("mmsi").forEach(v => {
-        v.split(",").forEach(m => {
-            const t = m.trim();
-            if (t) allowedMMSI.add(t);
-        });
-    });
-}
-const filterEnabled = allowedMMSI.size > 0;
-
-/* =====================================================
-   STATE MANAGEMENT
-===================================================== */
-// Registry: Info statiche (Nome)
-const vesselRegistry = {}; 
-
-// Ships: Dati dinamici (Componenti) divisi per source
-const ships = {
-    real: {},
-    simulation: {}
-};
-
-let currentSelection = {
-    mmsi: null,
-    source: null
-};
-
-/* =====================================================
-   API CALLS
-===================================================== */
-async function fetchVesselList() {
-    try {
-        const res = await fetch(`${API_BASE_URL}/vascello/lista`);
-        return res.ok ? await res.json() : [];
-    } catch { return []; }
-}
-
-/* =====================================================
-   INITIALIZATION & PRELOAD
-===================================================== */
-async function preloadRegistry() {
-    const list = await fetchVesselList();
-    
-    list.forEach(item => {
-        const mmsi = String(item.mmsi || item.MMSI || item.id || "").trim();
-        if(!mmsi) return;
-
-        // Salviamo sempre il nome nel registry per tutti i vascelli
-        vesselRegistry[mmsi] = {
-            name: item.nome || item.name || null
-        };
-
-        // Popoliamo SEMPRE la lista REAL per tutti i vascelli della lista
-        ships.real[mmsi] = ships.real[mmsi] || { components: {} };
-    });
-    
-    renderList('real');
-
-    // LOGICA DI SELEZIONE INIZIALE
-    const realMMSIs = Object.keys(ships.real).sort();
-    
-    if (realMMSIs.length > 0) {
-        let targetMMSI = null;
-
-        if (filterEnabled) {
-            // Cerchiamo se il primo MMSI passato nei parametri esiste nella nostra lista
-            const firstParamMMSI = Array.from(allowedMMSI)[0];
-            if (ships.real[firstParamMMSI]) {
-                targetMMSI = firstParamMMSI;
-            }
-        }
-
-        // Se non c'è filtro o il filtro non ha prodotto risultati validi, prendiamo la prima
-        if (!targetMMSI) {
-            targetMMSI = realMMSIs[0];
-        }
-
-        selectShip(targetMMSI, 'real');
-    } else {
-        document.getElementById("empty-state").classList.remove("hidden");
+function parseMessageTimestampMs(msg) {
+  if(!msg || typeof msg !== 'object') return null;
+  const candidates = [
+    msg._received_at,
+    msg.timestamp,
+    msg.ts,
+    msg.event_ts,
+    msg.generated_at,
+    msg.created_at,
+    msg.time
+  ];
+  for(const value of candidates) {
+    if(value === null || value === undefined) continue;
+    if(typeof value === 'number' && isFinite(value)) {
+      return value > 10000000000 ? value : value * 1000;
     }
+    if(typeof value === 'string') {
+      const asNumber = Number(value);
+      if(!Number.isNaN(asNumber) && isFinite(asNumber)) {
+        return asNumber > 10000000000 ? asNumber : asNumber * 1000;
+      }
+      const asDate = Date.parse(value);
+      if(!Number.isNaN(asDate)) return asDate;
+    }
+  }
+  return null;
+}
+
+function isSimulationMessage(msg) {
+  const source = String(msg?.source || '').trim().toLowerCase();
+  return msg?.is_simulation === true || source.includes('simulation');
+}
+
+function getUsageSeconds(msg) {
+  return safeNumber(msg.usage_seconds_total) ?? safeNumber(msg.usage_s) ?? safeNumber(msg.usage_seconds) ?? safeNumber(msg.total_usage_seconds);
+}
+
+const vesselRegistry = {};
+const ships = { real:{}, simulation:{} };
+let currentSelection = { mmsi:null, source:null };
+const urlParams = new URLSearchParams(window.location.search);
+const requestedMmsi = String(urlParams.get('mmsi') || urlParams.get('id') || '').trim();
+
+function normalizeName(v) {
+  return String(v || '').trim().toUpperCase();
+}
+
+function isSirius(mmsi) {
+  const name = normalizeName(vesselRegistry[mmsi]?.name);
+  return name === 'SIRIUS' || name.includes('SIRIUS') || normalizeName(mmsi) === 'SIRIUS';
+}
+
+function setDashboardAvailability(available) {
+  document.getElementById('dashboardContent').style.display = available ? '' : 'none';
+  document.getElementById('unavailableState').style.display = available ? 'none' : 'flex';
+  document.getElementById('live-note').style.display = 'none';
+  document.getElementById('live-indicator').style.display = available ? document.getElementById('live-indicator').style.display : 'none';
+}
+
+function setSliderLocked(locked) {
+  const slider = document.getElementById('hSlider');
+  slider.disabled = !!locked;
+  slider.title = locked ? 'Durante la simulazione lo slider segue le ore motore effettive.' : '';
+}
+
+async function fetchVesselList() {
+  try { const r=await fetch(`${API_BASE_URL}/vascello/lista`); return r.ok?await r.json():[]; }
+  catch { return []; }
+}
+
+async function preloadRegistry() {
+  const list = await fetchVesselList();
+  const now = Date.now();
+  list.forEach(item => {
+    const mmsi = String(item.mmsi||item.MMSI||item.id||"").trim();
+    if(!mmsi) return;
+    vesselRegistry[mmsi] = { name: item.nome||item.name||null };
+    ships.real[mmsi] = ships.real[mmsi]||{ components:{}, lastUpdated:now };
+  });
+  renderList('real');
+  const keys = Object.keys(ships.real).sort();
+  const siriusMmsi = keys.find(mmsi => isSirius(mmsi));
+  if(requestedMmsi && ships.real[requestedMmsi]) selectShip(requestedMmsi,'real');
+  else if(requestedMmsi) {
+    ships.real[requestedMmsi] = ships.real[requestedMmsi] || { components:{} };
+    renderList('real');
+    selectShip(requestedMmsi,'real');
+  }
+  else if(siriusMmsi) selectShip(siriusMmsi,'real');
+  else if(keys.length>0) selectShip(keys[0],'real');
+}
+
+function getEngineHours(mmsi, source) {
+  const s = ships[source]?.[mmsi];
+  if(!s||!s.components) return null;
+  let maxS=0, maxName=null;
+  Object.entries(s.components).forEach(([name,c]) => {
+    const v=safeNumber(c.usage_s);
+    if(v!==null&&v>maxS){ maxS=v; maxName=name; }
+  });
+  return maxS>0 ? { hours:maxS/3600, component:maxName } : null;
+}
+
+function syncHours(mmsi, source) {
+  const result = getEngineHours(mmsi, source);
+  if(!result) return;
+  const h = Math.min(20000, Math.round(result.hours));
+  if(h===0) return;
+  hours = h;
+  document.getElementById('hSlider').value = h;
+  document.getElementById('hOut').textContent = h.toLocaleString('it-IT');
+  document.getElementById('live-note').textContent = `● live: ${result.component} — ${result.hours.toFixed(1)} h`;
+  document.getElementById('live-note').style.display = 'block';
+  document.getElementById('live-indicator').style.display = 'inline';
+  buildTree();
+}
+
+function updateVesselHeader(mmsi, source) {
+  const name = vesselRegistry[mmsi]?.name;
+  document.getElementById('vessel-name-display').textContent = name||mmsi;
+  document.getElementById('mmsi-display').textContent = name?`(${mmsi})`:'';
+  const badge = document.getElementById('source-badge');
+  badge.textContent = source==='real'?'REAL TIME':'SIMULATION';
+  badge.className = `badge-${source==='real'?'real':'sim'}`;
+  badge.style.display = 'inline-block';
+}
+
+function renderList(source) {
+  const el   = document.getElementById(source==='real'?'list-real':'list-sim');
+  const cntEl= document.getElementById(source==='real'?'count-real':'count-sim');
+  const data = ships[source];
+  const keys = Object.keys(data).sort();
+  cntEl.textContent = keys.length;
+  el.innerHTML = '';
+  keys.forEach(mmsi => {
+    const s = data[mmsi];
+    const sel = (mmsi===currentSelection.mmsi && source===currentSelection.source);
+    const name = vesselRegistry[mmsi]?.name;
+    let totS=0;
+    if(s.components) Object.values(s.components).forEach(c=>{ const v=safeNumber(c.usage_s); if(v) totS+=v; });
+    const div = document.createElement('div');
+    div.className = `ship-item${sel?(source==='real'?' sel-real':' sel-sim'):''}`;
+    div.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;">
+        <span style="font-weight:700;font-size:13px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name||mmsi}</span>
+        <span style="font-size:10px;color:#64748b;font-family:var(--font-mono);flex-shrink:0;">${name?`(${mmsi})`:''}</span>
+      </div>
+      <div style="font-size:10px;color:#64748b;margin-top:1px;">Tot: ${(totS/3600).toFixed(1)} h</div>`;
+    div.onclick = ()=>selectShip(mmsi,source);
+    el.appendChild(div);
+  });
+}
+
+function selectShip(mmsi, source) {
+  currentSelection = { mmsi, source };
+  renderList('real'); renderList('simulation');
+  updateVesselHeader(mmsi, source);
+  setSliderLocked(source === 'simulation');
+  const available = isSirius(mmsi);
+  setDashboardAvailability(available);
+  if(!available) return;
+  syncHours(mmsi, source);
 }
 
 preloadRegistry();
 
-/* =====================================================
-   RENDER LOGIC
-===================================================== */
-function renderList(source) {
-    const containerId = source === 'real' ? 'list-real' : 'list-sim';
-    const countId = source === 'real' ? 'count-real' : 'count-sim';
-    const listEl = document.getElementById(containerId);
-    
-    const sourceData = ships[source];
-    const keys = Object.keys(sourceData).sort();
-    
-    document.getElementById(countId).innerText = keys.length;
-    listEl.innerHTML = "";
-
-    keys.forEach(mmsi => {
-        const s = sourceData[mmsi];
-        const isSelected = (mmsi === currentSelection.mmsi && source === currentSelection.source);
-        
-        // Calcolo sommario ore totali
-        let totalSeconds = 0;
-        if (s.components) {
-            Object.values(s.components).forEach(c => {
-                const val = safeNumber(c.usage_s);
-                if (val !== null) totalSeconds += val;
-            });
-        }
-        const totalHours = (totalSeconds / 3600).toFixed(1);
-
-        // Risoluzione Nome
-        const regName = vesselRegistry[mmsi]?.name;
-        // Se c'è un nome, format: "NOME (MMSI)"
-        // Se non c'è, format: "MMSI"
-        const mainText = regName ? regName : mmsi;
-        const subText = regName ? `(${mmsi})` : "";
-
-        const el = document.createElement("div");
-        
-        // Styling Selezione
-        let activeClass = "";
-        if (isSelected) {
-            activeClass = source === 'real' 
-                ? "bg-blue-900/50 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.2)]" 
-                : "bg-purple-900/50 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.2)]";
-        } else {
-            activeClass = "bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-600";
-        }
-
-        el.className = `ship-item p-2 rounded cursor-pointer border mb-1 flex justify-between items-center ${activeClass}`;
-        
-        el.innerHTML = `
-            <div class="overflow-hidden min-w-0 pr-2">
-                <div class="truncate flex items-baseline gap-1.5">
-                    <span class="font-bold text-sm text-slate-200 truncate">${mainText}</span>
-                    <span class="text-[10px] text-slate-500 font-mono flex-shrink-0">${subText}</span>
-                </div>
-                <div class="text-[10px] text-slate-400">Total Usage: ${totalHours} h</div>
-            </div>
-        `;
-
-        el.onclick = () => selectShip(mmsi, source);
-        listEl.appendChild(el);
-    });
+function selectFallbackAfterSimulationRemoval() {
+  const realKeys = Object.keys(ships.real).sort();
+  const siriusMmsi = realKeys.find(mmsi => isSirius(mmsi));
+  if(siriusMmsi) selectShip(siriusMmsi, 'real');
+  else if(realKeys.length>0) selectShip(realKeys[0], 'real');
+  else {
+    currentSelection = { mmsi:null, source:null };
+    renderList('real'); renderList('simulation');
+    setSliderLocked(false);
+    setDashboardAvailability(false);
+  }
 }
 
-function updateComponentTable() {
-    const { mmsi, source } = currentSelection;
-    const tbody = document.getElementById("component-table");
-    const emptyState = document.getElementById("empty-state");
-
-    tbody.innerHTML = "";
-    
-    if (!mmsi || !ships[source] || !ships[source][mmsi]) {
-        document.getElementById("vessel-name-display").innerText = "--";
-        document.getElementById("mmsi-display").innerText = "(--)";
-        document.getElementById("source-badge").classList.add("hidden");
-        emptyState.classList.remove("hidden");
-        return;
+function cleanupSimulationCache() {
+  const now = Date.now();
+  let dirty = false;
+  Object.keys(ships.simulation).forEach(mmsi => {
+    const lastUpdated = ships.simulation[mmsi].lastUpdated || 0;
+    if(now - lastUpdated > SIM_CACHE_TTL_MS) {
+      delete ships.simulation[mmsi];
+      dirty = true;
+      if(currentSelection.mmsi===mmsi && currentSelection.source==='simulation') {
+        selectFallbackAfterSimulationRemoval();
+      }
     }
-
-    emptyState.classList.add("hidden");
-
-    // Aggiorna Header
-    const regName = vesselRegistry[mmsi]?.name;
-    document.getElementById("vessel-name-display").innerText = regName || mmsi;
-    document.getElementById("mmsi-display").innerText = regName ? `(${mmsi})` : "";
-    
-    // Aggiorna Badge
-    const badge = document.getElementById("source-badge");
-    badge.innerText = source === 'real' ? "REAL TIME" : "SIMULATION";
-    badge.className = `text-sm font-bold px-3 py-1 rounded uppercase tracking-wider ${source === 'real' ? 'badge-real' : 'badge-sim'}`;
-    badge.classList.remove("hidden");
-
-    // Aggiorna Tabella
-    const comps = ships[source][mmsi].components || {};
-    const componentNames = Object.keys(comps).sort();
-
-    if (componentNames.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">Nessun dato sui componenti ricevuto.</td></tr>`;
-        return;
-    }
-
-    componentNames.forEach(name => {
-        const c = comps[name];
-        const usageS = safeNumber(c.usage_s);
-        const active = !!c.active;
-
-        const usageH = usageS !== null ? (usageS / 3600).toFixed(2) : "--";
-        const usageM = usageS !== null ? Math.floor(usageS / 60).toString() : "--";
-        
-        // Status indicator
-        const statusHtml = active 
-            ? `<span class="inline-flex items-center gap-1.5 text-green-400 font-bold">
-                • ON</span>`
-            : `<span class="text-slate-500 font-bold">OFF</span>`;
-
-        const tr = document.createElement("tr");
-        tr.className = "hover:bg-slate-800/50 transition-colors";
-
-        tr.innerHTML = `
-            <td class="py-3 font-mono text-slate-300">${name}</td>
-            <td class="py-3 text-slate-200">${usageH}</td>
-            <td class="py-3 text-slate-400">${usageM}</td>
-            <td class="py-3">${statusHtml}</td>
-        `;
-
-        tbody.appendChild(tr);
-    });
+  });
+  if(dirty) renderList('simulation');
 }
 
-function selectShip(mmsi, source) {
-    currentSelection = { mmsi, source };
-    renderList('real');
-    renderList('simulation');
-    updateComponentTable();
-}
+setInterval(cleanupSimulationCache, CLEANUP_INTERVAL_MS);
 
-/* =====================================================
-   SOCKET HANDLER
-===================================================== */
 const socket = io(SOCKET_URL);
-
-socket.on("analytics_update", msg => {
-    // 1. Validazione & Filtro Tipo
-    if (!msg || msg.type !== "component_usage") return;
-
-    const mmsi = String(msg.mmsi || "");
-    const component = String(msg.component || "");
-    if (!mmsi || !component) return;
-
-    // 2. Filtro URL (Whitelist)
-    // if (filterEnabled && !allowedMMSI.has(mmsi)) return;
-
-    // 3. Determina Source
-    const source = (msg.source && msg.source.toLowerCase() === 'ais_simulation.raw') ? 'simulation' : 'real';
-
-    // 4. Aggiorna dati
-    const usageTotal = safeNumber(msg.usage_seconds_total);
-    const active = !!msg.active;
-
-    // Assicura esistenza record
-    if (!ships[source][mmsi]) {
-        ships[source][mmsi] = { components: {} };
-    }
-
-    // Se il nome arriva dal socket e non l'abbiamo nel registry, salviamolo
-    if (msg.vessel_name && (!vesselRegistry[mmsi] || !vesselRegistry[mmsi].name)) {
-        vesselRegistry[mmsi] = { name: msg.vessel_name };
-    }
-
-    // Salva componente
-    ships[source][mmsi].components[component] = {
-        usage_s: usageTotal,
-        active: active
-    };
-
-    // 5. Render
-    renderList(source);
-
-    // Aggiorna tabella se selezionato
-    if (currentSelection.mmsi === mmsi && currentSelection.source === source) {
-        updateComponentTable();
-    }
-    // Auto-selezione (Fallback se nulla selezionato)
-    else if (!currentSelection.mmsi) {
-        selectShip(mmsi, source);
-    }
+socket.on('analytics_update', msg => {
+  if(!msg||msg.type!=='component_usage') return;
+  const mmsi = String(msg.mmsi||'');
+  const comp = String(msg.component||'');
+  if(!mmsi||!comp) return;
+  const source = isSimulationMessage(msg) ? 'simulation' : 'real';
+  const msgTime = parseMessageTimestampMs(msg) || Date.now();
+  if(source==='simulation' && Date.now() - msgTime > SIM_CACHE_TTL_MS) return;
+  if(!ships[source][mmsi]) ships[source][mmsi]={ components:{} };
+  ships[source][mmsi].lastUpdated = msgTime;
+  if(msg.vessel_name&&(!vesselRegistry[mmsi]||!vesselRegistry[mmsi].name))
+    vesselRegistry[mmsi]={ name:msg.vessel_name };
+  ships[source][mmsi].components[comp] = { usage_s:getUsageSeconds(msg), active:!!msg.active };
+  renderList(source);
+  if(currentSelection.mmsi===mmsi&&currentSelection.source===source) {
+    updateVesselHeader(mmsi,source);
+    const available = isSirius(mmsi);
+    setDashboardAvailability(available);
+    if(available) syncHours(mmsi,source);
+  } else if(!currentSelection.mmsi) {
+    selectShip(mmsi,source);
+  }
 });
-
 </script>
-
 </body>
 </html>

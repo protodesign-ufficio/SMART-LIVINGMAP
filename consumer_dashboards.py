@@ -12,6 +12,7 @@ import time
 BOOTSTRAP_SERVERS = "87.26.178.190:29092"
 ANALYTICS_TOPIC = "analytics_ais.raw"
 DELTA_ETA_SIM_TTL_SEC = 60
+COMPONENT_USAGE_SIM_TTL_SEC = 60
 
 # ----------------------------------------------------
 # APP
@@ -21,6 +22,12 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 def log(msg):
     print(f"[ConsumerDashboard] {msg}", flush=True)
+
+
+def _with_received_at(data: dict, received_at: float) -> dict:
+    msg = dict(data or {})
+    msg["_received_at"] = received_at
+    return msg
 
 # ----------------------------------------------------
 # STATE (CACHE IN MEMORIA)
@@ -34,9 +41,9 @@ STATE = {
 
 def _is_simulation_msg(data: dict) -> bool:
     source = str(data.get("source", "")).strip().lower()
-    if source == "simulation":
+    if data.get("is_simulation") is True:
         return True
-    return data.get("is_simulation") is True
+    return "simulation" in source
 
 
 def purge_stale_delta_eta() -> None:
@@ -58,6 +65,34 @@ def purge_stale_delta_eta() -> None:
 
     for mmsi in to_delete:
         STATE["delta_eta"].pop(mmsi, None)
+
+
+def purge_stale_component_usage() -> None:
+    now = time.time()
+    empty_mmsi = []
+
+    for mmsi, comps in STATE["component_usage"].items():
+        stale_comps = []
+        for comp, entry in comps.items():
+            if isinstance(entry, dict) and "data" in entry:
+                data = entry.get("data") or {}
+                received_at = float(entry.get("received_at") or 0)
+            else:
+                # Old cache entries did not have timestamps; drop simulated ones.
+                data = entry or {}
+                received_at = 0
+
+            if _is_simulation_msg(data):
+                if received_at <= 0 or (now - received_at) > COMPONENT_USAGE_SIM_TTL_SEC:
+                    stale_comps.append(comp)
+
+        for comp in stale_comps:
+            comps.pop(comp, None)
+        if not comps:
+            empty_mmsi.append(mmsi)
+
+    for mmsi in empty_mmsi:
+        STATE["component_usage"].pop(mmsi, None)
 
 # ----------------------------------------------------
 # KAFKA LOOP
@@ -100,12 +135,16 @@ def kafka_loop():
             mmsi = data.get("mmsi")
             comp = data.get("component")
             if mmsi and comp:
-                STATE["component_usage"].setdefault(mmsi, {})[comp] = data
+                STATE["component_usage"].setdefault(mmsi, {})[comp] = {
+                    "data": data,
+                    "received_at": time.time(),
+                }
+                purge_stale_component_usage()
 
         # -------------------------
         # LIVE PUSH
         # -------------------------
-        socketio.emit("analytics_update", data)
+        socketio.emit("analytics_update", _with_received_at(data, time.time()))
         # log(f"sent → {data}")
 
 # ----------------------------------------------------
@@ -116,10 +155,14 @@ def on_connect():
     log("Client connected → replaying state as analytics_update")
 
     purge_stale_delta_eta()
+    purge_stale_component_usage()
 
     # delta_eta
     for entry in STATE["delta_eta"].values():
-        msg = entry.get("data") if isinstance(entry, dict) and "data" in entry else entry
+        if isinstance(entry, dict) and "data" in entry:
+            msg = _with_received_at(entry.get("data"), float(entry.get("received_at") or time.time()))
+        else:
+            msg = entry
         socketio.emit("analytics_update", msg)
 
     # berth_incoming
@@ -128,7 +171,11 @@ def on_connect():
 
     # component_usage
     for comps in STATE["component_usage"].values():
-        for msg in comps.values():
+        for entry in comps.values():
+            if isinstance(entry, dict) and "data" in entry:
+                msg = _with_received_at(entry.get("data"), float(entry.get("received_at") or time.time()))
+            else:
+                msg = entry
             socketio.emit("analytics_update", msg)
 
 

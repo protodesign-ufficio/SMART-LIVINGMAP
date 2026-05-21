@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor Vascello AIS</title>
+    <title>Monitor Vascelli</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -45,7 +45,7 @@
 
     <!-- HEADER -->
     <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">Monitor Vascello AIS</span>
+        <span class="text-blue-400">Monitor Vascelli</span>
     </div>
 
     <div class="space-x-6 flex flex-1 gap-6 overflow-hidden">
@@ -181,7 +181,7 @@
 ===================================================== */
 const API_BASE_URL = "http://87.26.178.190:25080";
 const SOCKET_URL   = "http://localhost:5000";
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 min: scadenza cache navi simulate
+const CACHE_TTL_MS = 60 * 1000; // scadenza cache navi simulate
 const CLEANUP_INTERVAL_MS = 10 * 1000;
 
 /* =====================================================
@@ -611,7 +611,8 @@ socket.on("analytics_update", msg => {
     const mmsi = String(msg.mmsi);
     const delta = safeNumber(msg.delta_min);
     
-    const source = (msg.source && msg.source.toLowerCase() === 'simulation') ? 'simulation' : 'real';
+    const msgSource = msg.source ? msg.source.toLowerCase() : '';
+    const source = ['simulation', 'ais_simulation.raw'].includes(msgSource) ? 'simulation' : 'real';
 
     const shipRecord = ensureShipRecord(mmsi, source);
 

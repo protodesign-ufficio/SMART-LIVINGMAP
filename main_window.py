@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from PyQt5.QtCore import QUrl, QTimer, QVariant, QObject, pyqtSlot
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineSettings, QWebEngineProfile
 from PyQt5.QtWebEngineCore import QWebEngineUrlRequestInterceptor
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtWidgets import (
@@ -221,6 +221,7 @@ class MainWindow(QMainWindow):
         self._popup_dialogs: list = []
         self._dashboard_dialogs: list = []
         self._dashboard_views: list = []
+        self._dashboard_profiles: list = []
 
         self._build_ui()
         self._setup_web_view()
@@ -417,6 +418,8 @@ class MainWindow(QMainWindow):
 
             base = str((Path(__file__).parent / page_path).resolve())
             url = QUrl.fromLocalFile(base)
+            url.setQuery(f"_cb={int(time.time() * 1000)}")
+            print(f"[main_window] loading dashboard: {url.toString()}", flush=True)
 
             if query:
                 from urllib.parse import urlencode
@@ -424,7 +427,7 @@ class MainWindow(QMainWindow):
                 if frag:
                     url.setFragment(f"{frag}?{qstr}" if "?" not in frag else f"{frag}&{qstr}")
                 else:
-                    url.setQuery(qstr)
+                    url.setQuery(f"{url.query()}&{qstr}" if url.query() else qstr)
             elif frag:
                 url.setFragment(frag)
 
@@ -434,9 +437,22 @@ class MainWindow(QMainWindow):
             layout = QVBoxLayout(dlg)
 
             view = QWebEngineView(dlg)
-            # Share the profile (and therefore the interceptor) with the main view
-            page = QWebEnginePage(self.view.page().profile(), view)
+            profile = QWebEngineProfile(f"dashboard-{int(time.time() * 1000)}", view)
+            try:
+                profile.setHttpCacheType(QWebEngineProfile.NoCache)
+                profile.setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
+                profile.clearHttpCache()
+            except Exception:
+                pass
+            try:
+                profile.setUrlRequestInterceptor(self._interceptor)
+            except Exception:
+                pass
+            page = QWebEnginePage(profile, view)
             view.setPage(page)
+            settings = view.page().settings()
+            settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+            settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
             layout.addWidget(view)
 
             try:
@@ -451,6 +467,7 @@ class MainWindow(QMainWindow):
             # Keep references alive
             self._dashboard_dialogs.append(dlg)
             self._dashboard_views.append(view)
+            self._dashboard_profiles.append(profile)
 
         except Exception as exc:
             print(f"[main_window] open_dashboard_embedded error: {exc}", flush=True)

@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Analytics</title>
+  <title>Dashboard Analytics · v2026-05-20-ui-refresh</title>
   <script src="https://cdn.tailwindcss.com"></script>
     <style>
     /* Rimuove outline e bordi focus */
@@ -34,33 +34,29 @@
       
       <button data-route="/componenti"
         class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Utilizzo Componenti
+        Monitor Componenti
       </button>
 
       <button data-route="/porto"
         class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Monitor Porto AIS
+        Monitor Banchine
       </button>
 
       <button data-route="/vascello"
         class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Monitor Vascello AIS
+        Monitor Vascelli
       </button>
 
       <button data-route="/previsione_domanda"
         class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Previsione Vendite
+        Monitor Vendite
       </button>
 
       <button data-route="/modello_consumo"
         class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Modello Consumo
+        Monitor Consumi
       </button>
 
-      <button data-route="/componenti_new"
-        class="nav-btn w-full text-left pl-6 pr-4 py-4 text-sm font-bold rounded-xl transition-all duration-200">
-        Componenti New
-      </button>
     </nav>
     
   </aside>
@@ -79,7 +75,6 @@ const ROUTE_MAP = {
   "/vascello":      "vascello.html",
   "/previsione_domanda": "previsione_domanda.html",
   "/modello_consumo": "modello_consumo.html",
-  "/componenti_new": "componenti_new.html"
 };
 
 function parseHash() {
@@ -92,12 +87,11 @@ function loadFromHash() {
   const { route, query } = parseHash();
   const validRoute = ROUTE_MAP[route] ? route : "/componenti";
   const page = ROUTE_MAP[validRoute];
-  const src  = query ? `${page}?${query}` : page;
+  const cacheBust = `_cb=${Date.now()}`;
+  const src  = query ? `${page}?${query}&${cacheBust}` : `${page}?${cacheBust}`;
 
   const iframe = document.getElementById("content");
-  if (!iframe.src.includes(src)) {
-      iframe.src = src;
-  }
+  iframe.src = src;
   
   highlight(validRoute);
 }
@@ -130,7 +124,12 @@ function highlight(activeRoute) {
 document.querySelectorAll(".nav-btn").forEach(btn => {
   btn.onclick = () => {
     const { query } = parseHash();
-    location.hash = btn.dataset.route + (query ? `?${query}` : "");
+    const nextHash = btn.dataset.route + (query ? `?${query}` : "");
+    if (location.hash.slice(1) === nextHash) {
+      loadFromHash();
+    } else {
+      location.hash = nextHash;
+    }
   };
 });
 
