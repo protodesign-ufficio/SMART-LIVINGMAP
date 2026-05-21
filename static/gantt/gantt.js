@@ -351,14 +351,18 @@ function renderGantt() {
 
     state.corse.forEach(corsa => {
         const row = document.createElement('div');
-        row.className = 'flex h-12 border-b border-slate-800/50 hover:bg-slate-900/50 transition-colors group relative min-w-max';
+        row.className = 'flex h-16 border-b border-slate-800/50 hover:bg-slate-900/50 transition-colors group relative min-w-max';
         
         // Colonna Nome Corsa (Sticky)
         const label = document.createElement('div');
         label.className = 'w-64 shrink-0 border-r border-slate-800 flex flex-col justify-center px-4 truncate bg-slate-950 z-20 sticky left-0 border-b border-slate-900 shadow-[2px_0_5px_rgba(0,0,0,0.3)]';
+        const previsione = corsa.previsione || {};
+        const confMin = previsione.confidenza_min !== undefined && previsione.confidenza_min !== null ? previsione.confidenza_min : 'N/A';
+        const confMax = previsione.confidenza_max !== undefined && previsione.confidenza_max !== null ? previsione.confidenza_max : 'N/A';
         label.innerHTML = `
-            <div class="text-sm font-medium text-slate-300 truncate">${corsa.tratta || 'N/A'} - ${corsa.orario || 'N/A'} ➜ ${corsa.orario_arrivo_max || 'N/A'}</div>
-            <div class="text-xs text-slate-500">${corsa.nome || corsa.tratta_nome || 'N/A'}</div>
+            <div class="text-lg font-medium text-slate-300 truncate">${corsa.tratta || 'N/A'} - ${corsa.orario || 'N/A'} ➜ ${corsa.orario_arrivo_max || 'N/A'}</div>
+            <!-- <div class="text-xs text-slate-500">${corsa.nome || corsa.tratta_nome || 'N/A'}</div> -->
+            <div class="text-s text-slate-400 truncate">Passeggeri stimati: ${confMin} - ${confMax}</div>
         `;
         row.appendChild(label);
 
@@ -413,7 +417,7 @@ function renderGantt() {
                 const bar = document.createElement('div');
                 
                 // Determina classi stile base
-                let baseClasses = `absolute h-8 top-2 rounded px-2 flex items-center shadow-lg text-xs font-bold whitespace-nowrap overflow-hidden task-bar`;
+                let baseClasses = `absolute h-10 top-3 rounded px-2 flex items-center shadow-lg text-s font-bold whitespace-nowrap overflow-hidden task-bar`;
                 
                 // Gestione stile Virtuale vs Reale
                 const isVirtual = assigned.virtuale === true;
@@ -523,7 +527,7 @@ function renderGantt() {
             const timeParts = parseTime(corsa.orario);
             if (timeParts) {
                 const bar = document.createElement('div');
-                bar.className = 'absolute h-8 top-2 rounded px-2 flex items-center border border-red-500 bg-red-500/20 text-red-400 text-xs font-bold whitespace-nowrap overflow-hidden task-bar status-unassigned';
+                bar.className = 'absolute h-10 top-3 rounded px-2 flex items-center border border-red-500 bg-red-500/20 text-red-400 text-s font-bold whitespace-nowrap overflow-hidden task-bar status-unassigned';
                 // Default 1h duration visual hint or calc based on orario_arrivo_max
                 let duration = 60;
                 if (corsa.orario_arrivo_max) {
@@ -557,13 +561,30 @@ function renderGantt() {
     });
 }
 
+function formatPercent(value) {
+    if (value === undefined || value === null || value === '') return 'N/A';
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return 'N/A';
+    return `${Math.round(numericValue * 100)}%`;
+}
+
 // --- Modal & Interaction ---
 
 async function openCorsaModal(corsaId) {
     state.activeModalCorsaId = corsaId;
     const modal = document.getElementById('modal-percorso');
+    const modalTitle = document.getElementById('modal-percorso-title');
+    const modalSubtitle = document.getElementById('modal-percorso-subtitle');
     const tbody = document.getElementById('modal-percorsi-list');
-    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center"><div class="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full mx-auto"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center"><div class="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full mx-auto"></div></td></tr>';
+
+    const currentCorsa = state.corse.find(c => c.id === corsaId);
+    const corsaName = currentCorsa ? `${currentCorsa.tratta || 'N/A'} - ${currentCorsa.orario || 'N/A'}` : 'Corsa selezionata';
+    const previsione = currentCorsa && currentCorsa.previsione ? currentCorsa.previsione : null;
+    const paxMin = previsione && previsione.confidenza_min !== undefined && previsione.confidenza_min !== null ? previsione.confidenza_min : 'N/A';
+    const paxMax = previsione && previsione.confidenza_max !== undefined && previsione.confidenza_max !== null ? previsione.confidenza_max : 'N/A';
+
+    if (modalTitle) modalTitle.textContent = `Seleziona Percorso: ${corsaName} · Passeggeri stimati: ${paxMin} - ${paxMax}`;
     
     modal.classList.remove('hidden');
 
@@ -594,11 +615,12 @@ async function openCorsaModal(corsaId) {
         const dataCompat = await resCompat.json(); // { corsa_id, percorsi_compatibili: [...] }
 
         const percorsi = dataAll.percorsi || [];
+        const percorsiCompatibili = dataCompat.percorsi_compatibili || [];
         const compatibiliIds = new Set((dataCompat.percorsi_compatibili || []).map(p => p.percorso_id));
+        const compatibiliByPercorsoId = new Map(
+            percorsiCompatibili.map(p => [p.percorso_id, p])
+        );
 
-        // Recupera la Corsa corrente per prendere l'orario di partenza
-        const currentCorsa = state.corse.find(c => c.id === corsaId);
-        
         tbody.innerHTML = '';
         
         percorsi.forEach(p => {
@@ -628,6 +650,11 @@ async function openCorsaModal(corsaId) {
             
             const vascello = state.vascelli[p.vascello_id];
             const nomeVascello = vascello ? vascello.nome : p.vascello_id;
+            const rischioOperativo = formatPercent(
+                p.rischio_operativo !== undefined && p.rischio_operativo !== null
+                    ? p.rischio_operativo
+                    : compatibiliByPercorsoId.get(p.id)?.rischio_operativo
+            );
 
             tr.innerHTML = `
                 <td class="px-4 py-3 font-medium text-white">${nomeVascello}</td>
@@ -635,6 +662,7 @@ async function openCorsaModal(corsaId) {
                     ${formatTimeStr(p.orario_partenza_schedulato)} <span class="text-slate-500">➜</span> ${formatTimeStr(p.orario_arrivo_previsto)}
                 </td>
                 <td class="px-4 py-3">${Math.round(p._derivedDuration || 0)} min</td>
+                <td class="px-4 py-3">${rischioOperativo}</td>
                 <td class="px-4 py-3">${p.consumo || '-'} L</td>
                 <td class="px-4 py-3">${p.comfort || '-'}</td>
                 <td class="px-4 py-3 space-x-2">
@@ -679,7 +707,7 @@ async function openCorsaModal(corsaId) {
 
     } catch (e) {
         console.error('Error fetching percorsi', e);
-        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-red-400">Errore caricamento percorsi</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-4 text-center text-red-400">Errore caricamento percorsi</td></tr>';
     }
 }
 

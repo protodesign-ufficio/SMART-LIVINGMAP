@@ -22,6 +22,12 @@
     currents: false
   };
 
+  // Stato caricamento per bloccare i bottoni durante le fetch
+  const loadingLayers = {
+    waves: false,
+    currents: false
+  };
+
   // Sorgente dati attiva: 'live' o 'route'
   const layerSource = {
     waves: null,
@@ -171,6 +177,39 @@
     return 'rgb(' + c.r + ',' + c.g + ',' + c.b + ')';
   }
 
+  // ---------- Scale visiva (barra verticale) ----------
+  function buildGradientCSS(scaleArray) {
+    // scaleArray: [{stop, r,g,b}, ...]
+    var stops = scaleArray.map(function(s) {
+      return 'rgb(' + s.r + ',' + s.g + ',' + s.b + ') ' + Math.round(s.stop * 100) + '%';
+    });
+    return 'linear-gradient(to top, ' + stops.join(', ') + ')';
+  }
+
+  function updateScaleDisplay(layerType, minVal, maxVal) {
+    var el = document.getElementById('weather-scale');
+    var grad = document.getElementById('scale-gradient');
+    var lblMax = document.getElementById('scale-max');
+    var lblMin = document.getElementById('scale-min');
+    if (!el || !grad || !lblMax || !lblMin) return;
+    var scaleArray = (layerType === 'currents') ? currentsColorScale : wavesColorScale;
+    var unit = layerType === 'currents' ? ' m/s' : ' m';
+    // build gradient based on color scale
+    grad.style.background = buildGradientCSS(scaleArray);
+    // set labels (format numbers nicely)
+    lblMax.textContent = (typeof maxVal === 'number') ? Number(maxVal).toLocaleString('it-IT') + unit : (maxVal || '—');
+    lblMin.textContent = (typeof minVal === 'number') ? Number(minVal).toLocaleString('it-IT') + unit : (minVal || '—');
+    el.classList.remove('hidden');
+    el.setAttribute('aria-hidden', 'false');
+  }
+
+  function hideScaleDisplay() {
+    var el = document.getElementById('weather-scale');
+    if (!el) return;
+    el.classList.add('hidden');
+    el.setAttribute('aria-hidden', 'true');
+  }
+
   // ---------- Dimensioni frecce ----------
 
   var MIN_ARROW_SCALE = 0.8;  // scala minima (80%)
@@ -306,9 +345,14 @@
       timestamp: timestamp,
       scenarioName: scenarioName || null,
       cacheKey: weatherData.cache_key || null
+      , minVal: minVal
+      , maxVal: maxVal
     };
     weatherInfoExpanded = false;
     if (weatherInfoControl) weatherInfoControl.update();
+
+    // update vertical color scale
+    try { updateScaleDisplay(layerType, minVal, maxVal); } catch(e) { console.warn('weatherManager: updateScaleDisplay failed', e); }
 
     // Aggiorna stato bottone
     updateButtonState(layerType, true);
@@ -491,6 +535,8 @@
     weatherInfoExpanded = false;
     if (weatherInfoControl) weatherInfoControl.update();
     updateButtonState(layerType, false);
+    // hide scale when layer removed
+    try { hideScaleDisplay(); } catch(e) {}
   }
 
   function clearAllWeather() {
@@ -502,29 +548,34 @@
 
   // ---------- UI bottoni ----------
 
+  function syncWeatherButtons() {
+    var busy = loadingLayers.waves || loadingLayers.currents;
+    ['waves', 'currents'].forEach(function(type) {
+      var btnId = type === 'waves' ? 'btn-weather-waves' : 'btn-weather-currents';
+      var btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.disabled = busy;
+      btn.classList.toggle('loading', loadingLayers[type]);
+    });
+  }
+
   function setButtonLoading(layerType, isLoading) {
-    var btnId = layerType === 'waves' ? 'btn-weather-waves' : 'btn-weather-currents';
-    var btn = document.getElementById(btnId);
-    if (btn) {
-      if (isLoading) {
-        btn.classList.add('loading');
-      } else {
-        btn.classList.remove('loading');
-      }
-    }
+    loadingLayers[layerType] = !!isLoading;
+    syncWeatherButtons();
   }
 
   function updateButtonState(layerType, active) {
+    loadingLayers[layerType] = false;
     var btnId = layerType === 'waves' ? 'btn-weather-waves' : 'btn-weather-currents';
     var btn = document.getElementById(btnId);
     if (btn) {
-      btn.classList.remove('loading');
       if (active) {
         btn.classList.add('active');
       } else {
         btn.classList.remove('active');
       }
     }
+    syncWeatherButtons();
   }
 
   // ---------- Esponi API globale ----------

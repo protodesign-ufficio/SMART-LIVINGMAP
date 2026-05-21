@@ -38,6 +38,30 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
+
+        .tooltip-box {
+            position: fixed;
+            z-index: 9999;
+            background: var(--color-background-primary, #1e293b);
+            border: 0.5px solid var(--color-border-secondary, #334155);
+            border-radius: var(--border-radius-md, 0.5rem);
+            padding: 10px 13px;
+            max-width: 320px;
+            pointer-events: none;
+            display: none;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--color-text-secondary, #94a3b8);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        }
+
+        .tooltip-box strong {
+            display: block;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--color-text-primary, #e2e8f0);
+            margin-bottom: 4px;
+        }
         
         /* Scrollbar styling */
         ::-webkit-scrollbar {
@@ -68,6 +92,8 @@
 <body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
 
 <div class="flex flex-col gap-6 w-full h-full">
+
+    <div id="tooltipBox" class="tooltip-box" aria-hidden="true"></div>
 
 
     <!-- HEADER -->
@@ -111,7 +137,7 @@
                     </div>
 
                     <div>
-                        <label class="text-xs text-slate-400 uppercase">Meteo previsto</label>
+                        <label id="meteo-label" class="text-xs text-slate-400 uppercase underline decoration-dotted underline-offset-4 cursor-help">Meteo previsto</label>
                         <div id="meteo_info"
                              class="p-2 rounded bg-slate-800 border border-slate-600">
                             -
@@ -225,6 +251,43 @@ const BACKEND = "http://87.26.178.190:25080";
 
 let selectedCorsaId = null; // Questo ora conterrà l'UUID
 let corseDelGiorno = [];
+
+const tooltip = document.getElementById("tooltipBox");
+const meteoLabel = document.getElementById("meteo-label");
+
+function showTooltip(e, html) {
+    if (!tooltip) return;
+    tooltip.innerHTML = html;
+    tooltip.style.display = "block";
+    moveTooltip(e);
+    tooltip.setAttribute("aria-hidden", "false");
+}
+
+function moveTooltip(e) {
+    if (!tooltip) return;
+    const x = e.clientX + 14;
+    const y = e.clientY - 10;
+    const w = tooltip.offsetWidth;
+    const h = tooltip.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    tooltip.style.left = (x + w > vw ? x - w - 28 : x) + "px";
+    tooltip.style.top = (y + h > vh ? y - h : y) + "px";
+}
+
+function hideTooltip() {
+    if (!tooltip) return;
+    tooltip.style.display = "none";
+    tooltip.setAttribute("aria-hidden", "true");
+}
+
+if (meteoLabel) {
+    meteoLabel.addEventListener("mouseenter", e => {
+        showTooltip(e, '<strong>Dati meteo prelevati da:</strong><div>"Open-Meteo.com"</div>');
+    });
+    meteoLabel.addEventListener("mousemove", moveTooltip);
+    meteoLabel.addEventListener("mouseleave", hideTooltip);
+}
 
 /////////////////////////////////////////////
 // 0. DATA MINIMA / DEFAULT = OGGI (SE NO URL)

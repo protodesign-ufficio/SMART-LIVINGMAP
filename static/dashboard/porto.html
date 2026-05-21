@@ -53,11 +53,8 @@
                 <div class="text-xs text-slate-400 uppercase">Porto Selezionato</div>
                 <div id="port-name" class="text-lg font-bold text-blue-300">--</div>
 
-                <div class="text-xs text-slate-400 uppercase">Latitudine</div>
-                <div id="port-lat" class="text-lg font-bold text-green-400">--</div>
-
-                <div class="text-xs text-slate-400 uppercase">Longitudine</div>
-                <div id="port-lon" class="text-lg font-bold text-green-400">--</div>
+                <div class="text-xs text-slate-400 uppercase">Posizione</div>
+                <div id="port-position" class="text-lg font-bold text-green-400">--</div>
 
                 <div class="text-xs text-slate-400 uppercase">Finestra Temporale (min)</div>
                 <div id="window-min" class="text-lg font-bold text-purple-300">--</div>
@@ -264,7 +261,7 @@ function renderList() {
 
 function updateInfo() {
     if (!selectedPort || !ports[selectedPort]) {
-        ["port-name","port-lat","port-lon","window-min","incoming-total","incoming-real","incoming-sim"]
+        ["port-name","port-position","window-min","incoming-total","incoming-real","incoming-sim"]
             .forEach(id => document.getElementById(id).innerText = "--");
         return;
     }
@@ -279,8 +276,16 @@ function updateInfo() {
     document.getElementById("incoming-sim").innerText = p.last_sim;
 
     if (p.details) {
-        document.getElementById("port-lat").innerText = p.details.lat?.toFixed(4) || "--";
-        document.getElementById("port-lon").innerText = p.details.lon?.toFixed(4) || "--";
+        const lat = p.details.lat;
+        const lon = p.details.lon;
+        const formatCoord = value => (typeof value === 'number' ? value.toFixed(4).replace('.', ',') : null);
+        const latText = formatCoord(lat);
+        const lonText = formatCoord(lon);
+        const latDir = typeof lat === 'number' ? (lat >= 0 ? 'N' : 'S') : '';
+        const lonDir = typeof lon === 'number' ? (lon >= 0 ? 'E' : 'W') : '';
+        document.getElementById("port-position").innerText = latText && lonText
+            ? `${latText}° ${latDir}, ${lonText}° ${lonDir}`
+            : "--";
     }
 }
 
