@@ -1,6 +1,14 @@
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+* { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
 :root {
   --color-background-page: #0f172a;
   --color-background-primary: #1e293b;
@@ -19,24 +27,96 @@ html, body {
   background: var(--color-background-page);
   color: var(--color-text-primary);
   font-family: 'Segoe UI', sans-serif;
-  min-height: 100%;
+  height: 100%;
+}
+body { display: flex; overflow: hidden; }
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #0a1120;
+  border-right: 0.5px solid #334155;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px;
+  border-bottom: 0.5px solid #334155;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+.sidebar-section {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sidebar-section + .sidebar-section { border-top: 0.5px solid #334155; }
+.sidebar-section-head {
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 0.5px solid #1e293b;
+  flex-shrink: 0;
+}
+.sidebar-list { flex: 1; overflow-y: auto; padding: 6px; }
+.ship-item {
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #334155;
+  background: #1e293b;
+  margin-bottom: 4px;
+  transition: all 0.15s;
+}
+.ship-item:hover { background: #263348; }
+.ship-item.sel-real { background: rgba(30,58,138,0.45); border-color: #3b82f6; }
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.vessel-bar {
+  flex-shrink: 0;
+  background: #1e293b;
+  border-bottom: 0.5px solid #334155;
+  padding: 9px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 .page-shell {
-  min-height: 100vh;
   padding: 24px;
 }
 .page-main {
-  width: min(1500px, 100%);
-  margin: 0 auto;
-  /* padding: 0 24px 2rem; */
-  /* border-left: 1px solid var(--color-border-secondary); */
-  /* border-right: 1px solid var(--color-border-secondary); */
+  width: 100%;
+  max-width: 1500px;
+  margin: 0;
 }
 .section-label {
   font-size: 20px; font-weight: 600; letter-spacing: 0.0em; 
   text-transform: capitalize; color: var(--color-text-primary);
   margin-bottom: 10px; padding-bottom: 6px;
   border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: 0;
+  margin-bottom: 18px;
 }
 .card {
   background: var(--color-background-primary);
@@ -50,7 +130,7 @@ html, body {
   border: 1px solid transparent;
 }
 .metric-block:hover { border-color: var(--color-border-secondary); }
-.metric-label { font-size: 14px; color: var(--color-text-tertiary); margin-bottom: 3px; }
+.metric-label { font-size: 13px; color: var(--color-text-tertiary); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .metric-value { font-size: 26px; font-weight: 600; color: var(--color-text-primary); line-height: 1.2; }
 .metric-unit { font-size: 16px; color: var(--color-text-secondary); margin-left: 3px; }
 .metric-sub { font-size: 14px; color: var(--color-text-tertiary); margin-top: 2px; }
@@ -64,10 +144,28 @@ html, body {
 .prop-row:hover { background: var(--color-background-secondary); margin: 0 -4px; padding: 5px 4px; border-radius: 4px; }
 .prop-key { color: var(--color-text-secondary); }
 .prop-val { color: var(--color-text-primary); font-weight: 500; }
-.slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.slider-row label { font-size: 17px; color: var(--color-text-secondary); white-space: nowrap; }
-.slider-row input { flex: 1; }
-.slider-val { font-size: 24px; font-weight: 600; color: var(--color-text-primary); min-width: 70px; text-align: right; }
+.slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: nowrap; }
+.slider-row label { font-size: 15px; color: var(--color-text-secondary); white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.slider-val { font-size: 22px; font-weight: 600; color: var(--color-text-primary); min-width: 90px; text-align: right; flex-shrink: 0; }
+input[type=range] {
+  flex: 1; min-width: 0;
+  -webkit-appearance: none; appearance: none;
+  height: 4px; border-radius: 2px;
+  background: #334155; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #334155; }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px;
+  border-radius: 50%; background: #3b82f6; cursor: pointer;
+  margin-top: -6px;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.25); transition: box-shadow 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(59,130,246,0.25); }
+input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #3b82f6; cursor: pointer; border: none;
+}
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: #334155; }
 .regime-bar-wrap { height: 8px; border-radius: 4px; overflow: hidden; margin: 6px 0 2px;
   background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); }
 .regime-bar-fill { height: 100%; border-radius: 4px; transition: width 0.2s, background 0.2s; }
@@ -83,7 +181,7 @@ html, body {
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-secondary);
   border-radius: var(--border-radius-md);
-  padding: 10px 13px; max-width: 260px;
+  padding: 10px 13px; max-width: 320px;
   pointer-events: none; display: none;
   font-size: 14px; line-height: 1.5; color: var(--color-text-secondary);
 }
@@ -104,9 +202,48 @@ html, body {
 .gloss-term { font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
 .gloss-acronym { font-size: 13px; color: var(--color-text-tertiary); margin-bottom: 6px; font-family: var(--font-mono); }
 .gloss-def { font-size: 14px; color: var(--color-text-secondary); line-height: 1.55; }
-.gloss-formula { font-family: var(--font-mono); font-size: 13px;
-  background: var(--color-background-secondary); padding: 4px 8px;
-  border-radius: 4px; margin-top: 5px; color: var(--color-text-secondary); display: block; }
+.gloss-formula {
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 6px; padding: 10px 14px; margin-top: 8px;
+  display: block; overflow-x: auto; text-align: center;
+  color: var(--color-text-primary);
+}
+.tip-formula {
+  background: var(--color-background-secondary);
+  border-radius: 5px; padding: 7px 10px; margin-top: 7px;
+  overflow-x: auto; color: var(--color-text-primary);
+  text-align: center;
+}
+.unavailable-state {
+  min-height: calc(100vh - 54px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.unavailable-card {
+  width: min(520px, 100%);
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 28px;
+  text-align: center;
+}
+.unavailable-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+}
+.unavailable-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.badge-real { background:#1e3a8a; color:#93c5fd; border:1px solid #3b82f6; font-size:11px; font-weight:700; padding:3px 9px; border-radius:4px; text-transform:uppercase; letter-spacing:.05em; }
+/* KaTeX dark theme fix */
+.katex { color: inherit; }
 .tag { display: inline-block; font-size: 13px; padding: 2px 10px; border-radius: 20px; font-weight: 600; }
 .tag-disl { background: #334155; color: #cbd5e1; }
 .tag-trans { background: #1e3a8a; color: #bfdbfe; }
@@ -126,7 +263,10 @@ html, body {
 }
 </style>
 
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="dashboard_shared.js"></script>
+
+<body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
 
 <div id="tooltipBox" class="tooltip-box"></div>
 <div class="gloss-backdrop" id="glossBackdrop"></div>
@@ -138,108 +278,149 @@ html, body {
   <div id="glossContent"></div>
 </div>
 
-<div class="page-shell">
-<div class="page-main">
+<div class="flex flex-col gap-6 w-full h-full">
 
-    <!-- HEADER -->
-    <div class="dashboard-title-stack">
-        <div class="text-xl font-bold tracking-tight flex items-center gap-2">
-            <span class="text-blue-400 dashboard-page-title">Monitor Consumo</span>
-        </div>
-        <div class="dashboard-page-desc" data-dashboard-desc="modello_consumo"></div>
+  <!-- HEADER -->
+  <div class="dashboard-title-stack shrink-0">
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2">
+      <span class="text-blue-400 dashboard-page-title">Monitor Consumi</span>
     </div>
-
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-    <div class="section-label" style="margin-bottom:-10; border:none;">Parametri statici di targa</div>
-    <button onclick="openGloss()" style="font-size:14px; color:var(--color-text-info); background:none; border:0.5px solid var(--color-border-secondary); border-radius:var(--border-radius-md); padding:4px 10px; cursor:pointer;">
-      <i class="ti ti-book-2" aria-hidden="true" style="font-size:15px; margin-right:3px;"></i>Glossario
-    </button>
+    <div class="dashboard-page-desc">Visualizzazione e simulazione dei consumi operativi e parametri navali per supportare decisioni operative e pianificazione carburante.</div>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
-    <div class="card">
-      <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;">
-        <i class="ti ti-ship" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Geometria scafo
-      </div>
-      <div class="prop-row" data-tip="lbp"><span class="prop-key">LBP</span><span class="prop-val">28.4 m</span></div>
-      <div class="prop-row" data-tip="lwl"><span class="prop-key">L<sub>WL</sub></span><span class="prop-val">28.518 m</span></div>
-      <div class="prop-row" data-tip="beam"><span class="prop-key">Larghezza B</span><span class="prop-val">7.2 m</span></div>
-      <div class="prop-row" data-tip="sw"><span class="prop-key">S bagnata</span><span class="prop-val">195.2 m²</span></div>
-      <div class="prop-row" data-tip="cb"><span class="prop-key">C<sub>B</sub></span><span class="prop-val">0.396</span></div>
-      <div class="prop-row" data-tip="cp"><span class="prop-key">C<sub>P</sub></span><span class="prop-val">0.852</span></div>
-      <div class="prop-row" data-tip="alat"><span class="prop-key">A<sub>lat</sub> vento</span><span class="prop-val">131.5 m²</span></div>
-    </div>
+  <div class="space-x-5 flex flex-1 gap-6 overflow-hidden">
 
-    <div style="display:flex; flex-direction:column; gap:12px;">
-      <div class="card" style="margin-bottom: 12px;">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;">
-          <i class="ti ti-engine" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Propulsione MAN D2862 LE428
+    <!-- SIDEBAR (Split View) -->
+    <div class="space-y-4 flex flex-col gap-4 w-[260px] h-3/4 shrink-0">
+      <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2" style="margin:0;">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+          <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">● Dati reali</div>
+          <span id="count-real" class="text-xs text-slate-500">0</span>
         </div>
-        <div class="prop-row" data-tip="mcr"><span class="prop-key">Potenza totale (MCR)</span><span class="prop-val">1498 kW</span></div>
-        <div class="prop-row" data-tip="rpm"><span class="prop-key">Regime rated</span><span class="prop-val">2100 rpm</span></div>
-        <div class="prop-row" data-tip="sfc"><span class="prop-key">SFC<sub>min</sub> curva elica</span><span class="prop-val">199 g/kWh</span></div>
-        <div class="prop-row" data-tip="nexp"><span class="prop-key">Esponente curva elica n</span><span class="prop-val">2.7</span></div>
-        <div class="prop-row" data-tip="scr"><span class="prop-key">Emissioni</span><span class="prop-val">SCR · IMO Tier III</span></div>
+        <div id="list-real" class="space-y-2 overflow-y-auto pr-1"></div>
       </div>
-      <div class="card">
-        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;">
-          <i class="ti ti-users" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Carichi operativi
+
+      <!-- <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2" style="margin:0;">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+          <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">● Simulati</div>
+          <span id="count-sim" class="text-xs text-slate-500">0</span>
         </div>
-        <div class="prop-row" data-tip="delta"><span class="prop-key">Pieno carico Δ</span><span class="prop-val">115.1 t</span></div>
-        <div class="prop-row" data-tip="delta"><span class="prop-key">Trasferimento Δ</span><span class="prop-val">81.7 t</span></div>
-        <div class="prop-row" data-tip="gmt"><span class="prop-key">GM<sub>t</sub> (pieno carico)</span><span class="prop-val">2.024 m</span></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-label">Cinematica interattiva — muovi la velocità</div>
-  <div class="card" style="margin-bottom:20px;">
-    <div class="slider-row">
-      <label><i class="ti ti-gauge" aria-hidden="true"></i> Velocità STW</label>
-      <input type="range" id="velSlider" min="8" max="19.5" step="0.1" value="13">
-      <div class="slider-val"><span id="velOut">13.0</span> <span style="font-size:14px;color:var(--color-text-tertiary);">kn</span></div>
+        <div id="list-sim" class="space-y-2 overflow-y-auto pr-1"></div>
+      </div> -->
     </div>
 
-    <div style="margin-bottom:16px;" data-tip="fn">
-      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;">
-        <span style="font-size:13px; color:var(--color-text-tertiary);">Numero di Froude — Fn = V / √(g · L<sub>WL</sub>)</span>
-        <span style="font-size:20px; font-weight:500; color:var(--color-text-primary);" id="fnBig">0.400</span>
-      </div>
-      <div class="fn-scale" id="fnScale">
-        <div class="fn-zone" style="width:40%; background:#334155; color:#cbd5e1;">dislocante &lt;0.40</div>
-        <div class="fn-zone" style="width:33%; background:#1e3a8a; color:#bfdbfe;">transitional 0.40–0.70</div>
-        <div class="fn-zone" style="width:27%; background:#064e3b; color:#99f6e4;">planante &gt;0.70</div>
-        <div class="fn-needle" id="fnNeedle"></div>
-      </div>
-      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:2px;">
-        <span>Fn 0.20</span><span>0.40</span><span>0.70</span><span>1.00</span>
-      </div>
-      <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
-        <span style="font-size:14px; color:var(--color-text-tertiary);">Regime attuale:</span>
-        <span class="tag" id="fnTag">transitional</span>
-        <span style="font-size:13px; color:var(--color-text-tertiary);" id="fnNote"></span>
-      </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0">
 
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px;">
-      <div class="metric-block" data-tip="power">
-        <div class="metric-help">?</div>
-        <div class="metric-label">Potenza richiesta</div>
-        <div class="metric-value"><span id="powerOut">320</span><span class="metric-unit">kW</span></div>
-        <div class="metric-sub" id="mcrOut">21.4 % MCR</div>
+      <!-- VESSEL INFO BAR -->
+      <div class="card p-4 shrink-0 flex items-center justify-between transition-all duration-300" style="margin:0; padding:12px 20px;">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span id="vessel-name-display" style="font-size:17px;font-weight:600;color:#e2e8f0;">—</span>
+          <span id="mmsi-display" style="font-size:13px;color:#64748b;font-family:var(--font-mono);"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="source-badge" style="display:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;"></span>
+          <button onclick="openGloss()" style="font-size:13px;color:var(--color-text-info);background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;">
+            <i class="ti ti-book-2" aria-hidden="true" style="font-size:14px;margin-right:3px;"></i>Glossario
+          </button>
+        </div>
       </div>
-      <div class="metric-block" data-tip="sfc">
-        <div class="metric-help">?</div>
-        <div class="metric-label">SFC operativo</div>
-        <div class="metric-value"><span id="sfcOut">222</span><span class="metric-unit">g/kWh</span></div>
-        <div class="metric-sub" id="sfcNote">carico parziale</div>
-      </div>
-      <div class="metric-block" data-tip="cons">
+
+      <div class="content-scroll">
+
+        <div id="unavailableState" class="unavailable-state" aria-live="polite">
+          <div class="unavailable-card mx-auto">
+            <div class="unavailable-title">Dati al momento non disponibili</div>
+            <div class="unavailable-text">Questa dashboard del modello di consumo è attualmente disponibile solo per la nave SIRIUS.</div>
+          </div>
+        </div>
+
+        <div id="dashboardContent" class="page-inner" style="width:100%;">
+        <div class="page-main" style="width:100%;">
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div class="section-label" style="margin-bottom:0; border:none;">Parametri statici di targa</div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+            <div class="card">
+              <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;"><i class="ti ti-ship" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Geometria scafo</div>
+              <div class="prop-row" data-tip="lbp"><span class="prop-key">LBP</span><span class="prop-val">28.4 m</span></div>
+              <div class="prop-row" data-tip="lwl"><span class="prop-key">L<sub>WL</sub></span><span class="prop-val">28.518 m</span></div>
+              <div class="prop-row" data-tip="beam"><span class="prop-key">Larghezza B</span><span class="prop-val">7.2 m</span></div>
+              <div class="prop-row" data-tip="sw"><span class="prop-key">S bagnata</span><span class="prop-val">195.2 m²</span></div>
+              <div class="prop-row" data-tip="cb"><span class="prop-key">C<sub>B</sub></span><span class="prop-val">0.396</span></div>
+              <div class="prop-row" data-tip="cp"><span class="prop-key">C<sub>P</sub></span><span class="prop-val">0.852</span></div>
+              <div class="prop-row" data-tip="alat"><span class="prop-key">A<sub>lat</sub> vento</span><span class="prop-val">131.5 m²</span></div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div class="card" style="margin-bottom: 12px;">
+                <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;"><i class="ti ti-engine" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Propulsione MAN D2862 LE428</div>
+                <div class="prop-row" data-tip="mcr"><span class="prop-key">Potenza totale (MCR)</span><span class="prop-val">1498 kW</span></div>
+                <div class="prop-row" data-tip="rpm"><span class="prop-key">Regime rated</span><span class="prop-val">2100 rpm</span></div>
+                <div class="prop-row" data-tip="sfc"><span class="prop-key">SFC<sub>min</sub> curva elica</span><span class="prop-val">199 g/kWh</span></div>
+                <div class="prop-row" data-tip="nexp"><span class="prop-key">Esponente curva elica n</span><span class="prop-val">2.7</span></div>
+                <div class="prop-row" data-tip="scr"><span class="prop-key">Emissioni</span><span class="prop-val">SCR · IMO Tier III</span></div>
+              </div>
+              <div class="card">
+                <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;"><i class="ti ti-users" aria-hidden="true" style="font-size:16px; margin-right:4px;"></i>Carichi operativi</div>
+                <div class="prop-row" data-tip="delta"><span class="prop-key">Pieno carico Δ</span><span class="prop-val">115.1 t</span></div>
+                <div class="prop-row" data-tip="delta"><span class="prop-key">Trasferimento Δ</span><span class="prop-val">81.7 t</span></div>
+                <div class="prop-row" data-tip="gmt"><span class="prop-key">GM<sub>t</sub> (pieno carico)</span><span class="prop-val">2.024 m</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label">Cinematica interattiva — muovi la velocità</div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="slider-row">
+              <label><i class="ti ti-gauge" aria-hidden="true"></i> Velocità STW</label>
+              <input type="range" id="velSlider" min="8" max="19.5" step="0.1" value="13">
+              <div class="slider-val"><span id="velOut">13.0</span> <span style="font-size:13px;color:var(--color-text-tertiary);">kn</span></div>
+            </div>
+
+            <div style="margin-bottom:16px;" data-tip="fn">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px;">
+                <span style="font-size:13px; color:var(--color-text-tertiary);">Numero di Froude — Fn = V / √(g · L<sub>WL</sub>)</span>
+                <span style="font-size:20px; font-weight:500; color:var(--color-text-primary);" id="fnBig">0.400</span>
+              </div>
+              <div class="fn-scale" id="fnScale">
+                <div class="fn-zone" style="width:40%; background:#334155; color:#cbd5e1;">dislocante &lt;0.40</div>
+                <div class="fn-zone" style="width:33%; background:#1e3a8a; color:#bfdbfe;">transitional 0.40–0.70</div>
+                <div class="fn-zone" style="width:27%; background:#064e3b; color:#99f6e4;">planante &gt;0.70</div>
+                <div class="fn-needle" id="fnNeedle"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--color-text-tertiary); margin-top:2px;">
+                <span>Fn 0.20</span><span>0.40</span><span>0.70</span><span>1.00</span>
+              </div>
+              <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:14px; color:var(--color-text-tertiary);">Regime attuale:</span>
+                <span class="tag" id="fnTag">transitional</span>
+                <span style="font-size:13px; color:var(--color-text-tertiary);" id="fnNote"></span>
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px;">
+              <div class="metric-block" data-tip="power">
+                <div class="metric-help">?</div>
+                <div class="metric-label">Potenza richiesta</div>
+                <div class="metric-value"><span id="powerOut">320</span><span class="metric-unit">kW</span></div>
+                <div class="metric-sub" id="mcrOut">21.4 % MCR</div>
+              </div>
+              <div class="metric-block" data-tip="sfc">
+                <div class="metric-help">?</div>
+                <div class="metric-label">SFC operativo</div>
+                <div class="metric-value"><span id="sfcOut">222</span><span class="metric-unit">g/kWh</span></div>
+                <div class="metric-sub" id="sfcNote">carico parziale</div>
+              </div>
+              <div class="metric-block" data-tip="cons"> 
         <div class="metric-help">?</div>
         <div class="metric-label">Consumo gasolio</div>
         <div class="metric-value"><span id="consOut">84.6</span><span class="metric-unit">L/h</span></div>
         <div class="metric-sub" id="consNote">all'ora</div>
       </div>
+      
       <div class="metric-block" data-tip="costo">
         <div class="metric-help">?</div>
         <div class="metric-label">Costo orario</div>
@@ -280,91 +461,231 @@ html, body {
         <span>0% — minimo</span><span>SFC ottimale ~70%</span><span>100% — rated</span>
       </div>
     </div>
+
+
+    <div class="section-label">Curve prestazionali</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+      <div class="card">
+        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="rt">
+          Resistenza totale R<sub>T</sub> vs velocità
+        </div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="rtChart" role="img" aria-label="Curva della resistenza totale RT in kN in funzione della velocità da 8 a 19.5 nodi.">RT vs velocità Sirius.</canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="cons">
+          Consumo gasolio vs velocità (L/h)
+        </div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="consChart" role="img" aria-label="Consumo gasolio in L/h in funzione della velocità.">Consumo vs velocità Sirius.</canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="sfc">
+          SFC vs % MCR — curva elica MAN
+        </div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="sfcChart" role="img" aria-label="SFC in g/kWh vs percentuale MCR, curva a U con minimo a circa 70%.">SFC vs MCR MAN D2862 LE428.</canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="comp">
+          Scomposizione R<sub>T</sub> per componente
+        </div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="compChart" role="img" aria-label="Barre impilate delle componenti RF RW RAA della resistenza totale a velocità selezionate.">Componenti RT vs velocità.</canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Assetti operativi — Trim & Stability Booklet RINA</div>
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table style="width:100%; font-size:14px; border-collapse:collapse; table-layout:fixed;">
+          <colgroup>
+            <col style="width:27%"><col style="width:11%"><col style="width:11%">
+            <col style="width:11%"><col style="width:11%"><col style="width:16%"><col style="width:13%">
+          </colgroup>
+          <thead>
+            <tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
+              <th style="text-align:left;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lc">Caso</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="delta">Δ (t)</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lcg">LCG (m)</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tfp">T_FP (m)</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tap">T_AP (m)</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="trim">Trim (m, +app.)</th>
+              <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="gmt">GM<sub>t</sub> (m)</th>
+            </tr>
+          </thead>
+          <tbody id="trimTable"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
-  <div class="section-label">Curve prestazionali</div>
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
-    <div class="card">
-      <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="rt">
-        Resistenza totale R<sub>T</sub> vs velocità
-      </div>
-      <div class="chart-wrap" style="height:240px;">
-        <canvas id="rtChart" role="img" aria-label="Curva della resistenza totale RT in kN in funzione della velocità da 8 a 19.5 nodi.">RT vs velocità Sirius.</canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="cons">
-        Consumo gasolio vs velocità (L/h)
-      </div>
-      <div class="chart-wrap" style="height:240px;">
-        <canvas id="consChart" role="img" aria-label="Consumo gasolio in L/h in funzione della velocità.">Consumo vs velocità Sirius.</canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="sfc">
-        SFC vs % MCR — curva elica MAN
-      </div>
-      <div class="chart-wrap" style="height:240px;">
-        <canvas id="sfcChart" role="img" aria-label="SFC in g/kWh vs percentuale MCR, curva a U con minimo a circa 70%.">SFC vs MCR MAN D2862 LE428.</canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div style="font-size:14px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px;" data-tip="comp">
-        Scomposizione R<sub>T</sub> per componente
-      </div>
-      <div class="chart-wrap" style="height:240px;">
-        <canvas id="compChart" role="img" aria-label="Barre impilate delle componenti RF RW RAA della resistenza totale a velocità selezionate.">Componenti RT vs velocità.</canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-label">Assetti operativi — Trim & Stability Booklet RINA</div>
-  <div class="card">
-    <div style="overflow-x:auto;">
-      <table style="width:100%; font-size:14px; border-collapse:collapse; table-layout:fixed;">
-        <colgroup>
-          <col style="width:27%"><col style="width:11%"><col style="width:11%">
-          <col style="width:11%"><col style="width:11%"><col style="width:16%"><col style="width:13%">
-        </colgroup>
-        <thead>
-          <tr style="border-bottom:0.5px solid var(--color-border-tertiary);">
-            <th style="text-align:left;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lc">Caso</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="delta">Δ (t)</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="lcg">LCG (m)</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tfp">T_FP (m)</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="tap">T_AP (m)</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="trim">Trim (m, +app.)</th>
-            <th style="text-align:right;padding:6px 4px;color:var(--color-text-tertiary);font-weight:500;font-size:13px;" data-tip="gmt">GM<sub>t</sub> (m)</th>
-          </tr>
-        </thead>
-        <tbody id="trimTable"></tbody>
-      </table>
-    </div>
-  </div>
 </div>
 </div>
+  </div>
+  </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
+const API_BASE_URL = "http://87.26.178.190:25080";
+const SOCKET_URL = "http://localhost:5000";
+const urlParams = new URLSearchParams(window.location.search);
+const requestedMmsi = String(urlParams.get('mmsi') || urlParams.get('id') || '').trim();
+const vesselRegistry = {};
+const ships = { real:{} };
+let currentSelection = { mmsi:null, source:null };
+
+function normalizeName(v) {
+  return String(v || '').trim().toUpperCase();
+}
+
+function isSiriusText(v) {
+  const name = normalizeName(v);
+  return name === 'SIRIUS' || name.includes('SIRIUS');
+}
+
+function isSirius(mmsi) {
+  return isSiriusText(vesselRegistry[mmsi]?.name) || isSiriusText(mmsi);
+}
+
+function setDashboardAvailability(available) {
+  document.getElementById('pageShell').style.display = available ? '' : 'none';
+  document.getElementById('unavailableState').style.display = available ? 'none' : 'flex';
+}
+
+if(requestedMmsi) setDashboardAvailability(false);
+
+async function fetchVesselList() {
+  try { const r = await fetch(`${API_BASE_URL}/vascello/lista`); return r.ok ? await r.json() : []; }
+  catch { return []; }
+}
+
+async function preloadRegistry() {
+  const list = await fetchVesselList();
+  list.forEach(item => {
+    const mmsi = String(item.mmsi || item.MMSI || item.id || '').trim();
+    if(!mmsi) return;
+    vesselRegistry[mmsi] = { name: item.nome || item.name || item.vessel_name || null };
+    ships.real[mmsi] = ships.real[mmsi] || {};
+  });
+  renderList();
+  const keys = Object.keys(ships.real).sort();
+  const siriusMmsi = keys.find(mmsi => isSirius(mmsi));
+  if(requestedMmsi && ships.real[requestedMmsi]) selectShip(requestedMmsi);
+  else if(requestedMmsi) {
+    ships.real[requestedMmsi] = ships.real[requestedMmsi] || {};
+    renderList();
+    selectShip(requestedMmsi);
+  }
+  else if(siriusMmsi) selectShip(siriusMmsi);
+  else if(keys.length > 0) selectShip(keys[0]);
+  else {
+    ships.real.SIRIUS = {};
+    renderList();
+    selectShip('SIRIUS');
+  }
+}
+
+function updateVesselHeader(mmsi, source) {
+  const name = vesselRegistry[mmsi]?.name;
+  document.getElementById('vessel-name-display').textContent = name || mmsi;
+  document.getElementById('mmsi-display').textContent = name ? `(${mmsi})` : '';
+  const badge = document.getElementById('source-badge');
+  badge.textContent = 'REAL TIME';
+  badge.className = 'badge-real';
+  badge.style.display = 'inline-block';
+}
+
+function renderList() {
+  const el = document.getElementById('list-real');
+  const cntEl = document.getElementById('count-real');
+  const data = ships.real;
+  const keys = Object.keys(data).sort();
+  cntEl.textContent = keys.length;
+  el.innerHTML = '';
+  keys.forEach(mmsi => {
+    const sel = mmsi === currentSelection.mmsi;
+    const name = vesselRegistry[mmsi]?.name;
+    const div = document.createElement('div');
+    div.className = `ship-item${sel ? ' sel-real' : ''}`;
+    div.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:5px;overflow:hidden;">
+        <span style="font-weight:700;font-size:13px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name || mmsi}</span>
+        <span style="font-size:10px;color:#64748b;font-family:var(--font-mono);flex-shrink:0;">${name ? `(${mmsi})` : ''}</span>
+      </div>
+      <div style="font-size:10px;color:#64748b;margin-top:1px;">${isSirius(mmsi) ? 'Modello disponibile' : 'Dati non disponibili'}</div>`;
+    div.onclick = () => selectShip(mmsi);
+    el.appendChild(div);
+  });
+}
+
+function selectShip(mmsi) {
+  currentSelection = { mmsi, source:'real' };
+  renderList();
+  updateVesselHeader(mmsi, 'real');
+  setDashboardAvailability(isSirius(mmsi));
+}
+
+preloadRegistry();
+
+if(typeof io === 'function') {
+  const socket = io(SOCKET_URL);
+  socket.on('analytics_update', msg => {
+    if(!msg || !msg.mmsi) return;
+    const mmsi = String(msg.mmsi || '').trim();
+    if(!mmsi) return;
+    if(msg.source && msg.source.toLowerCase() === 'ais_simulation.raw') return;
+    ships.real[mmsi] = ships.real[mmsi] || {};
+    if(msg.vessel_name && (!vesselRegistry[mmsi] || !vesselRegistry[mmsi].name)) {
+      vesselRegistry[mmsi] = { name: msg.vessel_name };
+    }
+    renderList();
+    if(currentSelection.mmsi === mmsi) {
+      updateVesselHeader(mmsi, 'real');
+      setDashboardAvailability(isSirius(mmsi));
+    } else if(!currentSelection.mmsi) {
+      selectShip(mmsi);
+    }
+  });
+}
+
 const TIPS = {
-  fn:    { term:'Numero di Froude', acronym:'Fn', def:'Rapporto adimensionale tra velocità della nave e velocità di propagazione delle onde gravitazionali. Determina il regime idrodinamico: sotto 0.40 lo scafo è dislocante puro; tra 0.40 e 0.70 è in regime transitional (semi-dislocante); sopra 0.70 è planante. La Sirius a 13 kn opera esattamente a Fn 0.40, al limite inferiore del transitional.', formula:'Fn = V / √(g · L_WL)' },
+  fn:    { term:'Numero di Froude', acronym:'Fn', def:'Rapporto adimensionale tra velocità della nave e velocità di propagazione delle onde gravitazionali. Determina il regime idrodinamico: sotto 0.40 lo scafo è dislocante puro; tra 0.40 e 0.70 è in regime transitional (semi-dislocante); sopra 0.70 è planante. La Sirius a 13 kn opera esattamente a Fn 0.40, al limite inferiore del transitional.',
+    formula:'F_n = \\dfrac{V}{\\sqrt{g \\cdot L_{WL}}}' },
   lbp:   { term:'Lunghezza fra le perpendicolari', acronym:'LBP — Length Between Perpendiculars', def:'Distanza tra la perpendicolare prodiera (intersezione della prua con il galleggiamento) e la perpendicolare poppiera (asse del timone). È la lunghezza di riferimento per i calcoli strutturali e di stabilità.' },
-  lwl:   { term:'Lunghezza al galleggiamento', acronym:'L_WL — Length at Waterline', def:'Lunghezza effettiva dello scafo immerso al livello dell\'acqua. È il parametro che entra nel calcolo del numero di Froude. Differisce da LBP per gli andamenti della prua e della poppa.', formula:'Fn = V / √(g · L_WL)' },
+  lwl:   { term:'Lunghezza al galleggiamento', acronym:'L_WL — Length at Waterline', def:'Lunghezza effettiva dello scafo immerso al livello dell\'acqua. È il parametro che entra nel calcolo del numero di Froude. Differisce da LBP per gli andamenti della prua e della poppa.' },
   beam:  { term:'Larghezza', acronym:'B — Beam', def:'Larghezza massima fuori ossatura dello scafo. La larghezza al galleggiamento (B_WL = 6.418 m) è leggermente inferiore, essendo misurata sul piano d\'acqua. Influenza stabilità trasversale e resistenza d\'onda.' },
-  sw:    { term:'Superficie bagnata', acronym:'S_w — Wetted Surface', def:'Area della carena immersa a contatto con l\'acqua. È il principale driver della resistenza di frizione R_F. Varia con il dislocamento: a pieno carico 195.2 m², a nave vuota circa 178 m².', formula:'R_F ∝ S_w · V^1.83' },
-  cb:    { term:'Coefficiente di blocco', acronym:'C_B — Block Coefficient', def:'Rapporto tra il volume di carena e il parallelepipedo circoscritto (L × B × T). Un C_B basso (0.396) indica forme slanciate, tipiche degli scafi veloci. Navi cargo hanno C_B 0.75–0.85.', formula:'C_B = V_carena / (L·B·T)' },
-  cp:    { term:'Coefficiente prismatico', acronym:'C_P — Prismatic Coefficient', def:'Rapporto tra il volume di carena e il prisma di sezione maestra esteso per tutta la lunghezza. Un C_P alto (0.852) indica che le sezioni sono distribuite uniformemente lungo la lunghezza — caratteristica degli scafi veloci e plananti.', formula:'C_P = V_carena / (A_max · L)' },
-  alat:  { term:'Area laterale al vento', acronym:'A_lat', def:'Superficie proiettata lateralmente delle parti fuori acqua (scafo e sovrastrutture) esposta alla pressione del vento. Per la Sirius vale 131.5 m² — considerevole per una nave di 28 m, a causa delle sovrastrutture passeggeri a doppio ponte.', formula:'R_AA = ½ · ρ_air · C_D · A_lat · V_app²' },
-  mcr:   { term:'Maximum Continuous Rating', acronym:'MCR', def:'Potenza massima che il motore può erogare in regime continuativo senza danni. Il MAN D2862 LE428 ha MCR = 749 kW per motore (1498 kW totali). A 13 kn la Sirius usa circa il 21% MCR: i motori sono fortemente sottoutilizzati rispetto alla loro capacità nominale.', formula:'MCR totale = 2 × 749 kW = 1498 kW' },
-  sfc:   { term:'Consumo specifico di carburante', acronym:'SFC — Specific Fuel Consumption', def:'Massa di carburante consumata per unità di energia prodotta. Il valore minimo sulla curva elica MAN è 199 g/kWh, raggiunto intorno al 70% MCR. Al di sotto (carico parziale) o al di sopra (alto carico) il SFC cresce: la curva ha forma a "U". A 13 kn (21% MCR) il SFC stimato è ~222 g/kWh, circa l\'11% sopra l\'ottimo.', formula:'SFC = massa_combustibile / energia_prodotta [g/kWh]' },
-  nexp:  { term:'Esponente della curva elica', acronym:'n — propeller curve exponent', def:'Parametro che descrive come la potenza assorbita dall\'elica cresce col regime motore. Dichiarato da MAN come n = 2.7 per il D2862 LE428. Coincide con l\'esponente idrodinamico del consumo rispetto alla velocità nave (sistema a passo fisso).', formula:'P(n) = P_rated · (n / n_rated)^2.7' },
+  sw:    { term:'Superficie bagnata', acronym:'S_w — Wetted Surface', def:'Area della carena immersa a contatto con l\'acqua. È il principale driver della resistenza di frizione R_F. Varia con il dislocamento: a pieno carico 195.2 m², a nave vuota circa 178 m².',
+    formula:'R_F \\propto S_w \\cdot V^{1.83}' },
+  cb:    { term:'Coefficiente di blocco', acronym:'C_B — Block Coefficient', def:'Rapporto tra il volume di carena e il parallelepipedo circoscritto (L × B × T). Un C_B basso (0.396) indica forme slanciate, tipiche degli scafi veloci. Navi cargo hanno C_B 0.75–0.85.',
+    formula:'C_B = \\dfrac{V_{\\text{carena}}}{L \\cdot B \\cdot T}' },
+  cp:    { term:'Coefficiente prismatico', acronym:'C_P — Prismatic Coefficient', def:'Rapporto tra il volume di carena e il prisma di sezione maestra esteso per tutta la lunghezza. Un C_P alto (0.852) indica che le sezioni sono distribuite uniformemente lungo la lunghezza — caratteristica degli scafi veloci e plananti.',
+    formula:'C_P = \\dfrac{V_{\\text{carena}}}{A_{\\max} \\cdot L}' },
+  alat:  { term:'Area laterale al vento', acronym:'A_lat', def:'Superficie proiettata lateralmente delle parti fuori acqua (scafo e sovrastrutture) esposta alla pressione del vento. Per la Sirius vale 131.5 m² — considerevole per una nave di 28 m, a causa delle sovrastrutture passeggeri a doppio ponte.',
+    formula:'R_{AA} = \\tfrac{1}{2}\\,\\rho_{\\text{air}} \\cdot C_D \\cdot A_{\\text{lat}} \\cdot V_{\\text{app}}^2' },
+  mcr:   { term:'Maximum Continuous Rating', acronym:'MCR', def:'Potenza massima che il motore può erogare in regime continuativo senza danni. Il MAN D2862 LE428 ha MCR = 749 kW per motore (1498 kW totali). A 13 kn la Sirius usa circa il 21% MCR: i motori sono fortemente sottoutilizzati rispetto alla loro capacità nominale.',
+    formula:'MCR_{\\text{tot}} = 2 \\times 749\\,\\text{kW} = 1{,}498\\,\\text{kW}' },
+  sfc:   { term:'Consumo specifico di carburante', acronym:'SFC — Specific Fuel Consumption', def:'Massa di carburante consumata per unità di energia prodotta. Il valore minimo sulla curva elica MAN è 199 g/kWh, raggiunto intorno al 70% MCR. Al di sotto (carico parziale) o al di sopra (alto carico) il SFC cresce: la curva ha forma a "U". A 13 kn (21% MCR) il SFC stimato è ~222 g/kWh, circa l\'11% sopra l\'ottimo.',
+    formula:'SFC = \\dfrac{m_{\\text{comb.}}}{E_{\\text{prod.}}} \\;[\\text{g/kWh}]' },
+  nexp:  { term:'Esponente della curva elica', acronym:'n — propeller curve exponent', def:'Parametro che descrive come la potenza assorbita dall\'elica cresce col regime motore. Dichiarato da MAN come n = 2.7 per il D2862 LE428. Coincide con l\'esponente idrodinamico del consumo rispetto alla velocità nave (sistema a passo fisso).',
+    formula:'P(n) = P_{\\text{rated}} \\cdot \\left(\\dfrac{n}{n_{\\text{rated}}}\\right)^{\\!2.7}' },
   scr:   { term:'Riduzione catalitica selettiva', acronym:'SCR — Selective Catalytic Reduction', def:'Sistema di post-trattamento dei gas di scarico che riduce le emissioni di NOx (ossidi di azoto) iniettando urea (AdBlue, soluzione 32.5%) nel condotto di scarico. Il MAN D2862 LE428 con SCR è certificato IMO Tier III (limite NOx per acque costiere, ECA). Consumo urea al rated: 8 L/h per motore.' },
-  delta: { term:'Dislocamento', acronym:'Δ — Displacement', def:'Massa totale della nave e di tutto il suo contenuto, uguale alla massa d\'acqua spostata dalla carena (principio di Archimede). A pieno carico 115.1 t, in trasferimento 81.7 t. Influenza direttamente la resistenza d\'onda R_W.', formula:'Δ = ρ_sw · V_carena' },
+  delta: { term:'Dislocamento', acronym:'Δ — Displacement', def:'Massa totale della nave e di tutto il suo contenuto, uguale alla massa d\'acqua spostata dalla carena (principio di Archimede). A pieno carico 115.1 t, in trasferimento 81.7 t. Influenza direttamente la resistenza d\'onda R_W.',
+    formula:'\\Delta = \\rho_{sw} \\cdot V_{\\text{carena}}' },
   gmt:   { term:'Altezza metacentrica trasversale', acronym:'GM_t', def:'Misura della stabilità di rollio iniziale. Distanza verticale tra il baricentro G e il metacentro M. Un GM_t positivo indica stabilità: se sbandato, lo scafo tende a raddrizzarsi. A pieno carico GM_t = 2.024 m, valore confortante per un traghetto veloce.' },
-  rt:    { term:'Resistenza totale', acronym:'R_T', def:'Forza che si oppone al moto della nave. Somma di tre componenti: R_F (frizione, attrito acqua sulla carena), R_W (onda, energia spesa nel generare le onde), R_AA (aerodinamica, pressione del vento sulle sovrastrutture). A 13 kn stimata ~22 kN.', formula:'R_T = R_F + R_W + R_AA' },
-  power: { term:'Potenza al freno richiesta', acronym:'P_B — Brake Power', def:'Potenza che i motori devono erogare per muovere la nave alla velocità selezionata. Include le perdite dell\'elica (efficienza η ≈ 0.58). Calcolata scalando dalla potenza a V_max con l\'esponente 2.7 della curva elica MAN.', formula:'P_B(V) = P_Vmax · (V/V_max)^2.7' },
+  rt:    { term:'Resistenza totale', acronym:'R_T', def:'Forza che si oppone al moto della nave. Somma di tre componenti: R_F (frizione, attrito acqua sulla carena), R_W (onda, energia spesa nel generare le onde), R_AA (aerodinamica, pressione del vento sulle sovrastrutture). A 13 kn stimata ~22 kN.',
+    formula:'R_T = R_F + R_W + R_{AA}' },
+  power: { term:'Potenza al freno richiesta', acronym:'P_B — Brake Power', def:'Potenza che i motori devono erogare per muovere la nave alla velocità selezionata. Include le perdite dell\'elica (efficienza η ≈ 0.58). Calcolata scalando dalla potenza a V_max con l\'esponente 2.7 della curva elica MAN.',
+    formula:'P_B(V) = P_{V_{\\max}} \\cdot \\left(\\dfrac{V}{V_{\\max}}\\right)^{\\!2.7}' },
   rpm:   { term:'Regime motore', acronym:'RPM — Revolutions Per Minute', def:'Velocità di rotazione dell\'albero motore. In un sistema a passo fisso (FPP) con riduttore ZF 3050 A, il regime motore è proporzionale alla velocità della nave. Il rated è 2100 rpm al MCR.' },
-  cons:  { term:'Consumo volumetrico gasolio', acronym:'Q_fuel [L/h]', def:'Litri di gasolio marino consumati per ora di navigazione. Dipende dalla potenza richiesta e dal SFC operativo. Si converte da massa (kg/h = P_B × SFC / 1000) a volume usando la densità del gasolio (0.840 kg/L).', formula:'Q = P_B · SFC / (1000 · ρ_fuel)  [L/h]' },
+  cons:  { term:'Consumo volumetrico gasolio', acronym:'Q_fuel [L/h]', def:'Litri di gasolio marino consumati per ora di navigazione. Dipende dalla potenza richiesta e dal SFC operativo. Si converte da massa (kg/h = P_B × SFC / 1000) a volume usando la densità del gasolio (0.840 kg/L).',
+    formula:'Q = \\dfrac{P_B \\cdot SFC}{1000 \\cdot \\rho_{\\text{fuel}}} \\;[\\text{L/h}]' },
   costo: { term:'Costo orario del carburante', def:'Costo del solo gasolio consumato per ora di navigazione alla velocità selezionata. Calcolato come consumo orario × prezzo gasolio (1.20 €/L). Non include urea SCR, manutenzione, equipaggio o oneri portuali.' },
   comp:  { term:'Scomposizione della resistenza', def:'La R_T è divisa nelle tre componenti fisiche: R_F (frizione, ~38%) cresce con la superficie bagnata e V^1.83; R_W (onda, ~47%) cresce steeply con la velocità in regime transitional; R_AA (aerodinamica, ~15%) cresce con il quadrato della velocità apparente del vento e con l\'area laterale.' },
   lc:    { term:'Caso di carico', acronym:'LC — Load Case', def:'Configurazione operativa documentata nel Trim & Stability Booklet. Ogni LC descrive una distribuzione di pesi specifica (passeggeri, carburante, equipaggio) con i relativi pescaggi, assetto e stabilità. Il booklet RINA documenta 7 casi in nave intatta.' },
@@ -374,13 +695,21 @@ const TIPS = {
   trim:  { term:'Assetto longitudinale (Trim)', def:'Differenza tra il pescaggio di poppa e quello di prua: Trim = T_AP − T_FP. Un valore positivo indica assetto appoppato (poppa più immersa), negativo appruato. La Sirius mostra sempre trim positivo: da +0.072 m (lightship) a +0.186 m (addensamento).' },
 };
 
+function renderTeX(latex, display) {
+  try {
+    return katex.renderToString(latex, { throwOnError: false, displayMode: !!display, output: 'html' });
+  } catch(e) {
+    return `<code style="font-family:var(--font-mono);font-size:12px;">${latex}</code>`;
+  }
+}
+
 const tooltip = document.getElementById('tooltipBox');
 function showTip(e, key) {
   const d = TIPS[key]; if(!d) return;
   let html = `<strong>${d.term}</strong>`;
   if(d.acronym) html += `<div style="font-family:var(--font-mono);font-size:13px;color:var(--color-text-tertiary);margin-bottom:5px;">${d.acronym}</div>`;
   html += `<div>${d.def}</div>`;
-  if(d.formula) html += `<code style="display:block;margin-top:6px;padding:4px 6px;background:var(--color-background-secondary);border-radius:4px;font-size:12px;">${d.formula}</code>`;
+  if(d.formula) html += `<div class="tip-formula">${renderTeX(d.formula, true)}</div>`;
   tooltip.innerHTML = html;
   tooltip.style.display = 'block';
   moveTip(e);
@@ -408,7 +737,7 @@ function buildGloss() {
     let h = `<div class="gloss-entry"><div class="gloss-term">${d.term}</div>`;
     if(d.acronym) h += `<div class="gloss-acronym">${d.acronym}</div>`;
     h += `<div class="gloss-def">${d.def}</div>`;
-    if(d.formula) h += `<span class="gloss-formula">${d.formula}</span>`;
+    if(d.formula) h += `<span class="gloss-formula">${renderTeX(d.formula, true)}</span>`;
     h += `</div>`;
     el.innerHTML += h;
   });
