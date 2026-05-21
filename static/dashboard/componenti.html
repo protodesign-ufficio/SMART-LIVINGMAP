@@ -271,8 +271,8 @@
     <div class="card" style="margin-bottom:16px;">
       <div class="slider-row">
         <label><i class="ti ti-clock-hour-4"></i> Ore motore</label>
-        <input type="range" id="hSlider" min="0" max="20000" step="50" value="3500">
-        <div class="slider-val"><span id="hOut">3.500</span> <span style="font-size:13px;color:var(--color-text-tertiary);">h</span></div>
+        <input type="range" id="hSlider" min="0" max="20000" step="0.1" value="0">
+        <div class="slider-val"><span id="hOut">0</span> <span style="font-size:13px;color:var(--color-text-tertiary);">h</span></div>
       </div>
       <div id="live-note" style="display:none;font-size:12px;color:#4ade80;font-family:var(--font-mono);margin-bottom:10px;padding:4px 8px;background:rgba(74,222,128,0.06);border-radius:4px;border-left:2px solid #4ade80;"></div>
       <div class="mode-tabs">
@@ -390,7 +390,7 @@ const TREE = [
 ];
 const TOPO_TIP = { serie:'serie', parallelo:'par', mista:'mista' };
 
-let mode = 'MD', hours = 3500;
+let mode = 'MD', hours = 0;
 
 function interval(level, m) { return INTERVALS[m][level] || null; }
 function status(level, m, h) {
@@ -504,8 +504,8 @@ function buildTree() {
 
 document.getElementById('hSlider').addEventListener('input', e => {
   if(e.target.disabled) return;
-  hours = parseInt(e.target.value);
-  document.getElementById('hOut').textContent = hours.toLocaleString('it-IT');
+  hours = parseFloat(e.target.value);
+  document.getElementById('hOut').textContent = hours >= 1 ? Math.round(hours).toLocaleString('it-IT') : hours.toFixed(1);
   document.getElementById('live-note').style.display = 'none';
   document.getElementById('live-indicator').style.display = 'none';
   buildTree();
@@ -653,15 +653,20 @@ function getEngineHours(mmsi, source) {
 
 function syncHours(mmsi, source) {
   const result = getEngineHours(mmsi, source);
-  if(!result) return;
-  const h = Math.min(20000, Math.round(result.hours));
-  if(h===0) return;
+  if(!result && source !== 'simulation') return;
+  const h = result ? Math.min(20000, result.hours) : 0;
   hours = h;
   document.getElementById('hSlider').value = h;
-  document.getElementById('hOut').textContent = h.toLocaleString('it-IT');
-  document.getElementById('live-note').textContent = `● live: ${result.component} — ${result.hours.toFixed(1)} h`;
-  document.getElementById('live-note').style.display = 'block';
-  document.getElementById('live-indicator').style.display = 'inline';
+  document.getElementById('hOut').textContent = h >= 1 ? Math.round(h).toLocaleString('it-IT') : h.toFixed(1);
+  if(result && result.hours > 0) {
+    document.getElementById('live-note').textContent = `● live: ${result.component} — ${result.hours.toFixed(2)} h`;
+    document.getElementById('live-note').style.display = 'block';
+    document.getElementById('live-indicator').style.display = 'inline';
+  } else if(source === 'simulation') {
+    document.getElementById('live-note').textContent = '● live: simulazione avviata — ore motore = 0';
+    document.getElementById('live-note').style.display = 'block';
+    document.getElementById('live-indicator').style.display = 'inline';
+  }
   buildTree();
 }
 
@@ -706,6 +711,15 @@ function selectShip(mmsi, source) {
   renderList('real'); renderList('simulation');
   updateVesselHeader(mmsi, source);
   setSliderLocked(source === 'simulation');
+  if(source === 'simulation') {
+    hours = 0;
+    document.getElementById('hSlider').value = 0;
+    document.getElementById('hOut').textContent = '0';
+    document.getElementById('live-note').textContent = '● live: simulazione avviata — ore motore = 0';
+    document.getElementById('live-note').style.display = 'block';
+    document.getElementById('live-indicator').style.display = 'inline';
+    buildTree();
+  }
   const available = isSirius(mmsi);
   setDashboardAvailability(available);
   if(!available) return;
@@ -746,6 +760,7 @@ function cleanupSimulationCache() {
 setInterval(cleanupSimulationCache, CLEANUP_INTERVAL_MS);
 
 const socket = io(SOCKET_URL);
+
 socket.on('analytics_update', msg => {
   if(!msg||msg.type!=='component_usage') return;
   const mmsi = String(msg.mmsi||'');
@@ -755,7 +770,7 @@ socket.on('analytics_update', msg => {
   const msgTime = parseMessageTimestampMs(msg) || Date.now();
   if(source==='simulation' && Date.now() - msgTime > SIM_CACHE_TTL_MS) return;
   if(!ships[source][mmsi]) ships[source][mmsi]={ components:{} };
-  ships[source][mmsi].lastUpdated = msgTime;
+  ships[source][mmsi].lastUpdated = parseMessageTimestampMs(msg) || Date.now();
   if(msg.vessel_name&&(!vesselRegistry[mmsi]||!vesselRegistry[mmsi].name))
     vesselRegistry[mmsi]={ name:msg.vessel_name };
   ships[source][mmsi].components[comp] = { usage_s:getUsageSeconds(msg), active:!!msg.active };
