@@ -7,6 +7,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="dashboard_shared.js"></script>
 
     <style>
         body {
@@ -97,8 +98,11 @@
 
 
     <!-- HEADER -->
-    <div class="text-xl font-bold tracking-tight flex items-center gap-2">
-        <span class="text-blue-400">Monitor Vendite</span>
+    <div class="dashboard-title-stack">
+        <div class="text-xl font-bold tracking-tight flex items-center gap-2">
+            <span class="text-blue-400 dashboard-page-title">Monitor Vendite</span>
+        </div>
+        <div class="dashboard-page-desc" data-dashboard-desc="previsione_domanda"></div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[260px_380px_1fr] gap-6 flex-1 overflow-hidden">

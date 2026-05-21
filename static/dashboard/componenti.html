@@ -5,6 +5,8 @@
   <title>RBD Componenti – Monitor Componenti</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.9.0/dist/tabler-icons.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="dashboard_shared.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -36,42 +38,17 @@
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
     * { scrollbar-color: #475569 #0f172a; scrollbar-width: thin; }
 
-    /* ── Sidebar ── */
-    .sidebar {
-      width: 220px;
+    /* Main Area classes adapted for tailwind matching */
+    .vessel-bar {
       flex-shrink: 0;
-      background: #0a1120;
-      border-right: 0.5px solid #334155;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .sidebar-header {
-      padding: 12px;
+      background: #1e293b;
       border-bottom: 0.5px solid #334155;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #64748b;
-    }
-    .sidebar-section {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-    .sidebar-section + .sidebar-section { border-top: 0.5px solid #334155; }
-    .sidebar-section-head {
-      padding: 7px 12px;
+      padding: 9px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 0.5px solid #1e293b;
-      flex-shrink: 0;
     }
-    .sidebar-list { flex: 1; overflow-y: auto; padding: 6px; }
+    
     .ship-item {
       padding: 7px 9px;
       border-radius: 6px;
@@ -84,26 +61,6 @@
     .ship-item:hover { background: #263348; }
     .ship-item.sel-real  { background: rgba(30,58,138,0.45); border-color: #3b82f6; }
     .ship-item.sel-sim   { background: rgba(88,28,135,0.45); border-color: #a855f7; }
-
-    /* ── Main ── */
-    .main-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      min-width: 0;
-    }
-    .vessel-bar {
-      flex-shrink: 0;
-      background: #1e293b;
-      border-bottom: 0.5px solid #334155;
-      padding: 9px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .content-scroll { flex: 1; overflow-y: auto; padding: 20px; min-height: 0; }
-    .page-inner { width: min(1400px, 100%); margin: 0 auto; }
 
     /* ── RBD styles ── */
     .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
@@ -227,7 +184,7 @@
     }
   </style>
 </head>
-<body>
+<body class="h-screen w-screen p-6 flex flex-col overflow-hidden">
 
 <div id="tooltipBox" class="tooltip-box"></div>
 <div class="gloss-backdrop" id="glossBackdrop"></div>
@@ -239,54 +196,73 @@
   <div id="glossContent"></div>
 </div>
 
-<!-- ── SIDEBAR ── -->
-<aside class="sidebar">
-  <div class="sidebar-header">Imbarcazione</div>
+<div class="flex flex-col gap-6 w-full h-full">
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-head">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#60a5fa;">● Dati reali</span>
-      <span id="count-real" style="font-size:11px;color:#64748b;">0</span>
+  <!-- HEADER -->
+  <div class="dashboard-title-stack shrink-0">
+    <div class="text-xl font-bold tracking-tight flex items-center gap-2">
+      <span class="text-blue-400 dashboard-page-title">Monitor Componenti</span>
     </div>
-    <div id="list-real" class="sidebar-list"></div>
+    <div class="dashboard-page-desc">Controllo in tempo reale dello stato dei componenti principali, con indicazione delle soglie di intervento e supporto per drill-down manutentivo.</div>
   </div>
 
-  <div class="sidebar-section">
-    <div class="sidebar-section-head">
-      <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#c084fc;">● Simulati</span>
-      <span id="count-sim" style="font-size:11px;color:#64748b;">0</span>
-    </div>
-    <div id="list-sim" class="sidebar-list"></div>
-  </div>
-</aside>
+  <div class="space-x-5 flex flex-1 gap-6 overflow-hidden">
 
-<!-- ── MAIN ── -->
-<div class="main-area">
+    <!-- SIDEBAR (Split View) -->
+    <div class="space-y-4 flex flex-col gap-4 w-[260px] shrink-0">
+      
+      <!-- REAL VESSELS LIST -->
+      <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2" >
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+          <div class="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-2">
+            ● Dati reali
+          </div>
+          <span id="count-real" class="text-xs text-slate-500">0</span>
+        </div>
+        <div id="list-real" class="space-y-2 overflow-y-auto pr-1"></div>
+      </div>
 
-  <!-- Vessel header bar -->
-  <div class="vessel-bar">
-    <div style="display:flex;align-items:baseline;gap:10px;">
-      <span id="vessel-name-display" style="font-size:17px;font-weight:600;color:#e2e8f0;">—</span>
-      <span id="mmsi-display"        style="font-size:13px;color:#64748b;font-family:var(--font-mono);"></span>
-      <span id="live-indicator"      style="display:none;font-size:11px;color:#4ade80;font-family:var(--font-mono);">● LIVE</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span id="source-badge" style="display:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;"></span>
-      <button onclick="openGloss()" style="font-size:13px;color:var(--color-text-info);background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;">
-        <i class="ti ti-book-2" style="font-size:14px;margin-right:3px;"></i>Glossario
-      </button>
-    </div>
-  </div>
+      <!-- SIMULATION VESSELS LIST -->
+      <div class="card p-3 flex flex-col flex-1 overflow-hidden h-1/2" >
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700">
+          <div class="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-2">
+            ● Simulati
+          </div>
+          <span id="count-sim" class="text-xs text-slate-500">0</span>
+        </div>
+        <div id="list-sim" class="space-y-2 overflow-y-auto pr-1"></div>
+      </div>
 
-  <div class="content-scroll">
-  <div id="unavailableState" class="unavailable-state" aria-live="polite">
-    <div class="unavailable-card">
-      <i class="ti ti-database-off" aria-hidden="true"></i>
-      <div class="unavailable-title">Dati al momento non disponibili</div>
-      <div class="unavailable-text">Questa dashboard componenti è attualmente disponibile solo per la nave SIRIUS.</div>
     </div>
-  </div>
-  <div id="dashboardContent" class="page-inner">
+
+    <!-- MAIN CONTENT -->
+    <div class="space-y-6 flex-1 flex flex-col gap-6 overflow-hidden min-h-0">
+      
+      <!-- Vessel header bar -->
+      <div class="card p-4 shrink-0 flex items-center justify-between transition-all duration-300" style="margin:0; padding:12px 20px;">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span id="vessel-name-display" style="font-size:17px;font-weight:600;color:#e2e8f0;">—</span>
+          <span id="mmsi-display" style="font-size:13px;color:#64748b;font-family:var(--font-mono);"></span>
+          <span id="live-indicator" style="display:none;font-size:11px;color:#4ade80;font-family:var(--font-mono);">● LIVE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="source-badge" style="display:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;"></span>
+          <button onclick="openGloss()" style="font-size:13px;color:var(--color-text-info);background:none;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:4px 10px;cursor:pointer;">
+            <i class="ti ti-book-2" style="font-size:14px;margin-right:3px;"></i>Glossario
+          </button>
+        </div>
+      </div>
+
+      <div class="content-scroll flex-1 overflow-y-auto p-0" style="padding:0;">
+        <div id="unavailableState" class="unavailable-state" aria-live="polite">
+          <div class="unavailable-card mx-auto">
+            <i class="ti ti-database-off" aria-hidden="true"></i>
+            <div class="unavailable-title">Dati al momento non disponibili</div>
+            <div class="unavailable-text">Questa dashboard componenti è attualmente disponibile solo per la nave SIRIUS.</div>
+          </div>
+        </div>
+        
+        <div id="dashboardContent" class="page-inner" style="width:100%;">
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <div style="font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);">RBD · MAN D2862 / D2868 LE4XX</div>
@@ -335,6 +311,8 @@
     </div>
 
   </div>
+  </div>
+    </div>
   </div>
 </div>
 

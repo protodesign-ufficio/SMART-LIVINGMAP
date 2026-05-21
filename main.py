@@ -229,7 +229,7 @@ def main():
 	app = QApplication(sys.argv)
 	# Set a global application font so all widgets inherit a consistent size
 	try:
-		app.setFont(QFont('Segoe UI', 12))
+		app.setFont(QFont('Segoe UI', 10))
 	except Exception:
 		pass
 

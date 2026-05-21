@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="dashboard_shared.js"></script>
 
     <style>
         body { background-color:#0f172a; color:#e2e8f0; }
@@ -44,8 +45,11 @@
 <div class="flex flex-col gap-6 w-full h-full">
 
     <!-- HEADER -->
-    <div class="text-xl font-bold tracking-tight flex items-center gap-2 shrink-0">
-        <span class="text-blue-400">Monitor Vascelli</span>
+    <div class="dashboard-title-stack shrink-0">
+        <div class="text-xl font-bold tracking-tight flex items-center gap-2">
+            <span class="text-blue-400 dashboard-page-title">Monitor Vascelli</span>
+        </div>
+        <div class="dashboard-page-desc" data-dashboard-desc="vascello"></div>
     </div>
 
     <div class="space-x-6 flex flex-1 gap-6 overflow-hidden">

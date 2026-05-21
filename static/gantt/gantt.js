@@ -681,9 +681,8 @@ async function openCorsaModal(corsaId) {
                         </button>
                     ` : `
                         <button disabled class="px-3 py-1 rounded text-xs font-bold bg-slate-700 text-slate-500 cursor-not-allowed">
-                            Occupato
+                            Non Disponibile
                         </button>
-                        <div class="text-[10px] text-red-400 mt-1">Conflitto orario</div>
                     `}
                 </td>
             `;
