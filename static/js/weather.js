@@ -335,7 +335,7 @@
     var dataset = weatherData.dataset || 'N.D.';
     var scenarioName = (weatherData.scenario && (weatherData.scenario.scenario_nome || weatherData.scenario.scenario_name)) || '';
     if (layerSource[layerType] === 'route') {
-      weatherInfoData[layerType] = 'Dati meteo per scenario: ' + (scenarioName || 'Sconosciuto') + ' ' + timestamp;
+      weatherInfoData[layerType] = 'Dati meteo per scenario: ' + (scenarioName || 'Previsione') + ' ' + timestamp;
     } else {
       weatherInfoData[layerType] = 'Dati meteo in tempo reale: ' + timestamp;
     }
@@ -450,6 +450,9 @@
 
   function fetchWeatherLayerFromCache(cacheKey, layerType) {
     var url = BASE_URL + 'weather/cache/layer/' + encodeURIComponent(cacheKey);
+
+    console.error('weatherManager: playload per fetch cache', layerType, 'key:', cacheKey);
+
     console.log('weatherManager: fetching cache', layerType || 'auto', 'key:', cacheKey);
 
     // Determina il tipo per il bottone (se non specificato, usa 'currents' come default per loading)
