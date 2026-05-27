@@ -210,15 +210,6 @@ def main():
 		except Exception:
 			consumer_sim = None
 
-	if ConsumerNotification is not None:
-		try:
-			consumer_notification = ConsumerNotification()
-			# Connect signal to handle parsed messages
-			consumer_notification.notificationReceived.connect(handle_notification)
-			consumer_notification.start()
-		except Exception:
-			consumer_notification = None
-
 	# Enable High DPI scaling (helps on high-DPI / scaled displays)
 	try:
 		QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
@@ -232,6 +223,15 @@ def main():
 		app.setFont(QFont('Segoe UI', 10))
 	except Exception:
 		pass
+
+	# QObject (e i suoi segnali PyQt) richiede QApplication già esistente
+	if ConsumerNotification is not None:
+		try:
+			consumer_notification = ConsumerNotification()
+			consumer_notification.notificationReceived.connect(handle_notification)
+			consumer_notification.start()
+		except Exception:
+			consumer_notification = None
 
 	w = MainWindow(queue=q)
 	w.showMaximized()
