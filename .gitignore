@@ -1,3 +1,5 @@
 __pycache__/
 panels/__pycache__/
 subpanels/__pycache__/
+
+.claude/

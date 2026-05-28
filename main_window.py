@@ -13,6 +13,10 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QDialog,
+    QLabel,
+    QSpinBox,
+    QMessageBox,
+    QFormLayout,
 )
 from PyQt5.QtGui import QIcon
 
@@ -265,6 +269,11 @@ class MainWindow(QMainWindow):
             )
         )
         right_layout.addWidget(self.open_gantt_btn)
+
+        self.simula_ritardo_btn = QPushButton("Simula Ritardo")
+        self.simula_ritardo_btn.clicked.connect(self._open_simula_ritardo_dialog)
+        right_layout.addWidget(self.simula_ritardo_btn)
+
         right_layout.addStretch()
 
         # The web view placeholder is filled by _setup_web_view()
@@ -383,6 +392,82 @@ class MainWindow(QMainWindow):
             self.view.page().runJavaScript(js)
         except Exception as exc:
             print(f"[main_window] _drain_queue JS error: {exc}", flush=True)
+
+    def _ha_simulazione_in_corso(self) -> bool:
+        if get_json is None:
+            return False
+        try:
+            groups = get_json('/simulation/schedulate')
+            if not isinstance(groups, list):
+                return False
+            for group in groups:
+                for res in group.get('risultati', []):
+                    ass_id = res.get('assegnazione_id')
+                    if not ass_id:
+                        continue
+                    try:
+                        ass_data = get_json(f'/assegnazione/{ass_id}?include=piano,percorso,corsa,vascello')
+                        if isinstance(ass_data, dict) and ass_data.get('stato_esecuzione') == 'IN_CORSO':
+                            return True
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        return False
+
+    def _open_simula_ritardo_dialog(self):
+        if not self._ha_simulazione_in_corso():
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle("Attenzione")
+            msg_box.setText(
+                "Simulazione del ritardo non disponibile.\n"
+                "Nessuna nave in movimento."
+            )
+            msg_box.exec_()
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Simula Ritardo")
+        dlg.setMinimumWidth(320)
+        layout = QVBoxLayout(dlg)
+
+        form = QFormLayout()
+        spin = QSpinBox()
+        spin.setMinimum(1)
+        spin.setMaximum(999)
+        spin.setValue(5)
+        form.addRow("Imposta ritardo di simulazione (min):", spin)
+        layout.addLayout(form)
+
+        btn_salva = QPushButton("Salva Configurazione")
+        layout.addWidget(btn_salva)
+
+        def on_salva():
+            ritardo = spin.value()
+            dlg.accept()
+            QTimer.singleShot(10000, lambda: self._esegui_simula_ritardo(ritardo))
+
+        btn_salva.clicked.connect(on_salva)
+        dlg.exec_()
+
+    def _esegui_simula_ritardo(self, ritardo: int):
+        if ritardo < 10:
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Warning)
+            msg_box.setWindowTitle("Avviso di Replanning")
+            msg_box.setText(
+                "Individuato un ritardo minore di 10min, ritardo assorbibile.\n"
+                "Non necessario il replanning."
+            )
+            msg_box.exec_()
+        else:
+            try:
+                import subprocess, sys, os
+                script = os.path.join(os.path.dirname(__file__), "test_replanning.py")
+                subprocess.Popen([sys.executable, script])
+            except Exception as e:
+                print(f"[simula_ritardo] Errore avvio test_replanning.py: {e}", flush=True)
 
     def refresh_ports_on_map(self, items: list):
         """Push a fresh list of port dicts to the web map.

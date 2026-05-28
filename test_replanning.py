@@ -20,7 +20,8 @@ def send_test_notification():
         # Test message content
         message = {
             "msg_type": "replanning",
-            "motivo": "LateCount > M",
+            #"motivo": "LateCount > M", 
+            'motivo': "Individuato un ritardo non assorbibile. Replanning consigliato.",
             "timestamp": time.time()
         }
         
